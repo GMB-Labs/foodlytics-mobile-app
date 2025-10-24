@@ -11,7 +11,28 @@ module.exports = {
   ],
   presets: [require("nativewind/preset")],
   theme: {
-    extend: {},
+    extend: {
+      colors: {
+        primary: "#2FCCAC",
+        primaryDark: "#24A88C",
+        bg: "#F9FAFB",
+        text: "#1A1A1A",
+        mute: "#4A5565",
+      },
+      fontFamily: {
+        poppins: ["Poppins-Regular", "System"],
+        "poppins-medium": ["Poppins-Medium", "System"],
+        "poppins-bold": ["Poppins-Bold", "System"],
+      },
+      borderRadius: {
+        xl: 16,
+        "2xl": 24,
+      },
+      boxShadow: {
+        card: "0 6px 20px rgba(0,0,0,0.08)",
+        fab: "0 10px 25px rgba(47,204,172,0.45)",
+      },
+    },
   },
   plugins: [],
 }
