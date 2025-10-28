@@ -13,12 +13,12 @@ import { Pressable } from 'react-native';
 
 const MIN = 50;
 const MAX = 250;
-const ITEM_H = 50; // alto por número
+const ITEM_H = 50; 
 function AutoRepeatPressable({
   children,
   onStep,
-  delay = 350, // primer paso tras mantener
-  interval = 70, // pasos continuos
+  delay = 350, 
+  interval = 70, 
 }: {
   children: React.ReactNode;
   onStep: () => void;
