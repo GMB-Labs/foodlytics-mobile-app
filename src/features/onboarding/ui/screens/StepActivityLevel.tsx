@@ -1,6 +1,7 @@
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
-import { View, Pressable, StyleSheet, Image } from 'react-native';
+import { View, Pressable, StyleSheet, Image, ScrollView } from 'react-native';
+import OnboardingFooter from '@/src/shared/ui/OnboardingFooter';
 import { PrimaryGradient } from '@/src/shared/ui/components/Gradients';
 import ProgressBar from '@/src/shared/ui/ProgressBar';
 import OnboardingCard from '@/src/shared/ui/OnboardingCard';
@@ -28,30 +29,39 @@ export default function StepActivityLevel() {
   const onContinue = () => {
     if (!selected) return;
     (actions as OnboardingActions).setActivityLevel(selected as any);
-    router.push('/onboarding/summary');
+    router.push('/onboarding/step-notifications');
   };
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#F3F4F6' }}>
+    <View style={{ flex: 1, backgroundColor: '#FFFFFF' }}>
       <PrimaryGradient style={{ position: 'absolute', top: 0, left: 0, right: 0 }} height={200} />
 
       <View className="flex-1">
         <View className="h-28 px-8 pt-16">
-          <ProgressBar step={6} total={7} containerStyle={{ paddingHorizontal: 32 }} />
+          <ProgressBar step={6} total={8} containerStyle={{ paddingHorizontal: 32 }} />
         </View>
 
         <OnboardingCard paddingHorizontal={32} paddingTop={24}>
           <View style={{ flex: 1 }}>
             <View style={{ alignItems: 'center', marginBottom: 12 }}>
-              <View style={{ width: 96, height: 96, borderRadius: 48, backgroundColor: '#E6FAF5', alignItems: 'center', justifyContent: 'center', marginBottom: 8 }}>
-                <AppText variant="ag3" style={{ lineHeight: 48 }}>🏃</AppText>
-              </View>
-              
+            <View
+              style={{
+                width: 75,
+                height: 75,
+                borderRadius: 40,
+                backgroundColor: '#E6FAF5',
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginBottom: 8,
+              }}
+            >
+              <AppText style={{ fontSize: 30, lineHeight: 34 }}>🏃</AppText>
+            </View>
               <AppText variant="ag3" align="center" color="#111827">¿Cuál es tu nivel de actividad?</AppText>
               <AppText variant="ag9" align="center" style={{ color: '#4A5565', marginTop: 6 }}>Esto nos ayuda a calcular tus necesidades calóricas</AppText>
             </View>
 
-            <View style={{ marginTop: 8, width: '100%', maxWidth: 366 }}>
+            <ScrollView style={{ marginTop: 8, width: '100%', maxWidth: 366 }} contentContainerStyle={{ paddingBottom: 140 }} showsVerticalScrollIndicator={false}>
               {options.map((o) => {
                 const isSelected = selected === o.key;
                 return (
@@ -77,29 +87,12 @@ export default function StepActivityLevel() {
                   </Pressable>
                 );
               })}
-            </View>
+            </ScrollView>
           </View>
         </OnboardingCard>
       </View>
 
-      <View style={{ position: 'absolute', left: 0, right: 0, bottom: 16, paddingHorizontal: 32 }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <Pressable
-              onPress={() => router.back()}
-              style={{ width: 56, height: 56, borderRadius: 12, backgroundColor: 'white', borderWidth: 1, borderColor: '#E5E7EB', alignItems: 'center', justifyContent: 'center', marginRight: 16 }}
-            >
-              <AppText variant="ag7" style={{ color: '#374151', fontSize: 20 }}>‹</AppText>
-            </Pressable>
-
-          <Pressable
-            onPress={onContinue}
-            disabled={!selected}
-            style={{ flex: 1, height: 56, borderRadius: 20, alignItems: 'center', justifyContent: 'center', backgroundColor: selected ? '#2FCCAC' : '#D1D5DB', opacity: selected ? 1 : 0.6 }}
-          >
-            <AppText variant="ag9" align="center" style={{ color: '#FFFFFF', fontFamily: 'Poppins-Medium' }}>Continuar</AppText>
-          </Pressable>
-        </View>
-      </View>
+      <OnboardingFooter onBack={() => router.back()} onContinue={onContinue} disabledContinue={!selected} />
     </View>
   );
 }

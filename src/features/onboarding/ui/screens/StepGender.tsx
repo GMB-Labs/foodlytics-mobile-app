@@ -7,6 +7,7 @@ import OnboardingCard from '@/src/shared/ui/OnboardingCard';
 import AppText from '@/src/shared/ui/components/Typography';
 import { useOnboarding } from '@/src/features/onboarding/application/OnboardingProvider';
 import type { Gender } from '@/src/features/onboarding/application/store';
+import OnboardingFooter from '@/src/shared/ui/OnboardingFooter';
 
   export default function StepGender() {
     const router = useRouter();
@@ -27,12 +28,12 @@ import type { Gender } from '@/src/features/onboarding/application/store';
     };
 
     return (
-      <View className="flex-1 bg-[#F3F4F6]">
+      <View className="flex-1 bg-[#FFFFFF]">
         <PrimaryGradient style={{ position: 'absolute', top: 0, left: 0, right: 0 }} height={200} />
 
         <View className="flex-1">
           <View className="h-28 px-8 pt-16">
-            <ProgressBar step={2} total={7} containerStyle={{ paddingHorizontal: 32 }} />
+            <ProgressBar step={2} total={8} containerStyle={{ paddingHorizontal: 32 }} />
           </View>
 
           <OnboardingCard paddingHorizontal={32} paddingTop={24}>
@@ -80,25 +81,7 @@ import type { Gender } from '@/src/features/onboarding/application/store';
           </OnboardingCard>
         </View>
 
-        <View className="absolute left-0 right-0 bottom-10 px-8">
-          <View className="flex-row items-center">
-            <TouchableOpacity
-              onPress={() => router.back()}
-              className="w-14 h-14 rounded-[12px] bg-white border border-gray-200 items-center justify-center mr-4"
-            >
-              <Text className="text-gray-700 text-xl">‹</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              onPress={onContinue}
-              disabled={!isValid}
-              style={{ opacity: isValid ? 1 : 0.6 }}
-              className={`flex-1 h-14 rounded-[20px] items-center justify-center ${isValid ? 'bg-[#2FCCAC]' : 'bg-gray-300'}`}
-            >
-              <AppText variant="ag9" align="center" color="#FFFFFF" style={{ fontFamily: 'Poppins-Medium' }}>Continuar</AppText>
-            </TouchableOpacity>
-          </View>
-        </View>
+      <OnboardingFooter onBack={() => router.back()} onContinue={onContinue} disabledContinue={!selected} />
       </View>
     );
   }

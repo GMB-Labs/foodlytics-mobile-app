@@ -8,6 +8,7 @@ import AppText from "@/src/shared/ui/components/Typography";
 import { useOnboarding } from "@/src/features/onboarding/application/OnboardingProvider";
 import type { OnboardingActions } from "@/src/features/onboarding/application/store";
 import WeightScale from "@/src/shared/ui/WeightScale";
+import OnboardingFooter from '@/src/shared/ui/OnboardingFooter';
 
 // ====== Config ======
 const MIN = 20;
@@ -31,12 +32,12 @@ export default function StepWeight() {
   };
 
   return (
-    <View className="flex-1 bg-[#F3F4F6]">
+    <View className="flex-1 bg-[#FFFFFF]">
       <PrimaryGradient style={{ position: "absolute", top: 0, left: 0, right: 0 }} height={200} />
 
       <View className="flex-1">
         <View className="h-28 px-8 pt-16">
-          <ProgressBar step={4} total={7} containerStyle={{ paddingHorizontal: 32 }} />
+          <ProgressBar step={4} total={8} containerStyle={{ paddingHorizontal: 32 }} />
         </View>
 
         <OnboardingCard paddingHorizontal={32} paddingTop={26}>
@@ -50,7 +51,7 @@ export default function StepWeight() {
           </View>
 
           {/* ====== BÁSCULA (misma caja y espacio que tenías) ====== */}
-          <View className="flex-1 items-center justify-center -mt-80">
+          <View className="flex-1 items-center justify-center -mt-44">
             {/* display “digital” que ya usabas */}
             <View style={{ alignItems: "center", marginBottom: 12 }}>
               <Text style={{ fontSize: 36, fontFamily: "Poppins-SemiBold", color: "#111827" }}>
@@ -67,44 +68,7 @@ export default function StepWeight() {
       </View>
 
       {/* footer */}
-      <View className="absolute left-0 right-0 bottom-10 px-8">
-        <View className="flex-row items-center">
-          <Pressable
-            onPress={() => router.back()}
-            style={{
-              width: 56,
-              height: 56,
-              borderRadius: 12,
-              backgroundColor: "white",
-              borderWidth: 1,
-              borderColor: "#E5E7EB",
-              alignItems: "center",
-              justifyContent: "center",
-              marginRight: 16,
-            }}
-          >
-            <Text style={{ color: "#374151", fontSize: 20 }}>‹</Text>
-          </Pressable>
-
-          <Pressable
-            onPress={onContinue}
-            disabled={!isValid}
-            style={{
-              flex: 1,
-              height: 56,
-              borderRadius: 20,
-              alignItems: "center",
-              justifyContent: "center",
-              backgroundColor: isValid ? "#2FCCAC" : "#D1D5DB",
-              opacity: isValid ? 1 : 0.6,
-            }}
-          >
-            <AppText variant="ag9" align="center" color="#FFFFFF" style={{ fontFamily: "Poppins-Medium" }}>
-              Continuar
-            </AppText>
-          </Pressable>
-        </View>
-      </View>
+      <OnboardingFooter onBack={() => router.back()} onContinue={onContinue} disabledContinue={!isValid} />
     </View>
   );
 }

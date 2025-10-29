@@ -13,6 +13,8 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
     setWeightKg: (kg: number) => setState((s) => ({ ...s, weightKg: isFinite(kg) ? kg : undefined })),
     setGoalWeightKg: (kg: number) => setState((s) => ({ ...s, goalWeightKg: isFinite(kg) ? kg : undefined })),
     setActivityLevel: (lvl: ActivityLevel) => setState((s) => ({ ...s, activityLevel: lvl })),
+    setNotificationsPermission: (p) => setState((s) => ({ ...s, notificationsPermission: p })),
+    setNotificationsPreferences: (prefs) => setState((s) => ({ ...s, notificationsPreferences: prefs })),
     reset: () => setState({}),
   }), []);
 

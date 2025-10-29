@@ -55,7 +55,7 @@ export default function StepDob() {
     if (d < 1 || d > 31 || m < 1 || m > 12) return false;
     if (y < new Date().getFullYear() - 100 || y > new Date().getFullYear()) return false;
     const age = new Date().getFullYear() - y;
-    if (age < 10 || age > 100) return false;
+    if (age < 16 || age > 100) return false;
     return true;
   }
 
@@ -91,7 +91,7 @@ export default function StepDob() {
       <View className="flex-1">
         {/* Progress Bar (component) */}
         <View className="h-28 px-8 pt-16">
-          <ProgressBar step={1} total={7} containerStyle={{ paddingHorizontal: 32 }} />
+          <ProgressBar step={1} total={8} containerStyle={{ paddingHorizontal: 32 }} />
         </View>
 
         {/* Content Card */}
@@ -110,65 +110,69 @@ export default function StepDob() {
           </View>
 
           {/* Inline native spinner carousel */}
-          <View className="items-center justify-center h-56">
-            <View className="w-full max-w-[360px]">
-
-              {/* Show DateTimePicker inline on iOS (spinner), on Android toggle modal/spinner */}
-              {Platform.OS === 'android' ? (
-                <>
-                  <TouchableOpacity
-                    onPress={() => setShowAndroidPicker(true)}
-                    className="bg-white rounded-lg px-4 py-6 items-center"
-                    style={{ borderWidth: 1, borderColor: '#E5E7EB' }}
-                  >
-                    <View className="flex-row justify-between w-full px-6">
-                      <Text className="text-gray-400">{monthLabel}</Text>
-                      <Text className="text-gray-700">{dayLabel}</Text>
-                      <Text className="text-gray-400">{yearLabel}</Text>
-                    </View>
-                  </TouchableOpacity>
-                  {showAndroidPicker && (
-                    <DateTimePicker
-                      value={selectedDate}
-                      mode="date"
-                      display="spinner"
-                      onChange={onChange}
-                      maximumDate={new Date()}
-                      minimumDate={new Date(new Date().getFullYear() - 100, 0, 1)}
-                      textColor="#374151"
-                    />
-                  )}
-                </>
-              ) : (
-                <View style={{ overflow: 'hidden', borderRadius: 8, alignItems: 'center' }}>
-                  <View style={{ width: 340 }}>
-                    <DateTimePicker
-                      value={selectedDate}
-                      mode="date"
-                      display="spinner"
-                      onChange={onChange}
-                      maximumDate={new Date()}
-                      minimumDate={new Date(new Date().getFullYear() - 100, 0, 1)}
-                      textColor="#374151"
-                      style={{ width: 340 }}
-                    />
-                  </View>
-                </View>
-              )}
-            </View>
+<View className="items-center justify-center h-56">
+  <View className="w-full max-w-[360px]">
+    {Platform.OS === 'android' ? (
+      <>
+        <TouchableOpacity
+          onPress={() => setShowAndroidPicker(true)}
+          className="bg-white rounded-lg px-4 py-6 items-center"
+          style={{ borderWidth: 1, borderColor: '#E5E7EB' }}
+        >
+          <View className="flex-row justify-between w-full px-6">
+            <Text className="text-gray-400">{monthLabel}</Text>
+            <Text className="text-gray-700">{dayLabel}</Text>
+            <Text className="text-gray-400">{yearLabel}</Text>
           </View>
+        </TouchableOpacity>
 
-          {/* Error Message */}
-          {error ? (
-            <AppText variant="ag9" color="#EF4444">{error}</AppText>
-          ) : (
-             <AppText variant="ag9" color="#6B7280">Selecciona una fecha válida</AppText>
-          )}
+        {showAndroidPicker && (
+          <DateTimePicker
+            value={selectedDate}
+            mode="date"
+            display="spinner"
+            onChange={onChange}
+            maximumDate={new Date()}
+            minimumDate={new Date(new Date().getFullYear() - 100, 0, 1)}
+            textColor="#374151"
+          />
+        )}
 
+        {/* helper debajo, mismo bloque */}
+        <AppText variant="ag9" color={error ? '#EF4444' : '#6B7280'} style={{ marginTop: 12 }}>
+          {error || 'Selecciona una fecha válida'}
+        </AppText>
+      </>
+    ) : (
+      // iOS: movemos TODO el bloque (picker + helper) con translateY
+      <View style={{ alignItems: 'center', transform: [{ translateY: 40 }] }}>
+        <View style={{ overflow: 'hidden', borderRadius: 8 }}>
+          <View style={{ width: 340 }}>
+            <DateTimePicker
+              value={selectedDate}
+              mode="date"
+              display="spinner"
+              onChange={onChange}
+              maximumDate={new Date()}
+              minimumDate={new Date(new Date().getFullYear() - 100, 0, 1)}
+              textColor="#374151"
+              style={{ width: 340 }}
+            />
+          </View>
+        </View>
+
+        {/* helper debajo, dentro del mismo wrapper para que baje junto */}
+        <AppText variant="ag9" color={error ? '#EF4444' : '#6B7280'} style={{ marginTop: 12 }}>
+          {error || 'Selecciona una fecha válida'}
+        </AppText>
+      </View>
+    )}  
+    </View>
+</View>
         </OnboardingCard>
       </View>
 
-      {/* Footer Continue Button placed at bottom like Figma */}
+      {/* Footer Continue Button */}
       <View className="absolute left-0 right-0 bottom-10 px-8">
         <TouchableOpacity
           onPress={() => validateDate() && router.push('/onboarding/step-gender')}

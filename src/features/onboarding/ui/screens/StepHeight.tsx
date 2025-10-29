@@ -10,6 +10,7 @@ import { useOnboarding } from "@/src/features/onboarding/application/OnboardingP
 import type { OnboardingActions } from "@/src/features/onboarding/application/store";
 import * as Haptics from 'expo-haptics';
 import { Pressable } from 'react-native';
+import OnboardingFooter from '@/src/shared/ui/OnboardingFooter';
 
 const MIN = 50;
 const MAX = 250;
@@ -110,12 +111,12 @@ export default function StepHeight() {
   }, [containerHeight]);
 
   return (
-    <View className="flex-1 bg-[#F3F4F6]">
+    <View className="flex-1 bg-[#FFFFFF]">
       <PrimaryGradient style={{ position: "absolute", top: 0, left: 0, right: 0 }} height={200} />
 
       <View className="flex-1">
         <View className="h-28 px-8 pt-16">
-          <ProgressBar step={3} total={7} containerStyle={{ paddingHorizontal: 32 }} />
+          <ProgressBar step={3} total={8} containerStyle={{ paddingHorizontal: 32 }} />
         </View>
 
         <OnboardingCard paddingHorizontal={32} paddingTop={24}>
@@ -130,7 +131,7 @@ export default function StepHeight() {
   </View>
 
   {/* Picker CENTRADO en la tarjeta */}
-<View className="flex-1 items-center justify-center -mt-40" onLayout={onLayout}>
+<View className="flex-1 items-center justify-center -mt-20" onLayout={onLayout}>
     <View style={{ width: 220, height: ITEM_H * 5, alignItems: 'center', justifyContent: 'center' }}>
       {/* Guías finas del activo */}
       <View style={{ position: 'absolute', top: ITEM_H * 2, left: 24, right: 24, height: 0.5, backgroundColor: '#E5E7EB' }} />
@@ -195,37 +196,10 @@ export default function StepHeight() {
     </View>
   </View>
 </View>
-        </OnboardingCard>
-      </View>
+</OnboardingCard>
+</View>
 
-      <View className="absolute left-0 right-0 bottom-10 px-8">
-        <View className="flex-row items-center">
-          <TouchableOpacity
-            onPress={() => router.back()}
-            className="w-14 h-14 rounded-[12px] bg-white border border-gray-200 items-center justify-center mr-4"
-          >
-            <Text className="text-gray-700 text-xl">‹</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            onPress={onContinue}
-            disabled={!isValid}
-            style={{ opacity: isValid ? 1 : 0.6 }}
-            className={`flex-1 h-14 rounded-[20px] items-center justify-center ${
-              isValid ? "bg-[#2FCCAC]" : "bg-gray-300"
-            }`}
-          >
-            <AppText
-              variant="ag9"
-              align="center"
-              color="#FFFFFF"
-              style={{ fontFamily: "Poppins-Medium" }}
-            >
-              Continuar
-            </AppText>
-          </TouchableOpacity>
-        </View>
-      </View>
+ <OnboardingFooter onBack={() => router.back()} onContinue={onContinue} disabledContinue={!isValid} />
     </View>
   );
 }
