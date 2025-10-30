@@ -3,12 +3,12 @@ import React, { useState } from "react";
 import { View, Text, Pressable } from "react-native";
 import { PrimaryGradient } from "@/src/shared/ui/components/Gradients";
 import ProgressBar from "@/src/shared/ui/ProgressBar";
-import OnboardingCard from "@/src/shared/ui/OnboardingCard";
+import OnboardingCard from "@/src/features/onboarding/ui/OnboardingCard";
 import AppText from "@/src/shared/ui/components/Typography";
 import { useOnboarding } from "@/src/features/onboarding/application/OnboardingProvider";
 import type { OnboardingActions } from "@/src/features/onboarding/application/store";
 import WeightScale from "@/src/shared/ui/WeightScale";
-import OnboardingFooter from '@/src/shared/ui/OnboardingFooter';
+import OnboardingFooter from '@/src/features/onboarding/ui/OnboardingFooter';
 
 // ====== Config ======
 const MIN = 20;

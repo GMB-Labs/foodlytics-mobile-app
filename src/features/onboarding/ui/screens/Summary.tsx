@@ -3,9 +3,9 @@ import { View, ScrollView, ActivityIndicator, Alert, StyleSheet } from 'react-na
 import { useRouter } from 'expo-router';
 import { PrimaryGradient } from '@/src/shared/ui/components/Gradients';
 import ProgressBar from '@/src/shared/ui/ProgressBar';
-import OnboardingCard from '@/src/shared/ui/OnboardingCard';
+import OnboardingCard from '@/src/features/onboarding/ui/OnboardingCard';
 import AppText from '@/src/shared/ui/components/Typography';
-import OnboardingFooter from '@/src/shared/ui/OnboardingFooter';
+import OnboardingFooter from '@/src/features/onboarding/ui/OnboardingFooter';
 import { useOnboarding } from '@/src/features/onboarding/application/OnboardingProvider';
 import { submitOnboarding } from '@/src/features/onboarding/application/submitOnboarding';
 import { computeInitialGoals } from '@/src/features/goals/application/computeInitialGoals';
@@ -69,7 +69,7 @@ export default function SummaryScreen() {
       </View>
 
       <OnboardingCard paddingHorizontal={32} paddingTop={24}>
-        <ScrollView contentContainerStyle={{ paddingBottom: 140 }}>
+
           {/* Header */}
           <View style={{ alignItems: 'center', marginBottom: 12 }}>
             <View
@@ -193,7 +193,7 @@ export default function SummaryScreen() {
               </AppText>
             </View>
           </View>
-        </ScrollView>
+
       </OnboardingCard>
 
       <OnboardingFooter onBack={onBack} onContinue={onComplete} disabledContinue={sending} />

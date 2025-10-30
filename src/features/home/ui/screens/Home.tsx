@@ -6,23 +6,20 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
-import Svg, { Circle } from 'react-native-svg';
-
 import AppText from '@/src/shared/ui/components/Typography';
 import { PrimaryGradient } from '@/src/shared/ui/components/Gradients';
 import BottomNav from '@/src/shared/ui/BottomNav';
 import { PixelRatio } from 'react-native';
 
-
-
-// ===== SVGS
+// local icons still used by Home header
 import Profile from '@/assets/icons/profile-icon.svg';
-import ConsumedIcon from '@/assets/icons/ConsumedIcon.svg';
-import BurnedIcon from '@/assets/icons/BurnedIcon.svg';
-import RemainingIcon from '@/assets/icons/RemainingIcon.svg';
-import BreakfastIcon from '@/assets/icons/BreakfastIcon.svg';
-import LunchIcon from '@/assets/icons/LunchIcon.svg';
-import DinnerIcon from '@/assets/icons/DinnerIcon.svg';
+
+// split widgets 
+import CaloriesCard from '../components/CaloriesCard';
+import MacrosCard from '../components/MacrosCard';
+import ImcCard from '../components/ImcCard';
+import MealsList from '../components/MealsList';
+import { styles } from '../components/styles';
 
 // ===== Datos fake para demo
 const data = {
@@ -34,9 +31,9 @@ const data = {
   },
   imc: { value: 24.2, label: 'Normal' },
   meals: [
-    { key: 'breakfast', title: 'Desayuno', calories: '410 kcal', chipBg: '#FFEDD4', Icon: BreakfastIcon },
-    { key: 'lunch',     title: 'Almuerzo', calories: '238 kcal', chipBg: '#FEF9C2', Icon: LunchIcon },
-    { key: 'dinner',    title: 'Cena',     calories: '306 kcal', chipBg: '#E9D5FF', Icon: DinnerIcon },
+    { key: 'breakfast', title: 'Desayuno', calories: '', chipBg: '#FFEDD4' },
+    { key: 'lunch',     title: 'Almuerzo', calories: '238 kcal', chipBg: '#FEF9C2' },
+    { key: 'dinner',    title: 'Cena',     calories: '306 kcal', chipBg: '#E9D5FF' },
   ],
 };
 
@@ -208,317 +205,18 @@ const fsFix = fontScale > 1.1 ? 0.92 : 1; // reduce un poco alturas si la tipogr
           </View>
         </View>
       </View>
-
-      {/* Sin scroll vertical: sección inferior compacta */}
-      <View style={{ flex: 1, backgroundColor: BG }}>
-        <MealsList
-          meals={data.meals}
-          onAdd={(k) => {}}
-          compact={COMPACT}
-          rowH={MEAL_ROW_H}
-          iconSize={MEAL_ICON}
-          radius={MEAL_RADIUS}
-          horizontalPad={H_PAD}
-        />
-      </View>
-
-      <BottomNav />
-    </SafeAreaView>
-  );
+        {/* Sin scroll vertical: sección inferior compacta */}
+        <View style={{ flex: 1, backgroundColor: BG }}>
+          <MealsList
+            meals={data.meals}
+            onAdd={(k) => {}}
+            compact={COMPACT}
+            rowH={MEAL_ROW_H}
+            iconSize={MEAL_ICON}
+            radius={MEAL_RADIUS}
+            horizontalPad={H_PAD}
+          />
+        </View>
+      </SafeAreaView>
+    );
 }
-
-/* ============================
- * Widgets
- * ============================
- */
-
-function CaloriesCard({
-  consumed, burned, goal, remaining, progress, ringSize = 80, ringThickness = 12,
-}: {
-  consumed: number; burned: number; goal: number; remaining: number; progress: number;
-  ringSize?: number; ringThickness?: number;
-}) {
-  return (
-    <>
-      <AppText variant="ag9" style={{ color: '#4A5565' }}>Calorías de Hoy</AppText>
-
-      <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 6 }}>
-        <AppText variant="ag1" style={{ color: '#2FCCAC' }}>{consumed.toString()}</AppText>
-        <AppText variant="ag7" style={{ color: '#99A1AF', marginLeft: 8 }}>/ {goal}</AppText>
-        <View style={{ flex: 1 }} />
-        <RingProgress size={ringSize} thickness={ringThickness} progress={progress} label={`${Math.round(progress * 100)}%`} />
-      </View>
-
-      <View style={styles.divider} />
-
-      <View style={[styles.metricsRow, { gap: 6 }]}>
-        <View style={styles.metricCol}>
-          <View style={styles.metricIcon}><ConsumedIcon width={16} height={16} color="#2FCCAC" /></View>
-          <AppText variant="ag10" style={styles.muted}>Consumidas</AppText>
-          <AppText variant="ag6">{consumed.toString()}</AppText>
-        </View>
-        <View style={styles.metricCol}>
-          <View style={styles.metricIcon}><BurnedIcon width={16} height={16} color="#FF5A3D" /></View>
-          <AppText variant="ag10" style={styles.muted}>Quemadas</AppText>
-          <AppText variant="ag6">{burned.toString()}</AppText>
-        </View>
-        <View style={styles.metricCol}>
-          <View style={styles.metricIcon}><RemainingIcon width={16} height={16} color="#2B7FFF" /></View>
-          <AppText variant="ag10" style={styles.muted}>Restantes</AppText>
-          <AppText variant="ag6">{remaining.toString()}</AppText>
-        </View>
-      </View>
-    </>
-  );
-}
-
-function MacrosCard({
-  macros, compact = false
-}: {
-  macros: {
-    protein: { done: number; goal: number; color: string; label: string; };
-    carbs:   { done: number; goal: number; color: string; label: string; };
-    fats:    { done: number; goal: number; color: string; label: string; };
-  };
-  compact?: boolean;
-}) {
-  type Row = { emoji: string; label: string; done: number; goal: number; color: string; };
-  const rows: Row[] = [
-    { emoji: '💪', label: 'Proteínas',     done: macros.protein.done, goal: macros.protein.goal, color: '#2B7FFF' },
-    { emoji: '🍞', label: 'Carbohidratos', done: macros.carbs.done,   goal: macros.carbs.goal,   color: '#FF6900' },
-    { emoji: '🥑', label: 'Grasas',        done: macros.fats.done,    goal: macros.fats.goal,    color: '#F0B100' },
-  ];
-
-  const ROW_GAP = compact ? 12 : 16;
-  const TRACK_H = compact ? 6 : 8;
-
-  return (
-    <>
-      <AppText variant="ag7">Macronutrientes</AppText>
-
-      {rows.map((r, i) => {
-        const pct = r.goal > 0 ? Math.min(100, Math.round((r.done / r.goal) * 100)) : 0;
-        return (
-          <View key={r.label} style={{ marginTop: i === 0 ? ROW_GAP : ROW_GAP }}>
-            {/* Fila: emoji + label | valor derecha */}
-            <View style={[styles.macroRow, { height: compact ? 24 : 28 }]}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                <AppText variant="ag6">{r.emoji}</AppText>
-                <AppText variant="ag9">{r.label}</AppText>
-              </View>
-              <AppText variant="ag9" style={{ color: r.color }}>
-                {r.done}g / {r.goal}g
-              </AppText>
-            </View>
-
-            {/* Barra de progreso */}
-            <View style={[styles.macroTrack, { height: TRACK_H }]}>
-              <View style={[styles.macroFill, { width: `${pct}%`, height: TRACK_H, backgroundColor: r.color }]} />
-            </View>
-          </View>
-        );
-      })}
-    </>
-  );
-}
-
-function ImcCard({ value, label, compact = false }: { value: number; label: string; compact?: boolean; }) {
-  return (
-    <>
-      <AppText variant="ag7">IMC Actual</AppText>
-      <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: compact ? 12 : 16 }}>
-        <View style={[styles.imcBubble, { width: compact ? 68 : 80, height: compact ? 68 : 80 }]}>
-          <AppText variant="ag2" style={{ color: '#2FCCAC' }}>{value.toString()}</AppText>
-        </View>
-        <View style={{ marginLeft: 16, flex: 1 }}>
-          <AppText variant="ag9" style={{ color: '#4A5565' }}>Índice de Masa Corporal</AppText>
-          <View style={{ marginTop: 4 }}>
-            <AppText variant="ag10" style={[styles.imcPill, { paddingHorizontal: compact ? 10 : 12, paddingVertical: compact ? 3 : 4 }]}>{label}</AppText>
-          </View>
-        </View>
-      </View>
-      <View style={[styles.imcGrid, { marginTop: compact ? 12 : 16, paddingTop: compact ? 12 : 16 }]}>
-        <View style={styles.imcCell}>
-          <AppText variant="ag10" style={styles.muted}>Peso</AppText>
-          <AppText variant="ag6">70 kg</AppText>
-        </View>
-        <View style={styles.imcCell}>
-          <AppText variant="ag10" style={styles.muted}>Altura</AppText>
-          <AppText variant="ag6">170 cm</AppText>
-        </View>
-      </View>
-    </>
-  );
-}
-
-function MealsList({
-  meals, onAdd, compact = false, rowH = 74, iconSize = 44, radius = 16, horizontalPad = 20,
-}: {
-  meals: { key: string; title: string; calories: string; chipBg: string; Icon: any; }[];
-  onAdd: (k: string) => void;
-  compact?: boolean;
-  rowH?: number; iconSize?: number; radius?: number; horizontalPad?: number;
-}) {
-  return (
-    <View style={[styles.mealsWrapper, { paddingHorizontal: horizontalPad, marginTop: compact ? 30 : 40 }]}>
-      <View style={[styles.mealsCard, { padding: compact ? 20 : 30,  }]}>
-        <View style={[styles.mealsHeader, { paddingBottom: compact ? 2 : 0 }]}>
-          <AppText variant="ag7">Comidas de Hoy</AppText>
-          <Pressable><AppText variant="ag9" style={{ color: '#2FCCAC' }}>Ver todas</AppText></Pressable>
-        </View>
-
-        <View style={{ marginTop: compact ? 8 : 12 }}>
-          {meals.map(({ key, title, calories, chipBg, Icon }) => (
-            <View
-              key={key}
-              style={[
-                styles.mealRow,
-                {
-                  height: rowH,
-                  paddingVertical: compact ? 12 : 14,
-                  paddingHorizontal: compact ? 12 : 16,
-                  borderRadius: radius,
-                  marginBottom: compact ? 8 : 12,
-                }
-              ]}
-            >
-              <View
-                style={[
-                  styles.mealChip,
-                  {
-                    width: iconSize,
-                    height: iconSize,
-                    borderRadius: Math.round(iconSize * 0.42),
-                    marginRight: compact ? 12 : 16,
-                    backgroundColor: chipBg
-                  }
-                ]}
-              >
-                <Icon width={Math.round(iconSize * 0.5)} height={Math.round(iconSize * 0.5)} color="#1A1A1A" />
-              </View>
-              <View style={{ flex: 1 }}>
-                <AppText variant="ag9" style={{ color: '#1A1A1A' }} numberOfLines={1}>{title}</AppText>
-                <AppText variant="ag9" style={{ color: '#2FCCAC' }} numberOfLines={1}>{calories}</AppText>
-              </View>
-              <View style={[styles.arrowContainer, { width: 18, height: 18 }]}>
-                <AppText variant="ag7" style={{ color: '#99A1AF' }}>›</AppText>
-              </View>
-            </View>
-          ))}
-        </View>
-      </View>
-    </View>
-  );
-}
-
-/* ============================
- * RingProgress
- * ============================
- */
-function RingProgress({
-  size = 64, thickness = 10, progress = 0, label = '0%',
-}: { size?: number; thickness?: number; progress?: number; label?: string; }) {
-  const r = (size - thickness) / 2;
-  const c = 2 * Math.PI * r;
-  const dash = c * progress;
-  return (
-    <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
-      <Svg width={size} height={size}>
-        {/* track */}
-        <Circle cx={size/2} cy={size/2} r={r} stroke="#EEF2F7" strokeWidth={thickness} fill="none" />
-        {/* progress */}
-        <Circle
-          cx={size/2}
-          cy={size/2}
-          r={r}
-          stroke="#2FCCAC"
-          strokeWidth={thickness}
-          fill="none"
-          strokeDasharray={`${dash},${c}`}
-          strokeLinecap="round"
-          rotation="-90"
-          originX={size/2}
-          originY={size/2}
-        />
-      </Svg>
-      <AppText variant="ag10" style={{ position: 'absolute', color: '#4A5565' }}>{label}</AppText>
-    </View>
-  );
-}
-
-/* ============================
- * Styles
- * ============================
- */
-const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: BG },
-
-  headerRow: {
-    height: 132,
-    paddingHorizontal: 24,
-    paddingTop: 24,
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-  },
-  headerAvatar: {
-    width: 60, height: 60, borderRadius: 999,
-    backgroundColor: 'rgba(255,255,255,0.25)',
-    alignItems: 'center', justifyContent: 'center',
-  },
-
-  card: {
-    backgroundColor: '#fff',
-    borderRadius: 24,
-    shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 12, elevation: 4
-  },
-
-  dots: { flexDirection: 'row', justifyContent: 'center', marginTop: 12 },
-  dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#E6EEF0', marginHorizontal: 6 },
-  dotActive: { backgroundColor: '#FFFFFF' },
-
-  divider: { height: 1, backgroundColor: '#F1F5F9', marginVertical: 16 },
-  metricsRow: { flexDirection: 'row', justifyContent: 'space-between' },
-  metricCol: { alignItems: 'center', width: 90 },
-  metricIcon: { marginBottom: 6 },
-
-  mealsWrapper: { paddingHorizontal: 20, marginTop: 16 },
-  mealsCard: { backgroundColor: '#FFFFFF', borderRadius: 16, padding: 16, shadowColor: '#000', shadowOpacity: 0.06, elevation: 2 },
-  mealsHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-
-  mealRow: {
-    
-    flexDirection: 'row', alignItems: 'center',
-    paddingVertical: 20, paddingHorizontal: 16,
-    backgroundColor: '#F8FAFC', borderRadius: 16, marginBottom: 12,
-    height: 80,
-  },
-  mealChip: { width: 48, height: 48, borderRadius: 20, marginRight: 16, alignItems: 'center', justifyContent: 'center' },
-  addBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#2FCCAC', alignItems: 'center', justifyContent: 'center' },
-  arrowContainer: { width: 20, height: 20, alignItems: 'center', justifyContent: 'center' },
-
-  macroRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    height: 28,
-  },
-  macroTrack: {
-    height: 8,
-    borderRadius: 999,
-    backgroundColor: '#E5E7EB',
-    overflow: 'hidden',
-    marginTop: 8,
-  },
-  macroFill: {
-    height: 8,
-    borderRadius: 999,
-  },
-
-  imcBubble: { width: 80, height: 80, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: '#E8FAF6' },
-  imcPill: {  backgroundColor: '#D0F7DC', paddingHorizontal: 12, paddingVertical: 4, borderRadius: 12, color: '#00C950' },
-  imcGrid: { borderTopWidth: 1, borderTopColor: '#F1F5F9', marginTop: 16, paddingTop: 16, flexDirection: 'row', gap: 12 },
-  imcCell: { flex: 1, alignItems: 'center' },
-
-  muted: { color: '#6A7282' },
-});

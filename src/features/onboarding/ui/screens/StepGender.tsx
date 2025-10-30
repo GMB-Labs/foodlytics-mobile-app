@@ -3,11 +3,11 @@ import React, { useState } from 'react';
 import { View, TouchableOpacity, Text } from 'react-native';
 import { PrimaryGradient } from '@/src/shared/ui/components/Gradients';
 import ProgressBar from '@/src/shared/ui/ProgressBar';
-import OnboardingCard from '@/src/shared/ui/OnboardingCard';
+import OnboardingCard from '@/src/features/onboarding/ui/OnboardingCard';
 import AppText from '@/src/shared/ui/components/Typography';
 import { useOnboarding } from '@/src/features/onboarding/application/OnboardingProvider';
 import type { Gender } from '@/src/features/onboarding/application/store';
-import OnboardingFooter from '@/src/shared/ui/OnboardingFooter';
+import OnboardingFooter from '@/src/features/onboarding/ui/OnboardingFooter';
 
   export default function StepGender() {
     const router = useRouter();

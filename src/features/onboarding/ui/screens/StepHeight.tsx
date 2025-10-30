@@ -4,13 +4,13 @@ import { View, TouchableOpacity, Text, FlatList, LayoutChangeEvent } from "react
 import { LinearGradient } from "expo-linear-gradient";
 import { PrimaryGradient } from "@/src/shared/ui/components/Gradients";
 import ProgressBar from "@/src/shared/ui/ProgressBar";
-import OnboardingCard from "@/src/shared/ui/OnboardingCard";
+import OnboardingCard from "@/src/features/onboarding/ui/OnboardingCard";
 import AppText from "@/src/shared/ui/components/Typography";
 import { useOnboarding } from "@/src/features/onboarding/application/OnboardingProvider";
 import type { OnboardingActions } from "@/src/features/onboarding/application/store";
 import * as Haptics from 'expo-haptics';
 import { Pressable } from 'react-native';
-import OnboardingFooter from '@/src/shared/ui/OnboardingFooter';
+import OnboardingFooter from '@/src/features/onboarding/ui/OnboardingFooter';
 
 const MIN = 50;
 const MAX = 250;

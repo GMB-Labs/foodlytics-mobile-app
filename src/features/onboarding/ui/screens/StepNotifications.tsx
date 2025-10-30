@@ -5,11 +5,11 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { PrimaryGradient } from '@/src/shared/ui/components/Gradients';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import ProgressBar from '@/src/shared/ui/ProgressBar';
-import OnboardingCard from '@/src/shared/ui/OnboardingCard';
+import OnboardingCard from '@/src/features/onboarding/ui/OnboardingCard';
 import AppText from '@/src/shared/ui/components/Typography';
 import { useOnboarding } from '@/src/features/onboarding/application/OnboardingProvider';
 import type { OnboardingActions } from '@/src/features/onboarding/application/store';
-import OnboardingFooter from '@/src/shared/ui/OnboardingFooter';
+import OnboardingFooter from '@/src/features/onboarding/ui/OnboardingFooter';
 
 import { getPermissionStatus, requestPermissionIfNeeded, openSystemSettingsWithAlert } from '@/src/shared/utils/notifications';
 import { scheduleFromPrefs } from '@/src/shared/utils/notifications-orchestrator';

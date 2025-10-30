@@ -1,10 +1,10 @@
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import { View, Pressable, StyleSheet, Image, ScrollView } from 'react-native';
-import OnboardingFooter from '@/src/shared/ui/OnboardingFooter';
+import OnboardingFooter from '@/src/features/onboarding/ui/OnboardingFooter';
 import { PrimaryGradient } from '@/src/shared/ui/components/Gradients';
 import ProgressBar from '@/src/shared/ui/ProgressBar';
-import OnboardingCard from '@/src/shared/ui/OnboardingCard';
+import OnboardingCard from '@/src/features/onboarding/ui/OnboardingCard';
 import AppText from '@/src/shared/ui/components/Typography';
 
 import { useOnboarding } from '@/src/features/onboarding/application/OnboardingProvider';
