@@ -45,13 +45,16 @@ export default function SummaryScreen() {
       // and reset local state. Here we call reset() for a clean local state.
   actions.reset();
 
-      Alert.alert('Listo', 'Onboarding completado.');
-      router.replace('/');
+  Alert.alert('Listo', 'Onboarding completado.');
+  // Navigate into the tabs layout (Home). Use the explicit group path
+  // to avoid app-level redirects (e.g. app/index.tsx -> /login).
+  router.replace('/(tabs)');
     } catch (err: any) {
       console.error('submitOnboarding failed', err);
       Alert.alert('Error', err?.message || 'No se pudo enviar la información.');
-      // Por ahora se envia a home, pero idealmente se queda en el summary para reintentar
-      router.replace('/');
+  // Por ahora se envia a home (tabs). Use explicit tabs path to avoid
+  // app/index.tsx redirect to /login.
+  router.replace('/(tabs)');
     } finally {
       setSending(false);
     }

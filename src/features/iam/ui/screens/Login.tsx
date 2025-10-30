@@ -4,8 +4,8 @@ import { Stack, useRouter } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
-import { Image } from "expo-image";
 import AppText from "@/src/shared/ui/components/Typography";
+import ForkIcon from "@/assets/icons/fork-icon.svg";
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -33,11 +33,7 @@ export default function LoginScreen() {
           <View className="flex-1 items-center justify-center px-6 pt-16 pb-8">
             {/* Logo/Icon */}
             <View className="bg-white rounded-3xl shadow-lg w-24 h-24 items-center justify-center mb-6">
-              <Image
-                source={require("@/assets/icons/fork-icon.svg")}
-                style={{ width: 40, height: 60 }}
-                contentFit="contain"
-              />
+              <ForkIcon width={40} height={50} fill="#2FCCAC" />
             </View>
 
             {/* Título */}
