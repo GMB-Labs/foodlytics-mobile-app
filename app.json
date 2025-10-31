@@ -10,7 +10,11 @@
     "owner": "belier_02",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSCameraUsageDescription": "Necesitamos usar tu cámara para actualizar tu foto de perfil.",
+        "NSPhotoLibraryUsageDescription": "Necesitamos acceder a tu galería para actualizar tu foto de perfil."
+      }
     },
     "android": {
       "adaptiveIcon": {
