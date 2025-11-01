@@ -54,6 +54,15 @@ export async function scheduleDailyAt(time: string, title: string, body?: string
   });
 }
 
+export async function scheduleEveryNHours(hours: number, title: string, body?: string) {
+  // scheduleNotificationAsync supports a trigger with seconds and repeats
+  const seconds = Math.max(1, Math.floor(hours * 3600));
+  return Notifications.scheduleNotificationAsync({
+    content: { title, body },
+    trigger: { seconds, repeats: true } as Notifications.NotificationTriggerInput,
+  });
+}
+
 export async function scheduleIn(seconds: number, title: string, body?: string) {
   return Notifications.scheduleNotificationAsync({
     content: { title, body },

@@ -10,6 +10,7 @@ import AppText from '@/src/shared/ui/components/Typography';
 import { useOnboarding } from '@/src/features/onboarding/application/OnboardingProvider';
 import type { OnboardingActions } from '@/src/features/onboarding/application/store';
 import OnboardingFooter from '@/src/features/onboarding/ui/OnboardingFooter';
+import { saveNotifPrefs } from '@/src/shared/utils/notifications-storage';
 
 import { getPermissionStatus, requestPermissionIfNeeded, openSystemSettingsWithAlert } from '@/src/shared/utils/notifications';
 import { scheduleFromPrefs } from '@/src/shared/utils/notifications-orchestrator';
@@ -205,7 +206,10 @@ export default function StepNotifications() {
 
     if (anySelected) {
       const ok = await ensurePermissionOnEnable();
-      if (ok) await scheduleFromPrefs(prefs); // programa locales según prefs
+      if (ok) {
+        await saveNotifPrefs(prefs);       // ← persistimos
+        await scheduleFromPrefs(prefs);    // ← programamos
+      }
     }
 
     router.push('/onboarding/summary');

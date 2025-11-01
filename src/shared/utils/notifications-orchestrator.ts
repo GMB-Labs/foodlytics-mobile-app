@@ -1,6 +1,6 @@
 // shared/utils/notifications-orchestrator.ts
 import { NotificationsPreferences } from '../types/notifications';
-import { cancelAllScheduled, scheduleDailyAt } from './notifications';
+import { cancelAllScheduled, scheduleDailyAt, scheduleEveryNHours } from './notifications';
 
 export async function scheduleFromPrefs(prefs: NotificationsPreferences) {
   // Limpia para evitar duplicados
@@ -27,5 +27,27 @@ export async function scheduleFromPrefs(prefs: NotificationsPreferences) {
   }
   if (mr.dinner.enabled && mr.dinner.time) {
     await scheduleDailyAt(mr.dinner.time, 'Cena', 'No olvides tu cena');
+  }
+
+  // Alertas - water reminder can be periodic, deficit/excess should be triggered by app logic
+  if (prefs.alerts?.water) {
+    // cada 2 horas
+    await scheduleEveryNHours(2, 'Recordatorio de agua', 'Bebe agua para mantenerte hidratado');
+  }
+
+  // Tips / motivational messages - schedule daily placeholders
+  if (prefs.tips?.nutrition) {
+    await scheduleDailyAt('09:00', 'Consejo nutricional', 'Un pequeño tip para mejorar tus hábitos');
+  }
+  if (prefs.tips?.exercise) {
+    await scheduleDailyAt('17:00', 'Consejo de ejercicio', 'Un breve recordatorio para moverte');
+  }
+  if (prefs.tips?.motivational) {
+    await scheduleDailyAt('08:00', 'Mensaje motivacional', 'Ánimo — hoy puedes hacerlo');
+  }
+
+  // Goals: weekly summary currently scheduled daily as a placeholder (app can trigger on specific weekday if needed)
+  if (prefs.goals?.weeklySummary) {
+    await scheduleDailyAt('20:00', 'Resumen semanal', 'Revisa tu progreso semanal');
   }
 }

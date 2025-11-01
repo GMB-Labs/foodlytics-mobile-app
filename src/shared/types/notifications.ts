@@ -14,4 +14,21 @@ export type NotificationsPreferences = {
     dinner: MealReminder;
   };
   activitySuggestions: boolean;
+  // Alerts that are triggered by app logic (these toggles are read by the app when conditions occur)
+  alerts?: {
+    deficit?: boolean;
+    excess?: boolean;
+    water?: boolean; // periodic reminder every N hours
+  };
+  // Tips / motivational messages
+  tips?: {
+    nutrition?: boolean;
+    exercise?: boolean;
+    motivational?: boolean;
+  };
+  // Goals related toggles
+  goals?: {
+    stepsReached?: boolean;
+    weeklySummary?: boolean;
+  };
 };

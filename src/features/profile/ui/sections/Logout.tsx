@@ -6,7 +6,7 @@ import LogoutIcon from "@/assets/icons/profile/logoutIcon.svg";
 
 export default function Logout({ onPress }: { onPress: () => void }) {
   return (
-    <Pressable style={[styles.btn, cardShadow()]} onPress={onPress} accessibilityRole="button">
+    <Pressable style={[cardShadow(), styles.btn]} onPress={onPress} accessibilityRole="button">
       <LogoutIcon width={16} height={16} style={{ marginRight: 8 }} />
       <AppText variant="ag9" color="white">Cerrar Sesión</AppText>
     </Pressable>

@@ -22,11 +22,13 @@ const SCALE = Math.min(1, width / DESIGN_W);
 export const s = (n: number) => Math.round(n * SCALE);
 
 export function cardShadow(md = false) {
-  if (Platform.OS === "android") return { elevation: md ? 4 : 2 };
+  if (Platform.OS === "android") return { elevation: md ? 2 : 1 };
   return {
+    borderRadius: s(13),
+    backgroundColor: COLORS.card,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: md ? 10 : 4 },
-    shadowOpacity: md ? 0.1 : 0.05,
-    shadowRadius: md ? 15 : 4,
+    shadowOffset: { width: 0, height: md ? 2 : 0.5 }, // más cercano al componente
+    shadowOpacity: 0.06, // más transparente
+    shadowRadius: md ?  3 : 1.5, // difuminado más pequeño
   };
 }

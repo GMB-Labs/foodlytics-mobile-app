@@ -17,7 +17,6 @@ const _Layout = () => {
         <Tabs.Screen name="profile" />
       </Tabs>
 
-      {/* Custom BottomNav mounted once for all tabs */}
       <BottomNav />
     </View>
   );
