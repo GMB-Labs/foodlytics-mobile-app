@@ -1,7 +1,10 @@
 import React, { useState } from "react";
 import { View, StyleSheet, ScrollView } from "react-native";
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS, s } from "../tokens";
 import { useProfile } from "../../application/useProfile";
+import { useSession } from '@/src/shared/hooks/useSession';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 
 // Sections
 import Header from "../sections/Header";
@@ -12,8 +15,35 @@ import Account from "../sections/Account";
 import Logout from "../sections/Logout";
 
 export default function Profile() {
+  const router = useRouter();
+  const params = useLocalSearchParams();
+  const langUpdated = (params as any)?.langUpdated as string | undefined;
   const { profile, updateProfile, pickImage } = useProfile();
   const [editing, setEditing] = useState<null | 'personal' | 'goals'>(null);
+  const insets = useSafeAreaInsets();
+  const [, sessionActions] = useSession();
+  
+  async function handleSignOut() {
+    // Optional: confirm with the user
+    // clear persisted app data and notify session provider
+    try {
+      // Clear local storage keys used by the app
+      const AsyncStorage = (await import('@react-native-async-storage/async-storage')).default;
+      await AsyncStorage.removeItem('@foodlytics:notif_prefs');
+      await AsyncStorage.removeItem('@foodlytics:language');
+      // TODO: if you integrate Auth0, call the Auth0 logout endpoint here
+    } catch (e) {
+      // swallow - logout should continue
+      // eslint-disable-next-line no-console
+      console.warn('error clearing storage on signOut', e);
+    }
+
+    // update in-memory session
+    sessionActions.signOut();
+
+    // navigate to login and replace history so user can't go back
+    router.replace('/login');
+  }
 
   function openEdit(section: 'personal' | 'goals'){
     setEditing(section);
@@ -32,7 +62,7 @@ export default function Profile() {
   return (
     <View style={styles.container}>
   <Header name={profile.name} email={profile.email} imageUri={profile.avatar} onPick={pickImage} />
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.scrollContent}>
+  <ScrollView style={{ flex: 1 }} contentContainerStyle={[styles.scrollContent, { paddingBottom: s(100) + insets.bottom }] }>
         <PersonalData
           age={profile.age}
           gender={profile.gender}
@@ -55,24 +85,23 @@ export default function Profile() {
           onSave={onSaveGoals}
         />
         <Preferences
-          onOpenNotifications={() => {}}
-          onOpenLanguage={() => {}}
-          onOpenPrivacy={() => {}}
+          key={langUpdated || 'prefs'}
+          onOpenNotifications={() => router.push("/profile/notifications")}
+          onOpenLanguage={() => router.push("/profile/language")}
+          onOpenPrivacy={() => router.push("/profile/privacy")} 
         />
         <Account
           onOpenPassword={() => {}}
-          onOpenTerms={() => {}}
-          onOpenPrivacy={() => {}}
+          onOpenTerms={() => router.push("/profile/terms")}
+          onOpenPrivacy={() => router.push("/profile/privacy-policy")}
         />
-        <Logout onPress={() => { /* signOut */ }} />
+  <Logout onPress={handleSignOut} />
       </ScrollView>
-
-      {/* inline editing handled inside section components via isEditing/onSave/onCancel */}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.bg },
-  scrollContent: { padding: s(21), paddingBottom: s(140), gap: s(20) },
+  scrollContent: { padding: s(21), paddingTop: s(40), gap: s(20) },
 });

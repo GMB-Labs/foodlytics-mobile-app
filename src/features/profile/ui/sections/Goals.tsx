@@ -48,9 +48,6 @@ export default React.memo(function Goals({
             )}
           </View>
 
-          <AppText variant="ag10">Calorías Diarias</AppText>
-          <TextInput style={styles.input} keyboardType="numeric" value={form.dailyCalories} onChangeText={(v)=>setForm(f=>({...f, dailyCalories:v}))} />
-
           <Pressable onPress={save} style={styles.saveBtn}><AppText variant="ag9" color="white">Guardar Cambios</AppText></Pressable>
         </View>
       </SectionCard>

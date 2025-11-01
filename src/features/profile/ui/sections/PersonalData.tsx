@@ -34,20 +34,13 @@ export default React.memo(function PersonalData({
         right={<Pressable onPress={onCancel}><AppText variant="ag9" color={COLORS.brandA}>Cancelar</AppText></Pressable>}
       >
         <View style={{ gap: s(12) }}>
-          <AppText variant="ag10">Edad</AppText>
-          <TextInput style={styles.input} keyboardType="numeric" value={form.age} onChangeText={(v)=>setForm(f=>({...f, age:v}))} />
-
-          <View style={{ flexDirection: 'row', gap: s(12) }}>
-            <View style={{ flex: 1 }}>
               <AppText variant="ag10">Altura (cm)</AppText>
-              <TextInput style={styles.input} keyboardType="numeric" value={form.heightCm} onChangeText={(v)=>setForm(f=>({...f, heightCm:v}))} />
-            </View>
-            <View style={{ flex: 1 }}>
+               <TextInput style={styles.input} keyboardType="numeric" value={form.heightCm} onChangeText={(v)=>setForm(f=>({...f, heightCm:v}))} />
+      
               <AppText variant="ag10">Peso (kg)</AppText>
               <TextInput style={styles.input} keyboardType="numeric" value={form.weightKg} onChangeText={(v)=>setForm(f=>({...f, weightKg:v}))} />
+              <View>
             </View>
-          </View>
-
           <Pressable onPress={save} style={styles.saveBtn}><AppText variant="ag9" color="white">Guardar Cambios</AppText></Pressable>
         </View>
       </SectionCard>

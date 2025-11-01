@@ -21,7 +21,8 @@ export default function Header({
           onPress={onPick}
           accessibilityLabel="Cambiar foto"
           accessibilityRole="imagebutton"
-          style={[styles.avatar, imageUri && styles.clip, cardShadow(true)]}
+          // apply card shadow first, then avatar so avatar's borderRadius/bg override iOS shadow helper
+          style={[cardShadow(true), styles.avatar, imageUri && styles.clip]}
           hitSlop={10}
         >
           {imageUri
