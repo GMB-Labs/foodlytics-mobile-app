@@ -315,7 +315,15 @@ export default function NotificationsScreen() {
         <Modal visible={showTimePicker} transparent animationType="fade" onRequestClose={cancelTimePicker}>
           <View style={styles.modalOverlay}>
             <View style={styles.modalCard}>
-              <DateTimePicker value={pickerDate} mode="time" display="spinner" onChange={handleNativeTimeChange} style={{ width: '100%' }} />
+              <DateTimePicker
+                value={pickerDate}
+                mode="time"
+                display="spinner"
+                onChange={handleNativeTimeChange}
+                style={{ width: '100%' }}
+                // Force a readable text color on iOS spinner (Android ignores this prop)
+                textColor={Platform.OS === 'ios' ? '#171725' : undefined}
+              />
               <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginTop: 12 }}>
                 <TouchableOpacity onPress={cancelTimePicker} style={styles.modalButton}>
                   <Text style={{ color: '#6B7280' }}>Cancelar</Text>
