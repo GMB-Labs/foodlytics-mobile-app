@@ -7,7 +7,7 @@ module.exports = defineConfig([
   // allow our custom text component `AppText` to contain raw text (no-raw-text rule)
   {
     rules: {
-      'react-native/no-raw-text': ['error', { skip: ['AppText'] }],
+      'react-native/no-raw-text': ['error', { skip: ['AppText', 'RNText'] }],
     },
   },
   {
