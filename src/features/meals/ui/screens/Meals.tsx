@@ -1,11 +1,12 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { View, StyleSheet, ScrollView, Pressable, useWindowDimensions } from 'react-native';
-import { Stack, useRouter } from 'expo-router';
+import { Stack, useRouter, useLocalSearchParams } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Path } from 'react-native-svg';
 import AppText from '@/src/shared/ui/components/Typography';
 import { useTodayISO } from '@/src/shared/hooks/useTodayISO';
 import MealCard from '../components/MealCard';
+import { getAllMeals } from '@/src/features/meals/infrastructure/mealsApi';
 import NativeDatePicker from '../components/NativeDatePicker';
 import { Platform } from 'react-native';
 
@@ -57,11 +58,6 @@ function dateFromISO(iso: string): Date {
 
 function prettyDate(d: Date, locale = 'es-ES') {
   const options: Intl.DateTimeFormatOptions = { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' };
-  return d.toLocaleDateString(locale, options);
-}
-
-function monthYear(d: Date, locale = 'es-ES') {
-  const options: Intl.DateTimeFormatOptions = { month: 'long', year: 'numeric' };
   return d.toLocaleDateString(locale, options);
 }
 
@@ -119,16 +115,19 @@ const NAV_BTN_MARGIN = Platform.OS === 'ios' ? -16 : -4;
 export default function MealsScreen() {
   const router = useRouter();
   const todayISO = useTodayISO();
+  const params = useLocalSearchParams();
+  const incomingDateISO = (params as any)?.dateISO as string | undefined;
+  const incomingFrom = (params as any)?.from as string | undefined;
   // The date explicitly chosen by the user (nullable). When null, no day is selected
   // and the week view is controlled by `weekCenterISO`.
-  const [selectedDate, setSelectedDate] = useState<string | null>(todayISO);
+  const [selectedDate, setSelectedDate] = useState<string | null>(incomingDateISO ?? todayISO);
   // Controls which week is shown when navigating with the arrows. Does NOT imply
   // that a day is selected by the user.
-  const [weekCenterISO, setWeekCenterISO] = useState<string>(todayISO);
+  const [weekCenterISO, setWeekCenterISO] = useState<string>(incomingDateISO ?? todayISO);
   // The date shown in the header / picker. This must NOT change when the user
   // navigates between weeks with the arrows; it only updates when the user
   // explicitly selects a day or picks a date.
-  const [displayDateISO, setDisplayDateISO] = useState<string>(todayISO);
+  const [displayDateISO, setDisplayDateISO] = useState<string>(incomingDateISO ?? todayISO);
   const [showMonthModal, setShowMonthModal] = useState(false);
   const [showNativePicker, setShowNativePicker] = useState(false);
 
@@ -136,57 +135,37 @@ export default function MealsScreen() {
   // selected date, otherwise fall back to the displayDate (header/picker).
   const activeDateISO = selectedDate ?? displayDateISO;
 
-  // Mocked meals database keyed by ISO date. This ensures each date can have
-  // different data in the UI demo. Replace this with a real backend call that
-  // returns meals grouped by category for `activeDateISO`.
+  // Fetch the full meals map once and filter client-side by date. Keep an
+  // inline mockDB as fallback so the UI still shows examples when the API
+  // isn't available yet.
+  const [allMeals, setAllMeals] = useState<Record<string, Record<string, any[]>> | null>(null);
+  const [allMealsLoading, setAllMealsLoading] = useState(false);
+  const [allMealsError, setAllMealsError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let mounted = true;
+    setAllMealsLoading(true);
+    setAllMealsError(null);
+    getAllMeals()
+      .then((res) => { if (!mounted) return; setAllMeals(res); })
+      .catch((err) => { if (!mounted) return; setAllMealsError(String(err ?? 'Error fetching meals')); setAllMeals(null); })
+      .finally(() => { if (mounted) setAllMealsLoading(false); });
+    return () => { mounted = false; };
+  }, []);
+
   const mealsForDate = useMemo(() => {
     const mockDB: Record<string, Record<string, any[]>> = {
-      // Today's example (dynamic key)
       [todayISO]: {
-        breakfast: [
-          { id: 'b1', name: 'Tostada integral con aguacate', protein: 6, carbs: 22, fats: 12, kcal: 210, time: '07:30' },
-          { id: 'b2', name: 'Yogur natural', protein: 8, carbs: 6, fats: 4, kcal: 90, time: '07:15' },
-        ],
-        lunch: [
-          { id: 'l1', name: 'Pechuga de pollo', protein: 30, carbs: 0, fats: 3, kcal: 165, time: '13:00' },
-        ],
-        dinner: [],
-        snack: [],
-      },
-      // Yesterday example
-      '2025-11-07': {
-        breakfast: [
-          { id: 'b10', name: 'Avena con frutas', protein: 7, carbs: 40, fats: 5, kcal: 260, time: '08:00' },
-        ],
-        lunch: [],
-        dinner: [],
-        snack: [],
-      },
-      // Another date example to show variability
-      '2025-11-06': {
-        breakfast: [],
-        lunch: [
-          { id: 'l20', name: 'Ensalada grande', protein: 5, carbs: 10, fats: 8, kcal: 140, time: '12:30' },
-        ],
-        dinner: [],
-        snack: [],
-      },
-      // 8th Nov example
-      '2025-11-08': {
-        breakfast: [
-          { id: 'b11', name: 'Plátano', protein: 1, carbs: 27, fats: 0, kcal: 105, time: '07:23' },
-          { id: 'b12', name: 'Aguacate', protein: 2, carbs: 4, fats: 15, kcal: 160, time: '07:30' },
-        ],
-        lunch: [],
+        breakfast: [ { id: 'b1', name: 'Tostada integral con aguacate', protein: 6, carbs: 22, fats: 12, kcal: 210, time: '07:30' } ],
+        lunch: [ { id: 'l1', name: 'Pechuga de pollo', protein: 30, carbs: 0, fats: 3, kcal: 165, time: '13:00' } ],
         dinner: [],
         snack: [],
       },
     };
 
-    // Return meals for the currently active date. When integrating the
-    // backend, replace this with the fetched result for `activeDateISO`.
+    if (allMeals && allMeals[activeDateISO]) return allMeals[activeDateISO];
     return mockDB[activeDateISO] ?? { breakfast: [], lunch: [], dinner: [], snack: [] };
-  }, [activeDateISO]);
+  }, [activeDateISO, allMeals, todayISO]);
 
   // The Date object used to render the header and the native picker value.
   const displayDateObj = useMemo(() => dateFromISO(displayDateISO), [displayDateISO]);
@@ -254,13 +233,23 @@ export default function MealsScreen() {
     setDisplayDateISO(iso);
   };
 
-  const handleMonthYearSelect = (year: number, month: number) => {
-    const newDate = new Date(year, month, 1);
-    const iso = isoFromDate(newDate);
-    setSelectedDate(iso);
-    setWeekCenterISO(iso);
-    setDisplayDateISO(iso);
-  };
+  // Synchronize when navigated with params. If coming from Home, force today's date.
+  useEffect(() => {
+    if (incomingFrom === 'home') {
+      // When coming from Home we want today's date to appear selected/painted
+      // so the week selector highlights today.
+      setSelectedDate(todayISO);
+      setWeekCenterISO(todayISO);
+      setDisplayDateISO(todayISO);
+      return;
+    }
+
+    if (incomingDateISO) {
+      setSelectedDate(incomingDateISO);
+      setWeekCenterISO(incomingDateISO);
+      setDisplayDateISO(incomingDateISO);
+    }
+  }, [incomingFrom, incomingDateISO]);
 
   return (
     <View style={styles.container}>
@@ -348,10 +337,14 @@ export default function MealsScreen() {
               isSelectedFuture={isSelectedFuture}
               onAddPress={() => goToCamera(meal.id)}
               onViewPress={() => {
-                const params = new URLSearchParams();
-                params.set('dateISO', displayDateISO);
-                // Navigate to meal category detail page (adjust route if your app differs)
-                router.push(`/meals/${meal.id}?${params.toString()}` as any);
+                // Navegar pasando la data de los ítems y la fecha seleccionada
+                router.push({
+                  pathname: `/meals/${meal.id}`,
+                  params: {
+                    dateISO: displayDateISO,
+                    items: JSON.stringify(mealsForDate[meal.id] ?? []),
+                  },
+                } as any);
               }}
             />
           );

@@ -28,10 +28,15 @@ export default function MealsList({
   };
 
   const goToMeals = (mealKey?: string) => {
+    const dateISO = todayISO();
     if (mealKey) {
-      // navigate to a path-style detail route; use object form to avoid TS path typing issues
-      router.push({ pathname: '/(tabs)/meals/detalle/[mealKey]', params: { mealKey } } as any);
-    } else router.push('/(tabs)/meals');
+      // Navigate to the meal detail for the selected meal on today's date.
+      // Include a `from=home` flag so Meals can know it was opened from Home.
+      router.push(`/(tabs)/meals/${mealKey}?dateISO=${encodeURIComponent(dateISO)}&from=home` as any);
+    } else {
+      // Always open the Meals tab with today's date when coming from Home.
+      router.push(`/(tabs)/meals?dateISO=${encodeURIComponent(dateISO)}&from=home` as any);
+    }
   };
 
   const goToCameraFor = (mealKey: string) => {
@@ -43,7 +48,9 @@ export default function MealsList({
       <View style={[styles.mealsCard, { padding: compact ? 20 : 30,  }]}> 
         <View style={[styles.mealsHeader, { paddingBottom: compact ? 2 : 0 }]}> 
           <AppText variant="ag7">Comidas de Hoy</AppText>
-          <Pressable onPress={() => goToMeals()}><AppText variant="ag9" style={{ color: '#2FCCAC' }}>Ver todas</AppText></Pressable>
+          <Pressable onPress={() => router.push(`/(tabs)/meals?dateISO=${encodeURIComponent(todayISO())}&from=home` as any)}>
+            <AppText variant="ag9" style={{ color: '#2FCCAC' }}>Ver todas</AppText>
+          </Pressable>
         </View>
 
         <View style={{ marginTop: compact ? 8 : 12 }}>

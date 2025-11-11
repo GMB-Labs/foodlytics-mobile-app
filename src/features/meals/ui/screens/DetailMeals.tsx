@@ -1,15 +1,15 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useEffect, useState } from 'react';
 import { View, StyleSheet, ScrollView, Pressable } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import AppText from '@/src/shared/ui/components/Typography';
 import { useTodayISO } from '@/src/shared/hooks/useTodayISO';
+import { getAllMeals } from '@/src/features/meals/infrastructure/mealsApi';
 import BackIcon from '@/assets/icons/backIcon.svg';
-import DinnerIcon from '@/assets/icons/DinnerIcon.svg';
-import LunchIcon from '@/assets/icons/LunchIcon.svg';
-import SnackIcon from '@/assets/icons/SnackIcon.svg';
-import BreakfastIcon from '@/assets/icons/BreakfastIcon.svg';
-import DeleteIcon from '@/assets/icons/DeleteIcon.svg';
+import DinnerIcon from '@/assets/icons/meals/DdinnerIcon.svg';
+import LunchIcon from '@/assets/icons/meals/DlunchIcon.svg';
+import SnackIcon from '@/assets/icons/meals/DsnackIcon.svg';
+import BreakfastIcon from '@/assets/icons/meals/DbreakIcon.svg';
 
 interface MealItem {
   id: string;
@@ -21,30 +21,6 @@ interface MealItem {
   time?: string;
   qtyLabel?: string; // optional quantity/description
 }
-
-// Static mock DB for demo. Use `dateISO` inside the component to pick the correct day.
-const mockDB: Record<string, Record<string, MealItem[]>> = {
-  '2025-11-07': {
-    breakfast: [
-      { id: 'b1', name: 'Tostada integral con aguacate', protein: 6, carbs: 22, fats: 12, kcal: 210, time: '07:30', qtyLabel: '1 porción' },
-      { id: 'b2', name: 'Yogur natural', protein: 8, carbs: 6, fats: 4, kcal: 90, time: '07:15', qtyLabel: '1 vasito' },
-    ],
-    lunch: [
-      { id: 'l1', name: 'Pechuga de pollo', protein: 30, carbs: 0, fats: 3, kcal: 165, time: '13:00', qtyLabel: '150 g' },
-    ],
-    dinner: [],
-    snack: [],
-  },
-  '2025-11-08': {
-    breakfast: [
-      { id: 'b11', name: 'Plátano', protein: 1, carbs: 27, fats: 0, kcal: 105, time: '07:23', qtyLabel: '1 unidad' },
-      { id: 'b12', name: 'Aguacate', protein: 2, carbs: 4, fats: 15, kcal: 160, time: '07:30', qtyLabel: '1/2 unidad' },
-    ],
-    lunch: [],
-    dinner: [],
-    snack: [],
-  },
-};
 
 const MEAL_LABELS: Record<string, string> = {
   breakfast: 'Desayuno',
@@ -58,11 +34,48 @@ const DEFAULT_MEAL = 'breakfast';
 export default function MealDetailScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
-  const { mealId } = params as { mealId?: string };
+  const { mealId, items: itemsParam } = params as { mealId?: string; items?: string };
   const dateISO = (params as any)?.dateISO ?? useTodayISO();
 
-  const mealsForDate = mockDB[dateISO] ?? { breakfast: [], lunch: [], dinner: [], snack: [] };
-  const items: MealItem[] = mealsForDate[mealId ?? 'breakfast'] ?? [];
+  const [items, setItems] = useState<MealItem[]>(() => {
+    try {
+      if (!itemsParam) return [];
+      const parsed = JSON.parse(itemsParam as string);
+      return Array.isArray(parsed) ? (parsed as MealItem[]) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  useEffect(() => {
+    let mounted = true;
+    if (!itemsParam) {
+      // fetch the single GET and pick items for this date/meal
+      getAllMeals()
+        .then((all) => {
+          if (!mounted) return;
+          const byDate = all[String(dateISO)] ?? {};
+          const found = byDate[mealId ?? ''] ?? [];
+          setItems(found as MealItem[]);
+        })
+        .catch(() => { if (mounted) setItems([]); });
+    }
+    return () => { mounted = false; };
+  }, [itemsParam, mealId, dateISO]);
+
+  // If the route provides `items` (Meals -> Detail), update items state whenever
+  // that param changes. This fixes the bug where Detail kept showing a previous
+  // view's items (for example coming from Home) when navigated to from Meals.
+  useEffect(() => {
+    if (!itemsParam) return;
+    try {
+      const parsed = JSON.parse(itemsParam as string);
+      setItems(Array.isArray(parsed) ? (parsed as MealItem[]) : []);
+    } catch {
+      setItems([]);
+    }
+  // no-op: items are updated from params
+  }, [itemsParam]);
 
   const totals = useMemo(() => {
     return items.reduce(
@@ -84,18 +97,36 @@ export default function MealDetailScreen() {
   const TXT_TOTAL_CAL = 'Total de calorías';
   const TXT_KCAL = 'kcal';
   const TXT_ALIMENTOS = 'Alimentos registrados';
-  const TXT_EDITAR = 'Editar';
-  const TXT_ELIMINAR = 'Eliminar';
   const CHEVRON_CHAR = '‹';
   const TXT_PROTEINAS = 'Proteínas';
   const TXT_CARBOS = 'Carbos';
   const TXT_GRASAS = 'Grasas';
 
+  const headerDateText = useMemo(() => {
+    try {
+      const [y, m, d] = (dateISO ?? '').split('-').map((n: string) => parseInt(n, 10));
+      if (!y || !m || !d) return dateISO;
+      const time = items[0]?.time;
+      const [hh, mm] = (time ?? '00:00').split(':').map((n: string) => parseInt(n, 10));
+      const dateObj = new Date(y, (m - 1), d, hh ?? 0, mm ?? 0);
+      const weekday = dateObj.toLocaleDateString('es-ES', { weekday: 'long' });
+      const monthName = dateObj.toLocaleDateString('es-ES', { month: 'long' });
+      const dayNum = dateObj.getDate();
+      const timePart = time ? ` - ${String(hh ?? 0).padStart(2, '0')}:${String(mm ?? 0).padStart(2, '0')}` : '';
+      return `${weekday}, ${dayNum} de ${monthName}${timePart}`;
+    } catch {
+      return items[0]?.time ? `${dateISO} - ${items[0].time}` : `${dateISO}`;
+    }
+  }, [dateISO, items]);
+
   return (
     <View style={styles.container}>
       <LinearGradient colors={['#2FCCAC', '#24A88C']} style={styles.header}>
-        <Pressable onPress={() =>  router.replace({ pathname: "/meals" } as any)} style={styles.backRow}>
-          <AppText style={{ color: '#FFFFFF', fontSize: 20 }}>{CHEVRON_CHAR}</AppText>
+        <Pressable
+          onPress={() => router.push(`/(tabs)/meals?dateISO=${encodeURIComponent(dateISO)}` as any)}
+          style={styles.backRow}
+        >
+          <BackIcon width={20} height={20} />
           <AppText style={styles.backText}>{TXT_VOLVER}</AppText>
         </Pressable>
 
@@ -115,7 +146,7 @@ export default function MealDetailScreen() {
           </View>
           <View>
             <AppText variant="ag3" style={styles.headerTitle}>{label}</AppText>
-            <AppText variant="ag9" style={styles.headerSubtitle}>{items[0]?.time ? `${dateISO} - ${items[0].time}` : `${dateISO}`}</AppText>
+            <AppText variant="ag9" style={styles.headerSubtitle}>{headerDateText}</AppText>
           </View>
         </View>
       </LinearGradient>
@@ -156,6 +187,7 @@ export default function MealDetailScreen() {
               </View>
               <View style={styles.itemRight}>
                 <AppText style={styles.itemKcal}>{it.kcal}</AppText>
+                <AppText style={styles.itemKcalLabel}>{TXT_KCAL}</AppText>
               </View>
             </View>
 
@@ -177,15 +209,6 @@ export default function MealDetailScreen() {
             </View>
           </View>
         ))}
-
-        <View style={styles.actionsGrid}>
-          <Pressable style={styles.editButton} onPress={() => { /* TODO: navigate to edit */ }}>
-            <AppText style={styles.editText}>{TXT_EDITAR}</AppText>
-          </Pressable>
-          <Pressable style={styles.deleteButton} onPress={() => { /* TODO: delete */ }}>
-            <AppText style={styles.deleteText}>{TXT_ELIMINAR}</AppText>
-          </Pressable>
-        </View>
       </ScrollView>
     </View>
   );
@@ -197,7 +220,7 @@ const styles = StyleSheet.create({
   backRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
   backText: { color: '#FFFFFF', marginLeft: 4 },
   headerTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  iconCircleHeader: { width: 56, height: 56, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.2)' },
+  iconCircleHeader: { width: 56, height: 56, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.2)', alignItems: 'center', justifyContent: 'center' },
   headerTitle: { color: '#FFFFFF', marginTop: 4 },
   headerSubtitle: { color: 'rgba(255,255,255,0.9)', marginTop: 2 },
   content: { paddingHorizontal: 24, paddingTop: 24, paddingBottom: 120, gap: 16 },
@@ -219,14 +242,10 @@ const styles = StyleSheet.create({
   itemQty: { color: '#6A7282', fontSize: 14, marginTop: 6 },
   itemTime: { color: '#6A7282', fontSize: 12 },
   itemKcal: { color: '#2FCCAC', fontSize: 18, fontWeight: '600' },
+  itemKcalLabel: { color: '#6A7282', fontSize: 12 },
   divider: { height: 1, backgroundColor: '#F3F4F6', marginVertical: 12 },
   itemMacrosRow: { flexDirection: 'row', justifyContent: 'space-between' },
   macroSmallCol: { flex: 1, alignItems: 'center' },
   macroSmallValue: { fontSize: 14, fontWeight: '600' },
   macroSmallLabel: { color: '#6A7282', fontSize: 12, marginTop: 4 },
-  actionsGrid: { flexDirection: 'row', gap: 12, marginTop: 16, marginBottom: 40 },
-  editButton: { flex: 1, borderRadius: 20, borderWidth: 1, borderColor: '#E5E7EB', paddingVertical: 12, alignItems: 'center' },
-  deleteButton: { flex: 1, borderRadius: 20, borderWidth: 1, borderColor: '#FFC9C9', paddingVertical: 12, alignItems: 'center' },
-  editText: { color: '#111827' },
-  deleteText: { color: '#FB2C36' },
 });
