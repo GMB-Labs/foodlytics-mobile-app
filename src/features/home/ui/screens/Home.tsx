@@ -7,6 +7,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import AppText from '@/src/shared/ui/components/Typography';
+import { useTodayISO } from '@/src/shared/hooks/useTodayISO';
+import { getAllMeals, DetectedItem } from '@/src/features/meals/infrastructure/mealsApi';
 import { PrimaryGradient } from '@/src/shared/ui/components/Gradients';
 import BottomNav from '@/src/shared/ui/BottomNav';
 import { PixelRatio } from 'react-native';
@@ -109,9 +111,49 @@ const fsFix = fontScale > 1.1 ? 0.92 : 1; // reduce un poco alturas si la tipogr
     setPage(idx);
   };
 
-  // Derivados
-  const remaining = Math.max(0, data.calories.goal - data.calories.consumed);
-  const progress = Math.max(0, Math.min(1, data.calories.consumed / data.calories.goal)); // 0..1
+  // Fetch the single GET (all meals) and compute today's calories locally.
+  const todayISO = useTodayISO();
+  const [allMeals, setAllMeals] = useState<Record<string, Record<string, DetectedItem[]>> | null>(null);
+  const [allMealsLoading, setAllMealsLoading] = useState(false);
+  const [allMealsError, setAllMealsError] = useState<string | null>(null);
+
+  React.useEffect(() => {
+    let mounted = true;
+    setAllMealsLoading(true);
+    getAllMeals()
+      .then((res) => { if (!mounted) return; setAllMeals(res); })
+      .catch((err) => { if (!mounted) return; setAllMealsError(String(err ?? 'Error fetching meals')); setAllMeals(null); })
+      .finally(() => { if (mounted) setAllMealsLoading(false); });
+    return () => { mounted = false; };
+  }, []);
+
+  // Derivados: compute consumed calories for today from the fetched map (or fall back to demo data)
+  const consumed = React.useMemo(() => {
+    const byDate = allMeals && allMeals[todayISO] ? allMeals[todayISO] : null;
+    if (byDate) {
+      return Object.values(byDate).flat().reduce((acc, it) => acc + (it?.kcal ?? 0), 0);
+    }
+    return data.calories.consumed;
+  }, [allMeals, todayISO]);
+
+  const remaining = Math.max(0, data.calories.goal - consumed);
+  const progress = Math.max(0, Math.min(1, consumed / data.calories.goal)); // 0..1
+
+  // Build meals array for MealsList using the fetched data when available
+  const mealsForList = React.useMemo(() => {
+    const defs = [
+      { key: 'breakfast', title: 'Desayuno', chipBg: '#FFEDD4' },
+      { key: 'lunch', title: 'Almuerzo', chipBg: '#FEF9C2' },
+      { key: 'dinner', title: 'Cena', chipBg: '#E9D5FF' },
+    ];
+    const byDate = allMeals && allMeals[todayISO] ? allMeals[todayISO] : null;
+    if (!byDate) return data.meals;
+    return defs.map((m) => {
+      const items = byDate[m.key] ?? [];
+      const kcalSum = items.reduce((acc, it) => acc + (it?.kcal ?? 0), 0);
+      return { key: m.key, title: m.title, calories: kcalSum > 0 ? `${kcalSum} kcal` : '', chipBg: m.chipBg };
+    });
+  }, [allMeals, todayISO]);
 
   return (
     <SafeAreaView style={styles.screen} edges={['left','right']}>
@@ -208,7 +250,7 @@ const fsFix = fontScale > 1.1 ? 0.92 : 1; // reduce un poco alturas si la tipogr
         {/* Sin scroll vertical: sección inferior compacta */}
         <View style={{ flex: 1, backgroundColor: BG }}>
           <MealsList
-            meals={data.meals}
+            meals={mealsForList}
             onAdd={(k) => {}}
             compact={COMPACT}
             rowH={MEAL_ROW_H}
