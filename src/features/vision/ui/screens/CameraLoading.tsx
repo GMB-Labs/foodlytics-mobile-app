@@ -1,7 +1,9 @@
 import React, { useEffect } from "react";
-import { View, StyleSheet, ActivityIndicator, Pressable } from "react-native";
+import { View, StyleSheet, Pressable,Platform } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import AppText from "@/src/shared/ui/components/Typography";
+import LottieView from "lottie-react-native";
+import BackIcon from "@/assets/icons/meals/backIcon.svg";
 
 /**
  * LoadingScreen (UI first)
@@ -24,7 +26,7 @@ export default function LoadingScreen() {
     if (mealType) q.set("mealType", String(mealType));
 
     // Pequeño delay opcional para permitir ver el spinner
-    const DELAY_MS = 600;
+    const DELAY_MS = 6000;
     const t = setTimeout(() => {
       router.replace(`/camera/result?${q.toString()}`);
     }, DELAY_MS);
@@ -83,27 +85,94 @@ export default function LoadingScreen() {
 
   return (
     <View style={styles.container}>
-      <View style={styles.iconBubble} />
-      <AppText style={styles.title}>Analizando tu comida…</AppText>
+
+       <Pressable
+          onPress={() => router.back()}
+          style={styles.closeBtn}
+          hitSlop={10}
+          accessibilityLabel="Volver atrás/cancelar"
+       >
+          <BackIcon width={40} height={40} />
+    </Pressable>
+
+      {/* Burbuja central  */}
+      <View style={styles.bubble}>
+        <LottieView
+          // Asegúrate que el JSON exista en esta ruta
+          source={require("@/assets/lottie/lupa.json")}
+          autoPlay
+          loop
+          renderMode="AUTOMATIC"
+          enableMergePathsAndroidForKitKatAndAbove
+          style={styles.lottie}
+        />
+      </View>
+
+      {/* Título */}
+      <AppText style={styles.title}>Analizando tu comida</AppText>
+
+      {/* Subtítulo */}
       <AppText style={styles.subtitle}>
         Estamos identificando los alimentos y calculando los macronutrientes
       </AppText>
-      <ActivityIndicator size="large" />
-      <AppText style={styles.hint}>Preparando y enviando la imagen…</AppText>
 
-      <Pressable style={styles.cancelBtn} onPress={handleCancel}>
-        <AppText style={styles.cancelText}>Cancelar</AppText>
-      </Pressable>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, paddingTop: 120, alignItems: "center", backgroundColor: "#fff" },
-  iconBubble: { width: 72, height: 72, borderRadius: 36, backgroundColor: "rgba(47,204,172,0.12)", marginBottom: 24 },
-  title: { fontSize: 18, fontWeight: "700", marginBottom: 12, color: "#0B1220" },
-  subtitle: { fontSize: 14, color: "#98A1B3", marginBottom: 24, textAlign: "center", width: 260 },
-  hint: { marginTop: 16, fontSize: 12, color: "#98A1B3" },
-  cancelBtn: { marginTop: 20, paddingHorizontal: 18, paddingVertical: 10, borderRadius: 10, backgroundColor: "rgba(0,0,0,0.06)" },
-  cancelText: { color: "#0B1220", fontWeight: "600" },
+
+  closeBtn: {
+      position: "absolute", top: Platform.OS === "ios" ? 65 : 65, left: 30, zIndex: 10, color: "#151522"
+  },
+  container: {
+    flex: 1,
+    backgroundColor: "#F9FAFB",
+    alignItems: "center",
+  },
+ 
+  bubble: {
+    marginTop: 244,
+    width: 114,
+    height: 114,
+    borderRadius: 44739200,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(47, 204, 172, 0.80)", 
+  },
+
+  lottie: {
+    width: 73,
+    height: 73,
+  },
+
+  title: {
+    marginTop: 72, 
+    fontSize: 18,
+    lineHeight: 24,
+    fontWeight: "600",
+    color: "#151522",
+  },
+  // Paragraph 16 / 24 centrado, ancho ~307–357 según Figma
+  subtitle: {
+    marginTop: 24,
+    width: 357,
+    maxWidth: 357,
+    textAlign: "center",
+    fontSize: 16,
+    lineHeight: 24,
+    color: "#999999",
+  },
+  // Botón cancelar minimal
+  cancelBtn: {
+    marginTop: 28,
+    paddingHorizontal: 2,
+    paddingVertical: 10,
+    borderRadius: 10,
+    backgroundColor: "rgba(0,0,0,0.06)",
+  },
+  cancelText: {
+    color: "#0B1220",
+    fontWeight: "600",
+  },
 });
