@@ -2,6 +2,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { SafeAreaView, View, Pressable, StyleSheet, Platform, Alert } from "react-native";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
+import { useNavigation } from '@react-navigation/native';
 import { CameraView, useCameraPermissions } from "expo-camera";
 import * as Haptics from "expo-haptics";
 import AppText from "@/src/shared/ui/components/Typography";
@@ -11,6 +12,7 @@ import CameraIcon from "@/assets/icons/cameraIcon.svg";
 export default function CameraEntry() {
   const params = useLocalSearchParams() as any;
   const router = useRouter();
+  const navigation = useNavigation();
   const todayISO = useTodayISO();
 
   const incomingDate = params?.dateISO as string | undefined;
@@ -96,7 +98,30 @@ export default function CameraEntry() {
       <View style={styles.overlay}>
         {/* Cerrar */}
         <Pressable
-          onPress={() => router.back()}
+          onPress={() => {
+            // If this camera was opened with meal context, prefer returning to Meals for that date
+            try {
+              if (incomingMealType || incomingDate) {
+                const q = new URLSearchParams();
+                if (incomingDate) q.set('dateISO', incomingDate);
+                router.replace(`/(tabs)/meals?${q.toString()}` as any);
+                return;
+              }
+            } catch (e) {}
+
+            // Otherwise prefer native goBack if possible
+            try {
+              // @ts-ignore
+              if (navigation && typeof (navigation as any).canGoBack === 'function' && (navigation as any).canGoBack()) {
+                // @ts-ignore
+                (navigation as any).goBack();
+                return;
+              }
+            } catch (e) {}
+
+            // final fallback to home
+            router.replace('/');
+          }}
           style={styles.closeBtn}
           hitSlop={10}
           accessibilityLabel="Cerrar cámara"

@@ -10,6 +10,8 @@ import Activity from '@/assets/icons/activity-icon.svg';
 import Meals from '@/assets/icons/meals-icon.svg';
 import Profile from '@/assets/icons/profile-icon.svg';
 import Add from '@/assets/icons/add-icon.svg';
+import QuickActionsSheet from '@/src/shared/ui/QuickActionsSheet';
+import { useState } from 'react';
 
 export default function BottomNav() {
   const router = useRouter();
@@ -21,6 +23,7 @@ export default function BottomNav() {
   const shouldHideBottomNav = segments.some((seg) => hiddenRoutes.includes(String(seg)));
   if (shouldHideBottomNav) return null;
   const active = segments[segments.length - 1] || 'index';
+  const [openQuick, setOpenQuick] = useState(false);
 
   // --- Escala responsiva base 430 (Figma)
   const { width } = Dimensions.get('window');
@@ -45,26 +48,27 @@ export default function BottomNav() {
   const go = (route: string) => router.push(route as any);
 
   return (
-    <View
-      style={[
-        styles.container,
-        {
-          height: BAR_H + insets.bottom,
-          paddingBottom: Math.max(insets.bottom, Platform.OS === 'ios' ? 8 : 10),
-        },
-      ]}
-      pointerEvents="box-none"
-    >
+    <>
       <View
         style={[
-          styles.inner,
+          styles.container,
           {
-            height: INNER_H,
-            paddingHorizontal: GAP_X,
-            maxWidth: 500,
+            height: BAR_H + insets.bottom,
+            paddingBottom: Math.max(insets.bottom, Platform.OS === 'ios' ? 8 : 10),
           },
         ]}
+        pointerEvents="box-none"
       >
+        <View
+          style={[
+            styles.inner,
+            {
+              height: INNER_H,
+              paddingHorizontal: GAP_X,
+              maxWidth: 500,
+            },
+          ]}
+        >
         {/* Inicio */}
         <Tab
           label="Inicio"
@@ -109,7 +113,7 @@ export default function BottomNav() {
             },
           ]}
           hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-          onPress={() => go('/modals/add-activity')}
+          onPress={() => setOpenQuick(true)}
         >
           <LinearGradient
             colors={['#2FCCAC', '#24A88C']}
@@ -155,8 +159,11 @@ export default function BottomNav() {
           onPress={() => go('/(tabs)/profile')}
           showLabel={SHOW_LABELS}
         />
+        </View>
       </View>
-    </View>
+      {/* Quick actions sheet rendered as a sibling so it can cover the whole screen */}
+      <QuickActionsSheet visible={openQuick} onClose={() => setOpenQuick(false)} />
+    </>
   );
 }
 
