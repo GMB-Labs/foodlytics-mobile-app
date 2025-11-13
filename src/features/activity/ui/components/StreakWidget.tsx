@@ -104,7 +104,7 @@ export default function StreakWidget({ records }: Props) {
           </AppText>
         </View>
         <AppText variant="ag9" color="#6A7282">
-          {`${totalThisMonth} registrados`}
+          {`${totalThisMonth} días este mes`}
         </AppText>
       </View>
 

@@ -26,7 +26,7 @@ export default function LoadingScreen() {
     if (mealType) q.set("mealType", String(mealType));
 
     // Pequeño delay opcional para permitir ver el spinner
-    const DELAY_MS = 16000;
+    const DELAY_MS = 5000;
     const t = setTimeout(() => {
       router.replace(`/camera/result?${q.toString()}`);
     }, DELAY_MS);
