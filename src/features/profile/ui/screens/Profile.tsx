@@ -62,7 +62,11 @@ export default function Profile() {
   return (
     <View style={styles.container}>
   <Header name={profile.name} email={profile.email} imageUri={profile.avatar} onPick={pickImage} />
-  <ScrollView style={{ flex: 1 }} contentContainerStyle={[styles.scrollContent, { paddingBottom: s(100) + insets.bottom }] }>
+  <ScrollView 
+  showsVerticalScrollIndicator={false}
+  style={{ flex: 1 }} 
+  contentContainerStyle={[styles.scrollContent, { paddingBottom: s(100) + insets.bottom }] }
+  >
         <PersonalData
           age={profile.age}
           gender={profile.gender}
