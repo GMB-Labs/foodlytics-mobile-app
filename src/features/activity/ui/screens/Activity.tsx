@@ -15,9 +15,6 @@ export default function ActivityScreen() {
 
   const calories = 0;
   const minutes = 0;
-  const steps = 630;
-  const stepsGoal = 10000;
-  const stepProgress = Math.min(1, steps / stepsGoal);
 
   return (
     <View style={styles.safe}>
@@ -32,8 +29,6 @@ export default function ActivityScreen() {
 
         <View style={styles.container}>
           <StepsToday
-            steps={steps}
-            stepsGoal={stepsGoal}
             onRegisterPress={() => router.push('/modals/add-activity')}
           />
 

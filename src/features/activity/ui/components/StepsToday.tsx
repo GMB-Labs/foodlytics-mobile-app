@@ -1,6 +1,8 @@
 import React, {useEffect} from 'react';
-import { View, StyleSheet, Dimensions, TouchableOpacity } from 'react-native';
+import { View, StyleSheet, Dimensions, ActivityIndicator } from 'react-native';
 import AppText from '@/src/shared/ui/components/Typography';
+import useSteps from '@/src/shared/hooks/useSteps';
+import { useProfile } from '@/src/features/profile/application/useProfile';
 
 type Props = {
   steps?: number;
@@ -8,7 +10,7 @@ type Props = {
   onRegisterPress?: () => void;
 };
 
-export default function StepsToday({ steps = 0, stepsGoal = 10000, onRegisterPress }: Props) {
+export default function StepsToday({ steps: stepsProp = 0, stepsGoal = 10000 }: Props) {
   const { width } = Dimensions.get('window');
   const designW = 430;
   const scale = Math.min(1, width / designW);
@@ -21,7 +23,29 @@ export default function StepsToday({ steps = 0, stepsGoal = 10000, onRegisterPre
     // Example: use expo-sensors (Pedometer) or react-native-permissions depending on project choice.
   }, []);
 
-  const stepProgress = Math.min(1, steps / stepsGoal);
+  const { available, steps, uploading, pending } = useSteps();
+  const { profile } = useProfile();
+
+  // Determine computed goal from activity or prop
+  const activityStepsMap: Record<string, number> = {
+    Sedentario: 3000,
+    Ligero: 4000,
+    Moderado: 5000,
+    Activo: 6000,
+    'Muy activo': 7000,
+  };
+
+  const computedGoal = profile?.activity ? (activityStepsMap[profile.activity] ?? stepsGoal) : stepsGoal;
+
+  const effectiveSteps = typeof steps === 'number' && steps > 0 ? steps : stepsProp;
+  const stepProgress = Math.min(1, (effectiveSteps || 0) / (computedGoal || stepsGoal));
+
+  // Estimate calories burned from walking: kcal = weightKg * distance_km * factor
+  // stride approx = height(cm) * 0.415 (in cm -> convert to meters)
+  const strideMeters = profile?.heightCm ? (profile.heightCm * 0.415) / 100 : 0.7; // default 0.7m
+  const distanceKm = (effectiveSteps * strideMeters) / 1000;
+  const kcalPerKgPerKm = 1.0; // approximation
+  const caloriesBurned = profile?.weightKg ? Math.round(profile.weightKg * distanceKm * kcalPerKgPerKm) : 0;
 
   return (
     <View>
@@ -32,7 +56,9 @@ export default function StepsToday({ steps = 0, stepsGoal = 10000, onRegisterPre
           </View>
           <View style={{ marginLeft: 12, flex: 1 }}>
             <AppText variant="ag7" color="#1A1A1A">Pasos Hoy</AppText>
-            <AppText variant="ag9" color="#6A7282">~225 calorías</AppText>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+              <AppText variant="ag9" color="#6A7282">{caloriesBurned} kcal</AppText>
+            </View>
             <View style={styles.progressBarBg}>
               <View
                 style={[
@@ -45,20 +71,17 @@ export default function StepsToday({ steps = 0, stepsGoal = 10000, onRegisterPre
         </View>
 
         <View style={styles.stepsRight}>
-          <AppText variant="ag2" color="#2FCCAC">{String(steps)}</AppText>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <AppText variant="ag2" color="#2FCCAC">{String(effectiveSteps)}</AppText>
+            {uploading ? <ActivityIndicator size="small" color="#2FCCAC" /> : null}
+          </View>
           <AppText variant="ag10" color="#6A7282">
-            Meta: {stepsGoal.toLocaleString()}
+            Meta: {(computedGoal || stepsGoal).toLocaleString()}
           </AppText>
+          {stepProgress >= 1 && <AppText variant="ag10" color="#2FCCAC">Meta alcanzada</AppText>}
+          {pending ? <AppText variant="ag10" color="#6A7282">Pendiente: {pending}</AppText> : null}
         </View>
       </View>
-
-      <TouchableOpacity
-        activeOpacity={0.9}
-        onPress={onRegisterPress}
-        style = {styles.registerBtn}
-      >
-        <AppText variant="ag7" color="#FFFFFF">+  Registrar Actividad</AppText>
-      </TouchableOpacity>
     </View>
   );
 }
@@ -83,5 +106,5 @@ const styles = StyleSheet.create({
   stepsRight: { alignItems: 'flex-end', marginLeft: 12 },
   progressBarBg: { height: 12, backgroundColor: '#F3F4F6', borderRadius: 999, marginTop: 12, overflow: 'hidden' },
   progressBarFill: { height: 12, backgroundColor: '#2FCCAC', borderRadius: 999 },
-  registerBtn: {backgroundColor: '#2FCCAC', marginTop: 16, borderRadius: 20, paddingVertical: 14, alignItems: 'center', justifyContent: 'center' },
+  
 });

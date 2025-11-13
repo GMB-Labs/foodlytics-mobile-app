@@ -24,6 +24,7 @@ type Props = {
   activities?: Activity[];
   // preview flag to force sample data
   preview?: boolean;
+  onRegisterPress?: () => void;
 };
 
 function intensityColor(intensity: Activity['intensity']) {
@@ -52,7 +53,7 @@ function intensityTextColor(intensity: Activity['intensity']) {
 
 // ActivityCard extracted to `components/activities/ActivityCard.tsx`.
 
-export default function ActivitiesToday({ activities, preview = true }: Props) {
+export default function ActivitiesToday({ activities, preview = true, onRegisterPress }: Props) {
   const initial = preview ? PREVIEW_ACTIVITIES : (activities || []);
   const [list, setList] = useState<Activity[]>(initial);
 
@@ -96,6 +97,12 @@ export default function ActivitiesToday({ activities, preview = true }: Props) {
 
   return (
     <View style={{ marginTop: 24 }}>
+      <View style={{ marginBottom: 16 }}>
+            <TouchableOpacity activeOpacity={0.9} onPress={onRegisterPress} style={cardStyles.registerBtn}>
+              <AppText variant="ag7" color="#FFFFFF">+  Registrar Actividad</AppText>
+            </TouchableOpacity>
+      </View>
+
       <AppText variant="ag7" color="#1A1A1A">{`Actividades de Hoy`}</AppText>
 
       {list.length === 0 ? (
@@ -113,6 +120,7 @@ export default function ActivitiesToday({ activities, preview = true }: Props) {
             <ActivityCard key={a.id} activity={a} onDelete={handleDeleteRequest} />
           ))}
           <ActivitiesStatsCard activities={list} />
+
         </View>
       )}
     </View>
@@ -133,4 +141,5 @@ const cardStyles = StyleSheet.create({
   dot: { width: 6, height: 6, borderRadius: 6, backgroundColor: '#D1D5DB', marginHorizontal: 10 },
   badge: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 12 },
   deleteBtn: { marginLeft: 12, marginBottom: 40},
+  registerBtn: { backgroundColor: '#2FCCAC', borderRadius: 20, paddingVertical: 14, alignItems: 'center', justifyContent: 'center' },
 });
