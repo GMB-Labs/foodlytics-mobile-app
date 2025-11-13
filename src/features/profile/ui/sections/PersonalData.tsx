@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from "react";
 import { View, StyleSheet, Pressable, TextInput } from "react-native";
 import AppText from "@/src/shared/ui/components/Typography";
-import SectionCard from "../pieces/SectionCard";
-import KeyValueBox from "../pieces/KeyValueBox";
-import BMIBlock from "../pieces/BMIBlock";
-import EditAction from '../pieces/EditAction';
+import SectionCard from "../components/SectionCard";
+import KeyValueBox from "../components/KeyValueBox";
+import BMIBlock from "../components/BMIBlock";
+import EditAction from '../components/EditAction';
 import { COLORS, s } from "../tokens";
 
 export default React.memo(function PersonalData({

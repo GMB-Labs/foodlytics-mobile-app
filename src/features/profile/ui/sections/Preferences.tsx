@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
-import SectionCard from "../pieces/SectionCard";
-import MenuItem from "../pieces/MenuItem";
+import SectionCard from "../components/SectionCard";
+import MenuItem from "../components/MenuItem";
 import Noti from "@/assets/icons/profile/notiIcon.svg";
 import World from "@/assets/icons/profile/mundiIcon.svg";
 import Secure from "@/assets/icons/profile/shieldIcon.svg";
