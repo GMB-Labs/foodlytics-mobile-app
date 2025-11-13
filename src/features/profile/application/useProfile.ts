@@ -28,7 +28,7 @@ const MOCK: Profile = {
   bmi: 23.8,
   bmiLabel: "Normal",
   goalWeight: 65,
-  activity: "Moderado",
+  activity: "Sedentario",
   dailyCalories: 1789,
 };
 

@@ -125,14 +125,15 @@ export default function BottomNav() {
         {/* Actividad */}
         <Tab
           label="Actividad"
-          active={isActive('activity')}
+          active={isActive('activity') || isActive('progress')}
           iconBox={ICON_BOX}
           icon={
             <Activity
               width={ICON_SIZE}
               height={ICON_SIZE}
-              color={isActive('activity') ? '#2FCCAC' : '#99A1AF'}
-              strokeWidth={isActive('activity') ? 2.5 : 2}
+              color={isActive('activity') || isActive('progress') ? '#2FCCAC' : '#99A1AF'}
+              
+              strokeWidth={isActive('activity') || isActive('progress') ? 2.5 : 2}
             />
           }
           onPress={() => go('/(tabs)/activity')}
