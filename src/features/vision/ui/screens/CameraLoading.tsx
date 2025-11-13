@@ -26,7 +26,7 @@ export default function LoadingScreen() {
     if (mealType) q.set("mealType", String(mealType));
 
     // Pequeño delay opcional para permitir ver el spinner
-    const DELAY_MS = 6000;
+    const DELAY_MS = 16000;
     const t = setTimeout(() => {
       router.replace(`/camera/result?${q.toString()}`);
     }, DELAY_MS);
@@ -95,18 +95,19 @@ export default function LoadingScreen() {
           <BackIcon width={40} height={40} />
     </Pressable>
 
-      {/* Burbuja central  */}
-      <View style={styles.bubble}>
+    <View style={styles.iconContainer}>
+          {/*<View style={styles.iconCircle}>*/}
         <LottieView
           // Asegúrate que el JSON exista en esta ruta
-          source={require("@/assets/lottie/lupa.json")}
+          source={require("@/assets/lottie/analisis.json")}
           autoPlay
           loop
           renderMode="AUTOMATIC"
           enableMergePathsAndroidForKitKatAndAbove
           style={styles.lottie}
         />
-      </View>
+          {/*</View>*/}
+    </View>
 
       {/* Título */}
       <AppText style={styles.title}>Analizando tu comida</AppText>
@@ -131,29 +132,33 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
  
-  bubble: {
+  iconContainer: {
     marginTop: 244,
+    alignItems: "center",
+    marginBottom: 38,
+  },
+  iconCircle: {
     width: 114,
     height: 114,
-    borderRadius: 44739200,
+    borderRadius: 48,
+    backgroundColor: "rgba(0,196,140,0.1)",
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "rgba(47, 204, 172, 0.80)", 
   },
 
   lottie: {
-    width: 73,
-    height: 73,
+    width: 230,
+    height: 230,
   },
 
   title: {
-    marginTop: 72, 
+    marginTop: 30, 
     fontSize: 18,
     lineHeight: 24,
     fontWeight: "600",
     color: "#151522",
   },
-  // Paragraph 16 / 24 centrado, ancho ~307–357 según Figma
+
   subtitle: {
     marginTop: 24,
     width: 357,

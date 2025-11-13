@@ -1,6 +1,6 @@
 // src/features/vision/ui/screens/CameraResult.tsx
 import React, { useMemo, useState, useEffect } from "react";
-import { View, StyleSheet, ScrollView, Pressable, TextInput, Platform } from "react-native";
+import { View, StyleSheet, ScrollView, Pressable, TextInput, Platform, Modal, ActivityIndicator } from "react-native";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import AppText from "@/src/shared/ui/components/Typography";
@@ -105,19 +105,62 @@ export default function CameraResult() {
     }));
   };
 
-  const handleDelete = (idx: number) => {
-    // Eliminar item de la lista local
-    setItems(prev => prev.filter((_, i) => i !== idx));
+  // Delete confirmation flow: prompt -> confirm/cancel
+  const [deleteTarget, setDeleteTarget] = useState<{ idx: number; item: DetectionItem } | null>(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+
+  const promptDelete = (idx: number) => {
+    const it = items[idx];
+    if (!it) return;
+    setDeleteTarget({ idx, item: it });
+    setShowDeleteModal(true);
   };
 
-  const onConfirm = () => {
-    // TODO: Persistir items detectados si data existe.
-    // Si falta mealType en flujo de acciones rápidas, aquí abrir selector de tipo.
-    router.push(`/(tabs)/meals?dateISO=${encodeURIComponent(dateISO)}` as any);
+  const handleConfirmDelete = () => {
+    if (deleteTarget) {
+      setItems(prev => prev.filter((_, i) => i !== deleteTarget.idx));
+    }
+    setShowDeleteModal(false);
+    setDeleteTarget(null);
   };
 
-  const onClose = () => {
-    router.back();
+  const handleCancelDelete = () => {
+    setShowDeleteModal(false);
+    setDeleteTarget(null);
+  };
+
+  // Confirm modals
+  const [showSaveModal, setShowSaveModal] = useState(false);
+  const [showCloseModal, setShowCloseModal] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  // Simulated save - replace with real POST to your backend
+  const performSave = async () => {
+    if (items.length === 0) return;
+    setSaving(true);
+    try {
+      const payload = {
+        dateISO,
+        mealType: mealType ?? "",
+        items: items.map((it) => ({ name: it.name, qty: it.qty, unit: it.unit, kcal: it.kcal, p: it.p, c: it.c, f: it.f })),
+      };
+      // TODO: replace with real fetch to backend, e.g. await fetch(...)
+      await new Promise((r) => setTimeout(r, 300));
+      setSaved(true);
+      setShowSaveModal(false);
+      // Navegar al CompleteScreen
+      const q = new URLSearchParams();
+      q.set("dateISO", dateISO);
+      if (mealType) q.set("mealType", mealType);
+
+      router.replace(`/camera/complete?${q.toString()}`);
+    } catch (e) {
+      // show error toast in real app
+      console.error("save failed", e);
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -130,7 +173,7 @@ export default function CameraResult() {
           <AppText variant="ag3" style={styles.headerTitle}>
             Alimentos Detectados
           </AppText>
-          <Pressable onPress={onClose} style={styles.closeButton}>
+          <Pressable onPress={() => setShowCloseModal(true)} style={styles.closeButton}>
             <AppText style={styles.closeIcon}>✕</AppText>
           </Pressable>
         </View>
@@ -199,7 +242,7 @@ export default function CameraResult() {
                     {`${item.kcal} cal • ${item.p}g P • ${item.c}g C • ${item.f}g G`}
                   </AppText>
                 </View>
-                <Pressable onPress={() => handleDelete(idx)} style={styles.deleteButton}>
+                <Pressable onPress={() => promptDelete(idx)} style={styles.deleteButton}>
                   <RedDeleteIcon width={18} height={18} />
                 </Pressable>
               </View>
@@ -241,13 +284,89 @@ export default function CameraResult() {
 
       {/* Botón fijo en el fondo */}
       <View style={styles.footerContainer}>
-        <Pressable onPress={onConfirm} style={styles.confirmButton}>
+        <Pressable onPress={() => setShowSaveModal(true)} style={styles.confirmButton}>
           <ChekIcon width={16} height={16} style={{ marginRight: 8 }} />
           <AppText variant="ag9" style={styles.confirmButtonText}>
             Guardar Comida
           </AppText>
         </Pressable>
       </View>
+
+      {/* Save confirmation modal */}
+      <Modal visible={showSaveModal} transparent animationType="fade" onRequestClose={() => setShowSaveModal(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <AppText variant="ag6" style={{ marginBottom: 8 }}>¿Confirmar guardado?</AppText>
+            <AppText variant="ag9" style={{ color: '#6B7280', marginBottom: 12 }}>
+              Una vez guardada, la comida no podrá ser editada ni borrada. ¿Deseas continuar?
+            </AppText>
+
+            <View style={{ maxHeight: 220 }}>
+              <ScrollView>
+                {items.map((it, i) => (
+                  <View key={i} style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 6 }}>
+                    <AppText variant="ag9">{it.name}</AppText>
+                    <AppText variant="ag9">{quantities[i] ?? it.qty} {it.unit}</AppText>
+                  </View>
+                ))}
+              </ScrollView>
+            </View>
+
+            <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginTop: 12 }}>
+              <Pressable style={styles.modalButton} onPress={() => setShowSaveModal(false)}>
+                <AppText variant="ag9" style={{ color: '#6B7280' }}>Cancelar</AppText>
+              </Pressable>
+              <Pressable style={[styles.modalButton, { marginLeft: 12 }]} onPress={performSave} disabled={saving}>
+                {saving ? <ActivityIndicator color="#2FCCAC" /> : <AppText variant="ag9" style={{ color: '#2FCCAC' }}>Confirmar</AppText>}
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Close confirmation modal (header X) */}
+      <Modal visible={showCloseModal} transparent animationType="fade" onRequestClose={() => setShowCloseModal(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <AppText variant="ag6" style={{ marginBottom: 8 }}>¿No quieres subir la comida?</AppText>
+            <AppText variant="ag9" style={{ color: '#6B7280', marginBottom: 12 }}>
+              Si sales ahora, los datos detectados no se guardarán. ¿Deseas salir?
+            </AppText>
+            <View style={{ flexDirection: 'row', justifyContent: 'flex-end' }}>
+              <Pressable style={styles.modalButton} onPress={() => setShowCloseModal(false)}>
+                <AppText variant="ag9" style={{ color: '#6B7280' }}>Volver</AppText>
+              </Pressable>
+              <Pressable style={[styles.modalButton, { marginLeft: 12 }]} onPress={() => router.back()}>
+                <AppText variant="ag9" style={{ color: '#EF4444' }}>Salir</AppText>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Delete confirmation modal (per-card) */}
+      <Modal visible={showDeleteModal} transparent animationType="fade" onRequestClose={handleCancelDelete}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <AppText variant="ag6" style={{ marginBottom: 8 }}>Eliminar elemento</AppText>
+            <AppText variant="ag9" style={{ color: '#6B7280', marginBottom: 12 }}>
+              ¿Estás seguro que quieres eliminar{' '}
+              <AppText variant="ag9" style={{ fontFamily: 'Poppins-Bold', color: '#6B7280' }}>
+                {deleteTarget?.item.name}
+              </AppText>
+              ? Esta acción quitará el alimento de la detección.
+            </AppText>
+            <View style={{ flexDirection: 'row', justifyContent: 'flex-end' }}>
+              <Pressable style={styles.modalButton} onPress={handleCancelDelete}>
+                <AppText variant="ag9" style={{ color: '#6B7280' }}>Cancelar</AppText>
+              </Pressable>
+              <Pressable style={[styles.modalButton, { marginLeft: 12 }]} onPress={handleConfirmDelete}>
+                <AppText variant="ag9" style={{ color: '#EF4444' }}>Eliminar</AppText>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -410,5 +529,27 @@ const styles = StyleSheet.create({
   confirmButtonText: {
     color: "#FFFFFF",
     fontFamily: "Poppins-Medium",
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  modalCard: {
+    width: '100%',
+    maxWidth: 420,
+    backgroundColor: 'white',
+    borderRadius: 12,
+    padding: 16,
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 6,
+  },
+  modalButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
   },
 });

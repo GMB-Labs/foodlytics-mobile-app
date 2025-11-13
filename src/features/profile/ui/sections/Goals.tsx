@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from "react";
 import { View, StyleSheet, Pressable, TextInput } from "react-native";
 import AppText from "@/src/shared/ui/components/Typography";
-import SectionCard from "../pieces/SectionCard";
+import SectionCard from "../components/SectionCard";
 import { COLORS, s } from "../tokens";
 import GoalsIcon from "@/assets/icons/profile/goalsicon.svg";
 import ActivityIcon from "@/assets/icons/activity-icon.svg";
-import EditAction from '../pieces/EditAction';
+import EditAction from '../components/EditAction';
 
 export default React.memo(function Goals({
   goalWeight, activity, dailyCalories, onEdit, isEditing, onSave, onCancel,
