@@ -2,11 +2,15 @@
 import React, { useMemo, useState, useEffect } from "react";
 import { View, StyleSheet, ScrollView, Pressable, TextInput, Platform, Modal, ActivityIndicator } from "react-native";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
+import { getDetection } from "@/src/features/vision/infrastructure/detectCache";
 import { LinearGradient } from "expo-linear-gradient";
 import AppText from "@/src/shared/ui/components/Typography";
 import { useTodayISO } from "@/src/shared/hooks/useTodayISO";
 import ChekIcon from "@/assets/icons/meals/chekIcon.svg";
 import RedDeleteIcon from "@/assets/icons/meals/deleteIcon.svg"
+import SaveConfirmationModal from "@/src/features/vision/ui/components/result/SaveConfirmationModal";
+import CloseConfirmationModal from "@/src/features/vision/ui/components/result/CloseConfirmationModal";
+import DeleteConfirmationModal from "@/src/features/vision/ui/components/result/DeleteConfirmationModal";
 
 
 type DetectionItem = { 
@@ -22,6 +26,7 @@ type DetectionItem = {
 type DetectionResponse = {
   items: DetectionItem[];
   totals: { kcal: number; proteinG: number; carbsG: number; fatG: number };
+  dishName?: string;
 };
 
 // Development mock data
@@ -42,16 +47,57 @@ export default function CameraResult() {
   const dateISO = (params?.dateISO as string | undefined) ?? todayISO;
   const mealType = params?.mealType as string | undefined; // reservado para futuros flujos
   const det = params?.det as string | undefined;
+  const resultId = params?.resultId as string | undefined;
 
   // Parse seguro del resultado IA si existe
   const data: DetectionResponse | null = useMemo(() => {
+    // Prefer cached result via resultId (short id), fallback to det query if present
+    if (resultId) {
+      try {
+        const cached = getDetection(resultId);
+        if (cached) return cached;
+      } catch (e) {
+        console.warn("[CameraResult] failed to read cached detection", e);
+      }
+    }
     if (!det) return null;
     try {
       return JSON.parse(decodeURIComponent(det));
     } catch {
       return null;
     }
-  }, [det]);
+  }, [det, resultId]);
+
+  useEffect(() => {
+    if (data) console.log("[CameraResult] decoded det:", { items: data.items?.length ?? 0, totals: data.totals, dishName: data.dishName });
+    else console.log("[CameraResult] no det decoded (det param missing or invalid)");
+  }, [data]);
+
+  // If backend explicitly reports no detection (no items and totals all zero or a specific dishName),
+  // redirect to the no-detection screen.
+  useEffect(() => {
+    try {
+      if (!data) return;
+      const itemsCount = Array.isArray(data.items) ? data.items.length : 0;
+      const totals = data.totals ?? { kcal: 0, proteinG: 0, carbsG: 0, fatG: 0 };
+      const allTotalsZero = Number(totals.kcal ?? 0) === 0 && Number(totals.proteinG ?? 0) === 0 && Number(totals.carbsG ?? 0) === 0 && Number(totals.fatG ?? 0) === 0;
+      const dishIndicatesUnknown = String(data.dishName ?? "").toLowerCase().includes("no se puede identificar") || String(data.dishName ?? "").toLowerCase().includes("no identificado");
+      if (itemsCount === 0 && allTotalsZero) {
+        console.log("[CameraResult] detection empty — redirecting to no-detection screen", { itemsCount, totals, dishName: data.dishName });
+        const q = new URLSearchParams();
+        q.set("dateISO", dateISO);
+        router.replace(`/camera/no-detection?${q.toString()}` as any);
+      } else if (dishIndicatesUnknown && itemsCount === 0) {
+        console.log("[CameraResult] dish name indicates unknown — redirecting to no-detection", { dishName: data.dishName });
+        const q = new URLSearchParams();
+        q.set("dateISO", dateISO);
+        router.replace(`/camera/no-detection?${q.toString()}` as any);
+      }
+    } catch (e) {
+      // swallow — don't block UI
+      console.warn('[CameraResult] error checking no-detection condition', e);
+    }
+  }, [data, dateISO, router]);
 
   // displayData usa los datos reales si existen, o el mock en desarrollo para preview visual
   const displayData: DetectionResponse | null = data ?? (__DEV__ ? DEV_MOCK_DATA : null);
@@ -59,22 +105,13 @@ export default function CameraResult() {
   // Estado local para manejar cantidades editables
   const [quantities, setQuantities] = useState<Record<number, number>>({});
 
+  // Meal type selection: prefer param, but allow user to pick if not provided (quick actions flow)
+  const [selectedMealType, setSelectedMealType] = useState<string | undefined>(mealType);
+
   // Estado local de items para permitir borrar/editar en UI sin mutar el mock
   const [items, setItems] = useState<DetectionItem[]>(() => displayData?.items ?? []);
 
-  // Totales calculados a partir de los items actualmente en UI
-  const totals = useMemo(() => {
-    return items.reduce(
-      (acc, it) => {
-        acc.proteinG += it.p;
-        acc.carbsG += it.c;
-        acc.fatG += it.f;
-        acc.kcal += it.kcal;
-        return acc;
-      },
-      { proteinG: 0, carbsG: 0, fatG: 0, kcal: 0 }
-    );
-  }, [items]);
+  // Totales calculados a partir de los items actualmente en UI (computed below)
 
   // Inicializar/actualizar items y cantidades cuando cambian los datos mostrados
   useEffect(() => {
@@ -93,6 +130,47 @@ export default function CameraResult() {
       }, {} as Record<number, number>)
     );
   }, [items]);
+
+  // If user modifies quantities via + / - or input, we compute derived item macros
+  // from the base detected items so the UI updates macros and totals live.
+  // computedItems is used for rendering and totals.
+  const computedItems = React.useMemo(() => {
+    return items.map((it, idx) => {
+      const q = quantities[idx] ?? it.qty;
+      const baseQty = it.qty || 1;
+      const kcalPer = baseQty ? Number(it.kcal ?? 0) / baseQty : 0;
+      const pPer = baseQty ? Number(it.p ?? 0) / baseQty : 0;
+      const cPer = baseQty ? Number(it.c ?? 0) / baseQty : 0;
+      const fPer = baseQty ? Number(it.f ?? 0) / baseQty : 0;
+
+      const newKcal = kcalPer * q;
+      const newP = pPer * q;
+      const newC = cPer * q;
+      const newF = fPer * q;
+
+      return {
+        ...it,
+        qty: q,
+        kcal: Math.round(newKcal),
+        p: Math.round(newP * 100) / 100,
+        c: Math.round(newC * 100) / 100,
+        f: Math.round(newF * 100) / 100,
+      } as DetectionItem;
+    });
+  }, [items, quantities]);
+
+  const totals = React.useMemo(() => {
+    return computedItems.reduce(
+      (acc, it) => {
+        acc.proteinG += it.p;
+        acc.carbsG += it.c;
+        acc.fatG += it.f;
+        acc.kcal += it.kcal;
+        return acc;
+      },
+      { proteinG: 0, carbsG: 0, fatG: 0, kcal: 0 }
+    );
+  }, [computedItems]);
 
   const handleIncrement = (idx: number) => {
     setQuantities(prev => ({ ...prev, [idx]: (prev[idx] ?? 0) + 1 }));
@@ -137,27 +215,31 @@ export default function CameraResult() {
 
   // Simulated save - replace with real POST to your backend
   const performSave = async () => {
-    if (items.length === 0) return;
+    if (computedItems.length === 0) return;
     setSaving(true);
     try {
       const payload = {
         dateISO,
-        mealType: mealType ?? "",
-        items: items.map((it) => ({ name: it.name, qty: it.qty, unit: it.unit, kcal: it.kcal, p: it.p, c: it.c, f: it.f })),
+        mealType: selectedMealType ?? "",
+        items: computedItems.map((it) => ({ name: it.name, qty: it.qty, unit: it.unit, kcal: it.kcal, p: it.p, c: it.c, f: it.f })),
       };
+      console.log("[CameraResult] performSave payload", { payload });
       // TODO: replace with real fetch to backend, e.g. await fetch(...)
+      // Simulate network latency but keep a log to indicate simulated save
+      console.log("[CameraResult] performSave simulated request start");
       await new Promise((r) => setTimeout(r, 300));
+      console.log("[CameraResult] performSave simulated request finished");
       setSaved(true);
       setShowSaveModal(false);
       // Navegar al CompleteScreen
       const q = new URLSearchParams();
       q.set("dateISO", dateISO);
-      if (mealType) q.set("mealType", mealType);
+      if (selectedMealType) q.set("mealType", selectedMealType);
 
       router.replace(`/camera/complete?${q.toString()}`);
     } catch (e) {
       // show error toast in real app
-      console.error("save failed", e);
+      console.error("[CameraResult] save failed", e);
     } finally {
       setSaving(false);
     }
@@ -180,11 +262,13 @@ export default function CameraResult() {
       </LinearGradient>
 
       {/* Resumen Nutricional (basado en items locales) */}
-      {items && items.length > 0 ? (
+      {computedItems && computedItems.length > 0 ? (
         <View style={styles.summaryContainer}>
-          <AppText variant="ag7" style={styles.summaryTitle}>
-            Resumen Nutricional
-          </AppText>
+      {displayData?.dishName ? (
+            <AppText variant="ag8" style={styles.summaryTitle}>
+              {displayData.dishName}
+            </AppText>
+          ) : null}
           <View style={styles.summaryGrid}>
             <View style={styles.summaryCard}>
               <AppText variant="ag10" style={styles.summaryLabel}>
@@ -230,8 +314,8 @@ export default function CameraResult() {
 
       {/* Lista de alimentos */}
       <ScrollView style={styles.scrollContainer} contentContainerStyle={styles.scrollContent}>
-        {items && items.length > 0 ? (
-          items.map((item, idx) => (
+        {computedItems && computedItems.length > 0 ? (
+          computedItems.map((item, idx) => (
             <View key={idx} style={styles.foodItem}>
               <View style={styles.foodHeader}>
                 <View style={styles.foodInfo}>
@@ -253,9 +337,9 @@ export default function CameraResult() {
                 </Pressable>
 
                 <View style={styles.quantityInput}>
-                  <TextInput
-                    style={styles.input}
-                    value={String(quantities[idx] ?? item.qty)}
+                      <TextInput
+                        style={styles.input}
+                        value={String(quantities[idx] ?? item.qty)}
                     keyboardType="numeric"
                     onChangeText={(text) => {
                       const num = parseInt(text, 10);
@@ -272,7 +356,7 @@ export default function CameraResult() {
                 </Pressable>
               </View>
             </View>
-          ))
+                ))
         ) : (
           <View style={{ marginTop: 16, paddingHorizontal: 41 }}>
             <AppText variant="ag9" style={{ color: "#667085" }}>
@@ -280,11 +364,32 @@ export default function CameraResult() {
             </AppText>
           </View>
         )}
+      {/* Meal type selector for quick-actions flow (if no mealType param provided) */}
+      {!mealType ? (
+        <View style={styles.mealTypeSelectorContainer}>
+          <AppText variant="ag9" style={{ marginBottom: 8, color: '#374151' }}>Selecciona el tipo de comida</AppText>
+          <View style={styles.mealTypeButtonsRow}>
+            <Pressable style={[styles.mealBtn, selectedMealType === 'breakfast' && styles.mealBtnSelected]} onPress={() => setSelectedMealType('breakfast')}>
+              <AppText style={[styles.mealBtnText, selectedMealType === 'breakfast' && styles.mealBtnTextSelected]}>Desayuno</AppText>
+            </Pressable>
+            <Pressable style={[styles.mealBtn, selectedMealType === 'lunch' && styles.mealBtnSelected]} onPress={() => setSelectedMealType('lunch')}>
+              <AppText style={[styles.mealBtnText, selectedMealType === 'lunch' && styles.mealBtnTextSelected]}>Almuerzo</AppText>
+            </Pressable>
+            <Pressable style={[styles.mealBtn, selectedMealType === 'dinner' && styles.mealBtnSelected]} onPress={() => setSelectedMealType('dinner')}>
+              <AppText style={[styles.mealBtnText, selectedMealType === 'dinner' && styles.mealBtnTextSelected]}>Cena</AppText>
+            </Pressable>
+            <Pressable style={[styles.mealBtn, selectedMealType === 'snack' && styles.mealBtnSelected]} onPress={() => setSelectedMealType('snack')}>
+              <AppText style={[styles.mealBtnText, selectedMealType === 'snack' && styles.mealBtnTextSelected]}>Aperitivo</AppText>
+            </Pressable>
+          </View>
+        </View>
+      ) : null}
+
       </ScrollView>
 
       {/* Botón fijo en el fondo */}
       <View style={styles.footerContainer}>
-        <Pressable onPress={() => setShowSaveModal(true)} style={styles.confirmButton}>
+        <Pressable onPress={() => { if (selectedMealType) setShowSaveModal(true); }} style={[styles.confirmButton, !selectedMealType && styles.confirmButtonDisabled]} disabled={!selectedMealType}>
           <ChekIcon width={16} height={16} style={{ marginRight: 8 }} />
           <AppText variant="ag9" style={styles.confirmButtonText}>
             Guardar Comida
@@ -292,121 +397,35 @@ export default function CameraResult() {
         </Pressable>
       </View>
 
-      {/* Save confirmation modal */}
-      <Modal visible={showSaveModal} transparent animationType="fade" onRequestClose={() => setShowSaveModal(false)}>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
-            <AppText variant="ag6" style={{ marginBottom: 8 }}>¿Confirmar guardado?</AppText>
-            <AppText variant="ag9" style={{ color: '#6B7280', marginBottom: 12 }}>
-              Una vez guardada, la comida no podrá ser editada ni borrada. ¿Deseas continuar?
-            </AppText>
+      <SaveConfirmationModal
+        visible={showSaveModal}
+        onClose={() => setShowSaveModal(false)}
+        onConfirm={performSave}
+        saving={saving}
+        items={computedItems}
+        quantities={quantities}
+      />
 
-            <View style={{ maxHeight: 220 }}>
-              <ScrollView>
-                {items.map((it, i) => (
-                  <View key={i} style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 6 }}>
-                    <AppText variant="ag9">{it.name}</AppText>
-                    <AppText variant="ag9">{quantities[i] ?? it.qty} {it.unit}</AppText>
-                  </View>
-                ))}
-              </ScrollView>
-            </View>
+      <CloseConfirmationModal visible={showCloseModal} onClose={() => setShowCloseModal(false)} onConfirm={() => router.back()} />
 
-            <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginTop: 12 }}>
-              <Pressable style={styles.modalButton} onPress={() => setShowSaveModal(false)}>
-                <AppText variant="ag9" style={{ color: '#6B7280' }}>Cancelar</AppText>
-              </Pressable>
-              <Pressable style={[styles.modalButton, { marginLeft: 12 }]} onPress={performSave} disabled={saving}>
-                {saving ? <ActivityIndicator color="#2FCCAC" /> : <AppText variant="ag9" style={{ color: '#2FCCAC' }}>Confirmar</AppText>}
-              </Pressable>
-            </View>
-          </View>
-        </View>
-      </Modal>
-
-      {/* Close confirmation modal (header X) */}
-      <Modal visible={showCloseModal} transparent animationType="fade" onRequestClose={() => setShowCloseModal(false)}>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
-            <AppText variant="ag6" style={{ marginBottom: 8 }}>¿No quieres subir la comida?</AppText>
-            <AppText variant="ag9" style={{ color: '#6B7280', marginBottom: 12 }}>
-              Si sales ahora, los datos detectados no se guardarán. ¿Deseas salir?
-            </AppText>
-            <View style={{ flexDirection: 'row', justifyContent: 'flex-end' }}>
-              <Pressable style={styles.modalButton} onPress={() => setShowCloseModal(false)}>
-                <AppText variant="ag9" style={{ color: '#6B7280' }}>Volver</AppText>
-              </Pressable>
-              <Pressable style={[styles.modalButton, { marginLeft: 12 }]} onPress={() => router.back()}>
-                <AppText variant="ag9" style={{ color: '#EF4444' }}>Salir</AppText>
-              </Pressable>
-            </View>
-          </View>
-        </View>
-      </Modal>
-
-      {/* Delete confirmation modal (per-card) */}
-      <Modal visible={showDeleteModal} transparent animationType="fade" onRequestClose={handleCancelDelete}>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
-            <AppText variant="ag6" style={{ marginBottom: 8 }}>Eliminar elemento</AppText>
-            <AppText variant="ag9" style={{ color: '#6B7280', marginBottom: 12 }}>
-              ¿Estás seguro que quieres eliminar{' '}
-              <AppText variant="ag9" style={{ fontFamily: 'Poppins-Bold', color: '#6B7280' }}>
-                {deleteTarget?.item.name}
-              </AppText>
-              ? Esta acción quitará el alimento de la detección.
-            </AppText>
-            <View style={{ flexDirection: 'row', justifyContent: 'flex-end' }}>
-              <Pressable style={styles.modalButton} onPress={handleCancelDelete}>
-                <AppText variant="ag9" style={{ color: '#6B7280' }}>Cancelar</AppText>
-              </Pressable>
-              <Pressable style={[styles.modalButton, { marginLeft: 12 }]} onPress={handleConfirmDelete}>
-                <AppText variant="ag9" style={{ color: '#EF4444' }}>Eliminar</AppText>
-              </Pressable>
-            </View>
-          </View>
-        </View>
-      </Modal>
+      <DeleteConfirmationModal visible={showDeleteModal} targetName={deleteTarget?.item.name} onCancel={handleCancelDelete} onConfirm={handleConfirmDelete} />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { 
-    flex: 1, 
-    backgroundColor: "#FFFFFF" 
-  },
-  header: {
-    paddingTop: 64,
-    paddingBottom: 16,
-    paddingHorizontal: 24,
-  },
-  headerContent: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  headerTitle: {
-    color: "#FFFFFF",
-    fontFamily: "Poppins-Regular",
-  },
-  closeButton: {
-    width: 24,
-    height: 24,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  closeIcon: {
-    color: "#FFFFFF",
-    fontSize: 20,
-    fontWeight: "400",
-  },
+  container: { flex: 1, backgroundColor: "#FFFFFF"},
+  header: { paddingTop: 64,paddingBottom: 16, paddingHorizontal: 24,},
+  headerContent: { flexDirection: "row", alignItems: "center", justifyContent: "space-between",},
+  headerTitle: { color: "#FFFFFF", fontFamily: "Poppins-Regular", },
+  closeButton: { width: 24,height: 24,alignItems: "center",justifyContent: "center",},
+  closeIcon: {color: "#FFFFFF",fontSize: 20,fontWeight: "400",},
   summaryContainer: {
     padding: 20,
     borderRadius: 16,
     backgroundColor: "#EFFAF8",
     marginHorizontal: 20,
-    marginTop: 20,
+    marginTop: 15,
     marginBottom: 4,
   },
   summaryTitle: {
@@ -551,5 +570,40 @@ const styles = StyleSheet.create({
   modalButton: {
     paddingHorizontal: 12,
     paddingVertical: 8,
+  },
+  mealTypeSelectorContainer: {
+    paddingHorizontal: 20,
+    marginTop: 12,
+    marginBottom: 6,
+  },
+  mealTypeButtonsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  mealBtn: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FFFFFF',
+  },
+  mealBtnSelected: {
+    backgroundColor: '#2FCCAC',
+    borderColor: '#2FCCAC',
+  },
+  mealBtnText: {
+    color: '#111827',
+    fontFamily: 'Poppins-Regular',
+  },
+  mealBtnTextSelected: {
+    color: '#FFFFFF',
+    fontFamily: 'Poppins-Medium',
+  },
+  confirmButtonDisabled: {
+    backgroundColor: '#CBD5E1',
   },
 });

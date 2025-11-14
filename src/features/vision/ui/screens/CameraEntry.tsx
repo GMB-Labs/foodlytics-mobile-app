@@ -18,6 +18,11 @@ export default function CameraEntry() {
   const incomingDate = params?.dateISO as string | undefined;
   const incomingMealType = params?.mealType as string | undefined;
 
+  useEffect(() => {
+    // Log incoming params for debugging navigation from Meals / Home
+    console.log('[CameraEntry] incoming params', { incomingDate, incomingMealType });
+  }, [incomingDate, incomingMealType]);
+
   const [permission, requestPermission] = useCameraPermissions();
   const [isCameraReady, setCameraReady] = useState(false);
   const [isCapturing, setIsCapturing] = useState(false);
@@ -59,6 +64,7 @@ export default function CameraEntry() {
       q.set("photoUri", photo.uri);
 
       console.log("➡️ Navegando a /camera/loading con:", Object.fromEntries(q as any));
+      console.log('[CameraEntry] pushing to /camera/loading', { dateISO: todayISO, mealType: incomingMealType, photoUri: photo.uri });
       router.push(`/camera/loading?${q.toString()}`);
     } catch (error) {
       console.error("❌ Error al capturar la foto:", error);
