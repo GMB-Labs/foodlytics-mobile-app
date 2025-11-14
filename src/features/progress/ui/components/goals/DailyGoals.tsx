@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, Text } from 'react-native';
+import { useRouter, usePathname } from 'expo-router';
 import AppText from '@/src/shared/ui/components/Typography';
 import GoalIcon from '@/assets/icons/activity/goalIcon.svg';
 
@@ -13,13 +14,25 @@ const defaultGoals: Goal[] = [
 ];
 
 export default function DailyGoals({ goals = defaultGoals }: { goals?: Goal[] }) {
+  const router = useRouter();
+  const pathname = usePathname();
+
+  const onAdjust = () => {
+    const safeFrom = (() => {
+      if (!pathname || pathname === '/') return '/(tabs)';
+      if (pathname.startsWith('/(auth)') || pathname.startsWith('/login')) return '/(tabs)';
+      return pathname;
+    })();
+    router.push({ pathname: '/modals/edit-goals', params: { from: safeFrom } } as any);
+  };
+
   return (
     <View style={styles.card}>
       <View style={styles.headerRow}>
-        <AppText variant="ag7" color="#1A1A1A">Metas Diarias</AppText>
-        <TouchableOpacity style={styles.adjustBtn} activeOpacity={0.85}>
+        <AppText variant="ag7" color="#1A1A1A"><Text>Metas Diarias</Text></AppText>
+        <TouchableOpacity style={styles.adjustBtn} activeOpacity={0.85} onPress={onAdjust}>
           <GoalIcon width={16} height={16} color={'#1A1A1A'} />
-          <AppText variant="ag9" color="#1A1A1A" style={{ marginLeft: 8 }}>Ajustar</AppText>
+          <AppText variant="ag9" color="#1A1A1A" style={{ marginLeft: 8 }}><Text>Ajustar</Text></AppText>
         </TouchableOpacity>
       </View>
 

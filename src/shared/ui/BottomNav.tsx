@@ -18,12 +18,12 @@ export default function BottomNav() {
   const segments = useSegments();
   // All hooks must run unconditionally. Call hooks first to satisfy Rules of Hooks.
   const insets = useSafeAreaInsets();
+  const [openQuick, setOpenQuick] = useState(false);
   // Hide bottom nav on routes where we want a full-screen UI (Notifications, etc.).
   const hiddenRoutes = ['notifications', 'language', 'privacy', 'terms', 'privacy-policy', ''];
   const shouldHideBottomNav = segments.some((seg) => hiddenRoutes.includes(String(seg)));
   if (shouldHideBottomNav) return null;
   const active = segments[segments.length - 1] || 'index';
-  const [openQuick, setOpenQuick] = useState(false);
 
   // --- Escala responsiva base 430 (Figma)
   const { width } = Dimensions.get('window');

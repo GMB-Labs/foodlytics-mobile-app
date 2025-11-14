@@ -2,13 +2,16 @@ import React from 'react';
 import { SafeAreaView, ScrollView, View, StyleSheet, TouchableOpacity } from 'react-native';
 import AppText from '@/src/shared/ui/components/Typography';
 import ActivityHeader from '@/src/shared/ui/components/ActivityHeader';
-import DailyGoals from '@/src/features/progress/ui/components/DailyGoals';
-import WeeklyCompliance from '@/src/features/progress/ui/components/WeeklyCompliance';
-import WeightEvolution from '@/src/features/progress/ui/components/WeightEvolution';
-import WeightCard from '@/src/features/progress/ui/components/WeightCard';
+import DailyGoals from '@/src/features/progress/ui/components/goals/DailyGoals';
+import WeeklyCompliance from '@/src/features/progress/ui/components/goals/evolution/WeeklyCompliance';
+import WeightEvolution from '@/src/features/progress/ui/components/weight/evolution/WeightEvolution';
+import WeightCard from '@/src/features/progress/ui/components/weight/WeightCard';
+import { useRouter, usePathname } from 'expo-router';
 
 
 export default function ProgressScreen() {
+  const router = useRouter();
+  const pathname = usePathname();
   // Placeholder data — real implementation should query progress/application layer
   const calories = 0;
   const minutes = 0;
@@ -32,7 +35,14 @@ export default function ProgressScreen() {
             unit="kg"
             delta="1.0 kg"
             progressToGoal={"4.0"}
-            onRegisterPress={() => { /* TODO: wire register action */ }}
+            onRegisterPress={() => {
+              const safeFrom = (() => {
+                if (!pathname || pathname === '/') return '/(tabs)';
+                if (pathname.startsWith('/(auth)') || pathname.startsWith('/login')) return '/(tabs)';
+                return pathname;
+              })();
+              router.push({ pathname: '/modals/add-weight', params: { from: safeFrom } } as any);
+            }}
           />
 
           {/* Weight chart */}

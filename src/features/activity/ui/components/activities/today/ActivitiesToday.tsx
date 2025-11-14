@@ -2,8 +2,8 @@ import React, { useRef, useState } from "react";
 import { View, StyleSheet, TouchableOpacity, Alert, Platform } from 'react-native';
 import AppText from '@/src/shared/ui/components/Typography';
 import ProgressIcon from '@/assets/icons/activity/progressIcon.svg';
-import ActivitiesStatsCard from './activities/ActivitiesStatsCard';
-import ActivityCard from './activities/ActivityCard';
+import ActivitiesStatsCard from './cards/ActivitiesStatsCard';
+import ActivityCard from './cards/ActivityCard';
 
 type Activity = {
   id: string;

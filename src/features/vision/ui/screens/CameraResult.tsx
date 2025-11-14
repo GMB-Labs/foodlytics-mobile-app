@@ -11,7 +11,10 @@ import RedDeleteIcon from "@/assets/icons/meals/deleteIcon.svg"
 import SaveConfirmationModal from "@/src/features/vision/ui/components/result/SaveConfirmationModal";
 import CloseConfirmationModal from "@/src/features/vision/ui/components/result/CloseConfirmationModal";
 import DeleteConfirmationModal from "@/src/features/vision/ui/components/result/DeleteConfirmationModal";
-
+import AperitiveIcon from "@/assets/icons/vision/aperitiveIcon.svg";
+import BreakfastIcon from "@/assets/icons/vision/breakIcon.svg";
+import DinnerIcon from "@/assets/icons/vision/dinnerIcon.svg";
+import LunchIcon from "@/assets/icons/vision/lunchIcon.svg";
 
 type DetectionItem = { 
   name: string; 
@@ -369,17 +372,36 @@ export default function CameraResult() {
         <View style={styles.mealTypeSelectorContainer}>
           <AppText variant="ag9" style={{ marginBottom: 8, color: '#374151' }}>Selecciona el tipo de comida</AppText>
           <View style={styles.mealTypeButtonsRow}>
-            <Pressable style={[styles.mealBtn, selectedMealType === 'breakfast' && styles.mealBtnSelected]} onPress={() => setSelectedMealType('breakfast')}>
-              <AppText style={[styles.mealBtnText, selectedMealType === 'breakfast' && styles.mealBtnTextSelected]}>Desayuno</AppText>
+            <Pressable
+              style={[styles.mealBtn, selectedMealType === 'breakfast' && styles.mealBtnSelected]}
+              onPress={() => setSelectedMealType('breakfast')}
+              accessibilityLabel="Desayuno"
+            >
+              <BreakfastIcon width={24} height={24} color={selectedMealType === 'breakfast' ? '#FFFFFF' : '#111827'} />
             </Pressable>
-            <Pressable style={[styles.mealBtn, selectedMealType === 'lunch' && styles.mealBtnSelected]} onPress={() => setSelectedMealType('lunch')}>
-              <AppText style={[styles.mealBtnText, selectedMealType === 'lunch' && styles.mealBtnTextSelected]}>Almuerzo</AppText>
+
+            <Pressable
+              style={[styles.mealBtn, selectedMealType === 'lunch' && styles.mealBtnSelected]}
+              onPress={() => setSelectedMealType('lunch')}
+              accessibilityLabel="Almuerzo"
+            >
+              <LunchIcon width={24} height={24} color={selectedMealType === 'lunch' ? '#FFFFFF' : '#111827'} />
             </Pressable>
-            <Pressable style={[styles.mealBtn, selectedMealType === 'dinner' && styles.mealBtnSelected]} onPress={() => setSelectedMealType('dinner')}>
-              <AppText style={[styles.mealBtnText, selectedMealType === 'dinner' && styles.mealBtnTextSelected]}>Cena</AppText>
+
+            <Pressable
+              style={[styles.mealBtn, selectedMealType === 'dinner' && styles.mealBtnSelected]}
+              onPress={() => setSelectedMealType('dinner')}
+              accessibilityLabel="Cena"
+            >
+              <DinnerIcon width={24} height={24} color={selectedMealType === 'dinner' ? '#FFFFFF' : '#111827'} />
             </Pressable>
-            <Pressable style={[styles.mealBtn, selectedMealType === 'snack' && styles.mealBtnSelected]} onPress={() => setSelectedMealType('snack')}>
-              <AppText style={[styles.mealBtnText, selectedMealType === 'snack' && styles.mealBtnTextSelected]}>Aperitivo</AppText>
+
+            <Pressable
+              style={[styles.mealBtn, selectedMealType === 'snack' && styles.mealBtnSelected]}
+              onPress={() => setSelectedMealType('snack')}
+              accessibilityLabel="Aperitivo"
+            >
+              <AperitiveIcon width={24} height={24} color={selectedMealType === 'snack' ? '#FFFFFF' : '#111827'} />
             </Pressable>
           </View>
         </View>
