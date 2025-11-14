@@ -1,11 +1,11 @@
 import React from 'react';
 import { Animated, View, Pressable, StyleSheet, Platform } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, usePathname } from 'expo-router';
 import AppText from '@/src/shared/ui/components/Typography';
 
 import CameraIcon from '@/assets/icons/cameraIcon.svg';
 import WeightIcon from '@/assets/icons/activity/weightIcon.svg';
-import ActivityIcon from '@/assets/icons/activity/strikeIcon.svg';
+import ActivityIcon from '@/assets/icons/activity/progressIcon.svg';
 import GoalIcon from '@/assets/icons/activity/goalIcon.svg';
 
 type Props = {
@@ -15,6 +15,7 @@ type Props = {
 
 export default function QuickActionsSheet({ visible, onClose }: Props) {
   const router = useRouter();
+  const pathname = usePathname();
   const opacity = React.useRef(new Animated.Value(0)).current;
   const translateY = React.useRef(new Animated.Value(24)).current;
 
@@ -41,11 +42,22 @@ export default function QuickActionsSheet({ visible, onClose }: Props) {
   };
   const goAddWeight = () => {
     onClose();
-    router.push('/modals/add-weight');
+    // Normalize 'from' so we don't pass the root path ('/') which in this
+    // project redirects to /login. If the current pathname is root or an
+    // auth route, fall back to the tabs index so the modal can safely
+    // return the user there.
+    const safeFrom = (() => {
+      if (!pathname || pathname === '/') return '/(tabs)';
+      // avoid sending user back to auth routes
+      if (pathname.startsWith('/(auth)') || pathname.startsWith('/login')) return '/(tabs)';
+      return pathname;
+    })();
+
+    router.push({ pathname: '/modals/add-weight', params: { from: safeFrom } });
   };
   const goActivity = () => {
     onClose();
-    router.push('/(tabs)/activity');
+    router.push('/modals/add-activity');
   };
   const goNewGoal = () => {
     onClose();
@@ -57,24 +69,23 @@ export default function QuickActionsSheet({ visible, onClose }: Props) {
       style={[styles.overlay, { opacity }]}
       pointerEvents="box-none"
     >
-      {/* Fondo semitransparente que oscurece toda la app */}
+      {/* Fondo semitransparente igual al frame */}
       <Pressable style={styles.backdrop} onPress={onClose} />
 
-      {/* Sheet con acciones, animado desde abajo */}
+      {/* Sheet blanco con radius 32 y altura tipo Figma */}
       <Animated.View style={[styles.sheet, { transform: [{ translateY }] }]}>
         <View style={styles.headerRow}>
-          <AppText variant="ag3" style={styles.title}>
-            Acciones Rapidas
-          </AppText>
+          <AppText variant="ag5" style={styles.title}>Acciones Rápidas</AppText>
+
           <Pressable
             onPress={onClose}
             style={styles.closeBtn}
             hitSlop={10}
             accessibilityLabel="Cerrar"
           >
-            <AppText variant="ag7" style={styles.closeX}>
-              ✕
-            </AppText>
+            <View style={styles.closeCircle}>
+              <AppText variant="ag7" style={styles.closeX}>✕</AppText>
+            </View>
           </Pressable>
         </View>
 
@@ -90,7 +101,7 @@ export default function QuickActionsSheet({ visible, onClose }: Props) {
               />
             }
             label="Registrar Comida"
-            bgColor="#2FCCAC"
+            bgColor="#2FCCAC" // Figma
           />
           <GridItem
             onPress={goAddWeight}
@@ -103,7 +114,7 @@ export default function QuickActionsSheet({ visible, onClose }: Props) {
               />
             }
             label="Registrar Peso"
-            bgColor="#2D9CFF"
+            bgColor="#2B7FFF" // #2b7fff del frame
           />
           <GridItem
             onPress={goActivity}
@@ -116,7 +127,7 @@ export default function QuickActionsSheet({ visible, onClose }: Props) {
               />
             }
             label="Registrar Actividad"
-            bgColor="#FF8A00"
+            bgColor="#FF6900" // #ff6900 del frame
           />
           <GridItem
             onPress={goNewGoal}
@@ -129,7 +140,7 @@ export default function QuickActionsSheet({ visible, onClose }: Props) {
               />
             }
             label="Nueva Meta"
-            bgColor="#8A4DFF"
+            bgColor="#AD46FF" // #ad46ff del frame
           />
         </View>
       </Animated.View>
@@ -161,54 +172,83 @@ const styles = StyleSheet.create({
   },
   backdrop: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(15, 23, 42, 0.6)', // sombra sobre toda la pantalla
+    // bg-[rgba(0,0,0,0.5)]
+    backgroundColor: 'rgba(0,0,0,0.5)',
   },
   sheet: {
     width: '100%',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
     backgroundColor: '#FFFFFF',
-    paddingTop: 18,
+    // h-[479px] en el frame, aquí lo dejamos auto pero con padding similar
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
+    paddingTop: 36, // top 18 + header 18 aprox
+    paddingHorizontal: 24, // left 24 en el frame
     paddingBottom: Platform.OS === 'ios' ? 34 : 20,
-    paddingHorizontal: 20,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: -6 },
-    shadowOpacity: 0.06,
-    shadowRadius: 10,
-    elevation: 10,
+    shadowOffset: { width: 0, height: -8 },
+    shadowOpacity: 0.12,
+    shadowRadius: 20,
+    elevation: 20,
   },
   headerRow: {
-    width: '100%',
+    height: 40, // h-[40px]
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 18,
+    marginBottom: 24,
   },
-  title: { color: '#111827', fontSize: 20 },
-  closeBtn: { position: 'absolute', right: 0, top: 0 },
-  closeX: { color: '#374151', fontSize: 20 },
+  title: {
+    // Poppins 20, #1A1A1A
+    color: '#1A1A1A',
+    fontSize: 20,
+    lineHeight: 28,
+    textAlign: 'left',
+  },
+  closeBtn: {
+    marginLeft: 'auto',
+  },
+  closeCircle: {
+    // size-[40px] bg-gray-100 rounded-full
+    width: 40,
+    height: 40,
+    borderRadius: 999,
+    backgroundColor: '#F3F4F6',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  closeX: {
+    color: '#111827',
+    fontSize: 18,
+  },
   grid: {
+    // grid-cols-2 gap-[16px] w-[382px]
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
-    gap: 12,
+    columnGap: 16,
+    rowGap: 16,
   },
   gridItem: {
-    width: '48%',
-    backgroundColor: '#F8FAFB',
-    borderRadius: 12,
-    paddingVertical: 18,
+    // dos columnas dentro de 382 px -> aprox 48 %
+    width: '47%',
+    backgroundColor: '#F9FAFB', // gray-50
+    borderRadius: 16,
+    paddingVertical: 24,
+    paddingHorizontal: 0,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 12,
   },
   iconBox: {
     width: 56,
     height: 56,
-    borderRadius: 12,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 10,
+    marginBottom: 12,
   },
-  itemLabel: { color: '#111827', textAlign: 'center' },
+  itemLabel: {
+    color: '#1A1A1A',
+    fontSize: 14,
+    lineHeight: 20,
+    textAlign: 'center',
+  },
 });

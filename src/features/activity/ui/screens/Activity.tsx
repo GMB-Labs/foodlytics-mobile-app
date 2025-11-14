@@ -1,10 +1,10 @@
 import React from 'react';
 import { ScrollView, View, StyleSheet, Dimensions } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, usePathname } from 'expo-router';
 import ActivityHeader from '@/src/shared/ui/components/ActivityHeader';
-import StepsToday from '@/src/features/activity/ui/components/StepsToday';
-import ActivitiesToday from '@/src/features/activity/ui/components/ActivitiesToday';
-import StreakWidget from '@/src/features/activity/ui/components/StreakWidget';
+import StepsToday from '@/src/features/activity/ui/components/activities/today/cards/StepsToday';
+import ActivitiesToday from '@/src/features/activity/ui/components/activities/today/ActivitiesToday';
+import StreakWidget from '@/src/features/activity/ui/components/activities/month/StreakWidget';
 
 export default function ActivityScreen() {
   const router = useRouter();
@@ -15,6 +15,19 @@ export default function ActivityScreen() {
 
   const calories = 0;
   const minutes = 0;
+  const pathname = usePathname();
+
+  const openAddActivity = () => {
+    const safeFrom = (() => {
+      if (!pathname || pathname === '/') return '/(tabs)';
+      if (pathname.startsWith('/(auth)') || pathname.startsWith('/login')) return '/(tabs)';
+      return pathname;
+    })();
+    try {
+      router.push({ pathname: '/modals/add-activity', params: { from: safeFrom } } as any);
+    } catch (err) {
+    }
+  };
 
   return (
     <View style={styles.safe}>
@@ -28,11 +41,9 @@ export default function ActivityScreen() {
         <ActivityHeader calories={calories} minutes={minutes} />
 
         <View style={styles.container}>
-          <StepsToday
-            onRegisterPress={() => router.push('/modals/add-activity')}
-          />
+          <StepsToday onRegisterPress={openAddActivity} />
 
-          <ActivitiesToday />
+          <ActivitiesToday onRegisterPress={openAddActivity} />
 
           {/* Placeholder streak widget (heatmap) */}
 
