@@ -4,6 +4,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import AppText from "@/src/shared/ui/components/Typography";
 import LottieView from "lottie-react-native";
 import BackIcon from "@/assets/icons/meals/backIcon.svg";
+import { detectFoodFromImage } from "@/src/features/vision/application/detectFoodFromImage";
 
 /**
  * LoadingScreen (UI first)
@@ -20,57 +21,44 @@ export default function LoadingScreen() {
   const { photoUri, dateISO, mealType } = useLocalSearchParams() as any;
 
   useEffect(() => {
-    // SIMULACIÓN: navegar a Result como si la IA hubiera respondido OK
-    const q = new URLSearchParams();
-    if (dateISO) q.set("dateISO", String(dateISO));
-    if (mealType) q.set("mealType", String(mealType));
+    // Real: llamar al caso de uso que envía la imagen al backend y obtiene detección
+    let mounted = true;
+    (async () => {
+      const q = new URLSearchParams();
+      if (dateISO) q.set("dateISO", String(dateISO));
+      if (mealType) q.set("mealType", String(mealType));
 
-    // Pequeño delay opcional para permitir ver el spinner
-    const DELAY_MS = 5000;
-    const t = setTimeout(() => {
-      router.replace(`/camera/result?${q.toString()}`);
-    }, DELAY_MS);
+      try {
+        console.log("[CameraLoading] detect start", { photoUri, dateISO, mealType });
+        const res = await detectFoodFromImage(String(photoUri), { timeoutMs: 30000 });
+        const detection = (res as any).detection ?? res;
+        const resultId = (res as any).resultId;
+        console.log("[CameraLoading] detect finished", { items: detection.items.length, totals: detection.totals, resultId });
 
-    return () => clearTimeout(t);
+        if (!mounted) return;
+        // Guardar solo el resultId en la query para evitar URLs largas
+        if (resultId) q.set("resultId", String(resultId));
+        // En modo desarrollo aún permitimos enviar 'det' para debug si es pequeño
+        if (__DEV__) {
+          try {
+            q.set("det", encodeURIComponent(JSON.stringify(detection)));
+          } catch (e) {
+            // ignore
+          }
+        }
+        router.replace(`/camera/result?${q.toString()}`);
+        return;
+      } catch (err) {
+        console.error("[CameraLoading] Vision detect error:", err);
+        // Fallback: navegar a result sin datos (UI mostrará mensaje)
+        router.replace(`/camera/result?${q.toString()}`);
+      }
+    })();
 
-    /**
-     * =======================
-     * TODO: Consumo real de IA
-     * =======================
-     *
-     * Sugerido (sin compresión para precisión):
-     *
-     * // 1) SIN COMPRESIÓN (Precisión máxima)
-     * //    Si igual necesitas manipular metadatos, hazlo sin cambiar calidad.
-     * //    (ej. renombrar/normalizar orientación)
-     *
-     * // 2) SUBIR MULTIPART
-     * const form = new FormData();
-     * const res = await fetch(String(photoUri));
-     * const blob = await res.blob();
-     * form.append("file", blob as any, "meal.jpg");
-     * form.append("dateISO", String(dateISO));
-     * if (mealType) form.append("mealType", String(mealType));
-     *
-     * const controller = new AbortController();
-     * const resp = await fetch(
-     *   (process.env.EXPO_PUBLIC_API_BASE || "") + "/vision/analyze",
-     *   { method: "POST", body: form, signal: controller.signal }
-     * );
-     *
-     * if (!resp.ok) {
-     *   // TODO: Manejo real de error (mostrar Alert/Toast + botón Reintentar que re-haga el POST)
-     *   // Por ahora, navegar a Result igual o volver a la cámara:
-     *   router.replace(`/camera/result?${q.toString()}`);
-     *   return;
-     * }
-     *
-     * const json = await resp.json();
-     * // TODO: si devuelves resultId o det, pásalo por query:
-     * // q.set("resultId", json.id);
-     * // o q.set("det", encodeURIComponent(JSON.stringify(json)));
-     * router.replace(`/camera/result?${q.toString()}`);
-     */
+    return () => {
+      mounted = false;
+    };
+
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [photoUri, dateISO, mealType]);
 

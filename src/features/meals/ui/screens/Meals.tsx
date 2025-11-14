@@ -204,6 +204,8 @@ export default function MealsScreen() {
     // changes when the user is merely navigating weeks with the arrows.
     params.set('dateISO', displayDateISO);
     params.set('mealType', mealType);
+    // Debug log to trace navigation params when opening camera from Meals
+    console.log('[Meals] goToCamera navigate to /camera', { dateISO: displayDateISO, mealType, url: `/camera?${params.toString()}` });
     router.push(`/camera?${params.toString()}` as any);
   };
 
