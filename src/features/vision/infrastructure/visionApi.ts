@@ -18,7 +18,7 @@ export async function analyzeImage(photoUri: string, signal?: AbortSignal) {
     type: "image/jpeg",
   } as any);
 
-  const url = `${API_BASE}/recognition/analyze`;
+  const url = `${API_BASE}/api/v1/meals/analyze`;
 
   const resp = await fetch(url, {
     method: "POST",
