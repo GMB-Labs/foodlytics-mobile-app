@@ -10,8 +10,8 @@ import AppText from '@/src/shared/ui/components/Typography';
 import { useTodayISO } from '@/src/shared/hooks/useTodayISO';
 import { getAllMeals, DetectedItem } from '@/src/features/meals/infrastructure/mealsApi';
 import { PrimaryGradient } from '@/src/shared/ui/components/Gradients';
-import BottomNav from '@/src/shared/ui/BottomNav';
 import { PixelRatio } from 'react-native';
+import { useTheme } from '@/src/shared/styles/useTheme';
 
 // local icons still used by Home header
 import Profile from '@/assets/icons/profile-icon.svg';
@@ -39,12 +39,13 @@ const data = {
   ],
 };
 
-const BG = '#F9FAFB';
+// Background now comes from theme tokens
 
 // =====================================================
 // Home
 // =====================================================
 export default function Home() {
+  const { colors} = useTheme();
   const { width, height } = useWindowDimensions();
 
   // === base para 390 x 844
@@ -141,26 +142,36 @@ const fsFix = fontScale > 1.1 ? 0.92 : 1; // reduce un poco alturas si la tipogr
 
   // Build meals array for MealsList using the fetched data when available
   const mealsForList = React.useMemo(() => {
+    // Read per-meal chip tokens from the theme so other components can reuse them
     const defs = [
-      { key: 'breakfast', title: 'Desayuno', chipBg: '#FFEDD4' },
-      { key: 'lunch', title: 'Almuerzo', chipBg: '#FEF9C2' },
-      { key: 'dinner', title: 'Cena', chipBg: '#E9D5FF' },
+      { key: 'breakfast', title: 'Desayuno', chipBg: (colors as any).mealChips?.breakfast?.bg ?? '#FFEDD4', iconColor: (colors as any).mealChips?.breakfast?.icon ?? (colors as any).text ?? '#1A1A1A' },
+      { key: 'lunch',     title: 'Almuerzo', chipBg: (colors as any).mealChips?.lunch?.bg ?? '#FEF9C2',     iconColor: (colors as any).mealChips?.lunch?.icon ?? (colors as any).text ?? '#1A1A1A' },
+      { key: 'dinner',    title: 'Cena',     chipBg: (colors as any).mealChips?.dinner?.bg ?? '#E9D5FF',    iconColor: (colors as any).mealChips?.dinner?.icon ?? (colors as any).text ?? '#1A1A1A' },
     ];
+
+    // Map demo data by key so we keep demo calories text when falling back
+    const demoMap: Record<string, { calories?: string | null }> = Object.fromEntries(
+      data.meals.map((m) => [m.key, { calories: m.calories }])
+    );
+
     const byDate = allMeals && allMeals[todayISO] ? allMeals[todayISO] : null;
-    if (!byDate) return data.meals;
+    // If no fetched meals for today, return themed defs (so chip/icon colors reflect the active theme)
+    if (!byDate) return defs.map((m) => ({ key: m.key, title: m.title, calories: demoMap[m.key]?.calories ?? '', chipBg: m.chipBg, iconColor: m.iconColor }));
+
+    // When there are fetched items, compute kcal sums and include themed iconColor
     return defs.map((m) => {
       const items = byDate[m.key] ?? [];
       const kcalSum = items.reduce((acc, it) => acc + (it?.kcal ?? 0), 0);
-      return { key: m.key, title: m.title, calories: kcalSum > 0 ? `${kcalSum} kcal` : '', chipBg: m.chipBg };
+      return { key: m.key, title: m.title, calories: kcalSum > 0 ? `${kcalSum} kcal` : '', chipBg: m.chipBg, iconColor: m.iconColor };
     });
-  }, [allMeals, todayISO]);
+  }, [allMeals, todayISO, colors]);
 
   return (
-    <SafeAreaView style={styles.screen} edges={['left','right']}>
+    <SafeAreaView style={[styles.screen, { backgroundColor: colors.bg }]} edges={['left','right']}>
       <StatusBar style="light" translucent backgroundColor="transparent" />
 
       {/* Área superior con gradiente */}
-      <View style={{ backgroundColor: BG }}>
+      <View style={{ backgroundColor: colors.bg }}>
         <View
           style={{
             height: TOP_H,
@@ -238,7 +249,7 @@ const fsFix = fontScale > 1.1 ? 0.92 : 1; // reduce un poco alturas si la tipogr
                     width: isActive ? DOT_ACTIVE : DOT,
                     height: isActive ? DOT_ACTIVE : DOT,
                     borderRadius: s(5),
-                    backgroundColor: isActive ? '#FFFFFF' : 'rgba(255,255,255,0.6)',
+                    backgroundColor: isActive ? colors.dotActive : 'rgba(255,255,255,0.6)',
                     transform: [{ scale: isActive ? 1.08 : 1 }],
                   }}
                 />
@@ -248,7 +259,7 @@ const fsFix = fontScale > 1.1 ? 0.92 : 1; // reduce un poco alturas si la tipogr
         </View>
       </View>
         {/* Sin scroll vertical: sección inferior compacta */}
-        <View style={{ flex: 1, backgroundColor: BG }}>
+        <View style={{ flex: 1, backgroundColor: colors.bg }}>
           <MealsList
             meals={mealsForList}
             onAdd={(k) => {}}

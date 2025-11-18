@@ -3,6 +3,7 @@ import { Slot } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaProvider, initialWindowMetrics } from "react-native-safe-area-context";
 import { SessionProvider } from '../shared/hooks/useSession';
+import ThemeProvider from '../shared/styles/ThemeProvider';
 import { useFonts } from "expo-font";
 import { setDefaultFontFamily } from "../shared/utils/fonts";
 import "./global.css";
@@ -23,10 +24,13 @@ export default function RootLayout() {
   return (
     <SafeAreaProvider initialMetrics={initialWindowMetrics}>
       <StatusBar style="auto" />
-      {/* SessionProvider is a lightweight skeleton; replace with real Auth0 wiring later */}
-      <SessionProvider>
-        <Slot />
-      </SessionProvider>
+      {/* ThemeProvider supplies theme tokens and mode to the app */}
+      <ThemeProvider>
+        {/* SessionProvider is a lightweight skeleton; replace with real Auth0 wiring later */}
+        <SessionProvider>
+          <Slot />
+        </SessionProvider>
+      </ThemeProvider>
     </SafeAreaProvider>
   );
 }

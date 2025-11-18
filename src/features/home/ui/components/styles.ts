@@ -1,9 +1,7 @@
 import { StyleSheet } from 'react-native';
 
-const BG = '#F9FAFB';
-
 export const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: BG },
+  screen: { flex: 1 },
 
   headerRow: {
     height: 132,
@@ -41,11 +39,11 @@ export const styles = StyleSheet.create({
   mealRow: {
     flexDirection: 'row', alignItems: 'center',
     paddingVertical: 20, paddingHorizontal: 16,
-    backgroundColor: '#F8FAFC', borderRadius: 16, marginBottom: 12,
+    borderRadius: 16, marginBottom: 12,
     height: 80,
   },
   mealChip: { width: 48, height: 48, borderRadius: 20, marginRight: 16, alignItems: 'center', justifyContent: 'center' },
-  addBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#2FCCAC', alignItems: 'center', justifyContent: 'center' },
+  addBtn: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
   arrowContainer: { width: 20, height: 20, alignItems: 'center', justifyContent: 'center' },
 
   macroRow: {
