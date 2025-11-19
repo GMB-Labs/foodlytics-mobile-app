@@ -41,6 +41,11 @@ export const dark = {
     dinner:    { bg: '#2B153C', icon: '#B760FF' },
   },
 
+  gradient: {
+    primaryFrom: '#0B4B3E',
+    primaryTo: '#142D28',
+  },
+
   // IMC tokens: bubble + per-category pill colors (darker variants)
   imc: {
     bubbleBg: '#06201B',

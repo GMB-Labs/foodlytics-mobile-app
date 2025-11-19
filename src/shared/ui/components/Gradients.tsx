@@ -11,7 +11,7 @@ export function PrimaryGradient(
 ) {
   const { style, height = 220, children, mode, colors, ...rest } = props;
   const scheme = useColorScheme();
-  const { mode: themeMode } = useTheme();
+  const { mode: themeMode, colors: themeColors } = useTheme();
 
   // resolution order: explicit colors prop -> explicit mode prop -> provider mode -> system
   const effectiveMode: "light" | "dark" = (() => {
@@ -26,14 +26,25 @@ export function PrimaryGradient(
   let end = { x: 1, y: 1 };
 
   if (!gradientColors) {
+    // safely read gradient from themeColors: cast to any and validate fields so TS won't error
+    const themeGradient = (themeColors as any)?.gradient as
+      | { primaryFrom?: string; primaryTo?: string }
+      | undefined;
+
     if (effectiveMode === "dark") {
-      // dark: linear-gradient
-      gradientColors = ["#0B4B3E", "#142D28"];
+      // dark: use theme-provided gradient tokens when available
+      gradientColors =
+        themeGradient?.primaryFrom && themeGradient?.primaryTo
+          ? [themeGradient.primaryFrom, themeGradient.primaryTo]
+          : ['#0B4B3E', '#142D28'];
       start = { x: 0, y: 0 };
       end = { x: 0, y: 1 };
     } else {
-      // light: original diagonal gradient
-      gradientColors = ["#2FCCAC", "#24A88C"];
+      // light: use theme-provided gradient tokens when available
+      gradientColors =
+        themeGradient?.primaryFrom && themeGradient?.primaryTo
+          ? [themeGradient.primaryFrom, themeGradient.primaryTo]
+          : ['#2FCCAC', '#24A88C'];
       start = { x: 0, y: 0 };
       end = { x: 1, y: 1 };
     }

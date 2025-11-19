@@ -57,6 +57,12 @@ export const light = {
       overweightIII: '#FFE5E5',
       obese: '#FFE5E5',
     },
+
+  // Primary gradient tokens used by header and buttons
+  gradient: {
+    primaryFrom: '#2FCCAC',
+    primaryTo: '#24A88C',
+  },
     pillText: {
       underweight: '#007BA9',
       normal: '#00C950',
