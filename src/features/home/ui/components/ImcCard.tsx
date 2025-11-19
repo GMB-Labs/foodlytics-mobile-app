@@ -23,22 +23,32 @@ export default function ImcCard({ value, label, compact = false }: { value?: num
 
   const statusKey = (lab: string | null | undefined) => {
     if (!lab) return 'normal';
-    const l = String(lab).toLowerCase();
-    if (l.includes('bajo')) return 'underweight';
-    if (l.includes('normal')) return 'normal';
-    if (l.includes('sobre')) return 'overweight';
+    const l = String(lab).trim().toLowerCase();
+    // Explicit exact matches based on deriveLabelFromValue output
+    if (l === 'bajo peso') return 'underweight';
+    if (l === 'normal') return 'normal';
+    if (l === 'sobrepeso') return 'overweight';
+    if (l === 'obesidad i' || l === 'obesidad 1') return 'overweightI';
+    if (l === 'obesidad ii' || l === 'obesidad 2') return 'overweightII';
+    if (l === 'obesidad iii' || l === 'obesidad 3') return 'overweightIII';
     return 'obese';
   };
 
   const key = statusKey(displayLabel);
-  const pillBg = (colors as any)?.imc?.pillBg?.[key] ?? (styles.imcPill as any)?.backgroundColor ?? '#D0F7DC';
-  const pillTextColor = (colors as any)?.imc?.pillText?.[key] ?? (styles.imcPill as any)?.color ?? '#00C950';
+  // If the derived key is 'obese' map it to 'overweightIII' for color selection
+  const colorKey = key === 'obese' ? 'overweightIII' : key;
+
+  const pillBg = (colors as any)?.imc?.pillBg?.[colorKey] ?? (styles.imcPill as any)?.backgroundColor ?? '#D0F7DC';
+  const pillTextColor = (colors as any)?.imc?.pillText?.[colorKey] ?? (styles.imcPill as any)?.color ?? '#00C950';
+  // Prefer per-status bubble color (match pillBg) when available, otherwise fall back to bubbleBg token
+  const bubbleBg = (colors as any)?.imc?.pillBg?.[colorKey] ?? (colors as any)?.imc?.bubbleBg ?? '#E8FAF6';
+ 
   return (
     <>
-      <AppText variant="ag7" style={{ color: colors.subtext }}>IMC Actual</AppText>
+      <AppText variant="ag8" style={{ color: colors.subtext }}>IMC Actual</AppText>
       <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: compact ? 12 : 16 }}>
-          <View style={[styles.imcBubble, { width: compact ? 68 : 80, height: compact ? 68 : 80 }]}>
-          <AppText variant="ag2" style={{ color: colors.brandA }}>{displayValue != null ? String(displayValue) : '—'}</AppText>
+          <View style={[styles.imcBubble, { width: compact ? 68 : 80, height: compact ? 68 : 80, backgroundColor: bubbleBg }]}>
+          <AppText variant="ag2" style={{ color: pillTextColor }}>{displayValue != null ? String(displayValue) : '—'}</AppText>
         </View>
         <View style={{ marginLeft: 16, flex: 1 }}>
           <AppText variant="ag9" style={{ color:colors.subtext }}>Índice de Masa Corporal</AppText>
@@ -55,14 +65,19 @@ export default function ImcCard({ value, label, compact = false }: { value?: num
           </View>
         </View>
       </View>
-      <View style={[styles.imcGrid, { marginTop: compact ? 12 : 16, paddingTop: compact ? 12 : 16 }]}>
+      <View style={[styles.imcGrid, 
+      { 
+        borderTopColor: colors.border,
+        marginTop: compact ? 12 : 16, paddingTop: compact ? 12 : 16 
+      }
+      ]}>
         <View style={styles.imcCell}>
           <AppText variant="ag10" style={styles.muted}>Peso</AppText>
-          <AppText variant="ag6">70 kg</AppText>
+          <AppText variant="ag6" style={{ color: colors.subtext }}>70 kg</AppText>
         </View>
         <View style={styles.imcCell}>
           <AppText variant="ag10" style={styles.muted}>Altura</AppText>
-          <AppText variant="ag6">170 cm</AppText>
+          <AppText variant="ag6" style={{ color: colors.subtext }}>170 cm</AppText>
         </View>
       </View>
     </>

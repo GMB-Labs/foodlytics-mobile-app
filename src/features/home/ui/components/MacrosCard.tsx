@@ -21,7 +21,7 @@ export default function MacrosCard({ macros, compact = false }: { macros: { prot
 
   return (
     <>
-      <AppText variant="ag7" style={{ color: colors.subtext }}>Macronutrientes</AppText>
+      <AppText variant="ag8" style={{ color: colors.subtext }}>Macronutrientes</AppText>
 
       {rows.map((r, i) => {
         const pct = r.goal > 0 ? Math.min(100, Math.round((r.done / r.goal) * 100)) : 0;

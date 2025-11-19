@@ -11,7 +11,6 @@ export type Profile = {
   heightCm: number;
   weightKg: number;
   bmi: number;
-  bmiLabel: string;
   goalWeight: number;
   activity: string;
   dailyCalories: number;
@@ -21,12 +20,11 @@ const MOCK: Profile = {
   name: "Liliana",
   email: "Liliana@gmail.com",
   avatar: null,
-  age: 25,
+  age: 23,
   gender: "Femenino",
   heightCm: 170,
   weightKg: 68.9,
-  bmi: 23.8,
-  bmiLabel: "Normal",
+  bmi: 20,
   goalWeight: 65,
   activity: "Sedentario",
   dailyCalories: 1789,
