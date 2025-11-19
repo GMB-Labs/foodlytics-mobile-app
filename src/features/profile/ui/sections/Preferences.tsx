@@ -66,7 +66,7 @@ export default React.memo(function Preferences({
         </View>
         <View>
           <AppText variant="ag9" color={colors.text}>Tema</AppText>
-          <AppText variant="ag10" color={colors.mutetext}>{mode === 'dark' ? 'Oscuro' : mode === 'light' ? 'Claro' : 'Sistema'}</AppText>
+          <AppText variant="ag10" color={colors.muted}>{mode === 'dark' ? 'Oscuro' : mode === 'light' ? 'Claro' : 'Sistema'}</AppText>
         </View>
       </View>
 

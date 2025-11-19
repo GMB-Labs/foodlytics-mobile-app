@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useState, useEffect } from "react";
 import * as ImagePicker from "expo-image-picker";
 import { Alert, Platform } from "react-native";
 
@@ -31,11 +31,32 @@ const MOCK: Profile = {
   activity: "Sedentario",
   dailyCalories: 1789,
 };
+// Module-level shared profile state + subscribers so multiple components
+// using `useProfile()` see the same data and updates.
+let currentProfile: Profile = MOCK;
+const listeners: Array<(p: Profile) => void> = [];
+
+function notifyAll() {
+  listeners.forEach((fn) => {
+    try { fn(currentProfile); } catch (e) { /* ignore */ }
+  });
+}
 
 export function useProfile() {
-  const [profile, setProfile] = useState<Profile>(MOCK);
+  const [profile, setProfile] = useState<Profile>(currentProfile);
 
-  // --- Función principal
+  useEffect(() => {
+    const l = (p: Profile) => setProfile(p);
+    listeners.push(l);
+    // ensure current value
+    setProfile(currentProfile);
+    return () => {
+      const idx = listeners.indexOf(l);
+      if (idx >= 0) listeners.splice(idx, 1);
+    };
+  }, []);
+
+  // pick image helper now uses the shared update flow
   const pickImage = useCallback(async () => {
     Alert.alert(
       "Cambiar foto de perfil",
@@ -49,7 +70,6 @@ export function useProfile() {
     );
   }, []);
 
-  // --- Abrir cámara
   const openCamera = useCallback(async () => {
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
     if (status !== "granted") {
@@ -71,12 +91,12 @@ export function useProfile() {
     const uri = result.assets?.[0]?.uri ?? result.uri ?? null;
 
     if (uri) {
-      setProfile(p => ({ ...p, avatar: uri }));
+      currentProfile = { ...currentProfile, avatar: uri };
+      notifyAll();
       // TODO: subir imagen al servidor
     }
   }, []);
 
-  // --- Abrir galería
   const openGallery = useCallback(async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== "granted") {
@@ -98,13 +118,15 @@ export function useProfile() {
     const uri = result.assets?.[0]?.uri ?? result.uri ?? null;
 
     if (uri) {
-      setProfile(p => ({ ...p, avatar: uri }));
+      currentProfile = { ...currentProfile, avatar: uri };
+      notifyAll();
       // TODO: subir imagen al servidor
     }
   }, []);
 
   const updateProfile = useCallback((partial: Partial<Profile>) => {
-    setProfile(prev => ({ ...prev, ...partial }));
+    currentProfile = { ...currentProfile, ...partial };
+    notifyAll();
     // TODO: persistir con backend
   }, []);
 

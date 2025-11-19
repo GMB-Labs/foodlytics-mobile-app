@@ -12,6 +12,7 @@ import { getAllMeals, DetectedItem } from '@/src/features/meals/infrastructure/m
 import { PrimaryGradient } from '@/src/shared/ui/components/Gradients';
 import { PixelRatio } from 'react-native';
 import { useTheme } from '@/src/shared/styles/useTheme';
+import { useProfile } from '@/src/features/profile/application/useProfile';
 
 // local icons still used by Home header
 import Profile from '@/assets/icons/profile-icon.svg';
@@ -31,7 +32,7 @@ const data = {
     carbs:   { done: 90, goal: 179, color: '#FF6900', label: 'Carbohidratos' },
     fats:    { done: 29, goal: 60,  color: '#F0B100', label: 'Grasas' },
   },
-  imc: { value: 24.2, label: 'Normal' },
+  imc: { value: 22.5, label: 'Normal' },
   meals: [
     { key: 'breakfast', title: 'Desayuno', calories: '', chipBg: '#FFEDD4' },
     { key: 'lunch',     title: 'Almuerzo', calories: '238 kcal', chipBg: '#FEF9C2' },
@@ -65,9 +66,9 @@ export default function Home() {
     // helper para elegir valores por tier
     const byTier = <T,>(vals: {  plus: T; tall: T }) => vals[tier];
 
-// opcional: compensar si el usuario tiene font scale grande
-const fontScale = PixelRatio.getFontScale();
-const fsFix = fontScale > 1.1 ? 0.92 : 1; // reduce un poco alturas si la tipografía “crece”
+    // opcional: compensar si el usuario tiene font scale grande
+    const fontScale = PixelRatio.getFontScale();
+    const fsFix = fontScale > 1.1 ? 0.92 : 1; // reduce un poco alturas si la tipografía “crece”
 
 
   // Modo compacto en alturas hasta 844
@@ -137,6 +138,8 @@ const fsFix = fontScale > 1.1 ? 0.92 : 1; // reduce un poco alturas si la tipogr
     return data.calories.consumed;
   }, [allMeals, todayISO]);
 
+  const { profile } = useProfile();
+
   const remaining = Math.max(0, data.calories.goal - consumed);
   const progress = Math.max(0, Math.min(1, consumed / data.calories.goal)); // 0..1
 
@@ -186,8 +189,16 @@ const fsFix = fontScale > 1.1 ? 0.92 : 1; // reduce un poco alturas si la tipogr
           <View style={{ marginBottom: HEADER_MBOTTOM }}>
             <View style={[styles.headerRow, { paddingHorizontal: s(24), paddingTop: HEADER_PT, height: undefined }]}>
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <Pressable onPress={() => {}} style={[styles.headerAvatar, { width: AVATAR, height: AVATAR }]}>
-                  <Profile width={s(28)} height={s(28)} color="#FFFFFF" strokeWidth={2} />
+                <Pressable onPress={() => {}} 
+                style={[styles.headerAvatar,
+                 {
+                   backgroundColor: colors.iconbase,
+                   width: AVATAR, 
+                   height: AVATAR
+                   }
+                 ]}
+                 >
+                  <Profile width={s(28)} height={s(28)}color={colors.white} strokeWidth={2} />
                 </Pressable>
                 <View style={{ marginLeft: s(10) }}>
                   <AppText variant="ag5" style={{ color: '#FFFFFF' }}>Hola, Liliana</AppText>
@@ -208,7 +219,9 @@ const fsFix = fontScale > 1.1 ? 0.92 : 1; // reduce un poco alturas si la tipogr
             decelerationRate="fast"
             onMomentumScrollEnd={onMomentumEnd}
             renderItem={({ item }) => (
-              <View style={[styles.card, { width: CARD_W, height: CARD_H, marginRight: CARD_GAP }]}>
+              <View style={[styles.card,{
+                backgroundColor: colors.mealsCard
+              }, { width: CARD_W, height: CARD_H, marginRight: CARD_GAP }]}>
                 <View style={{ padding: s(18) }}>
                   {item === 'calories' && (
                     <CaloriesCard
@@ -222,7 +235,12 @@ const fsFix = fontScale > 1.1 ? 0.92 : 1; // reduce un poco alturas si la tipogr
                     />
                   )}
                   {item === 'macros' && <MacrosCard macros={data.macros} compact={COMPACT} />}
-                  {item === 'imc' && <ImcCard value={data.imc.value} label={data.imc.label} compact={COMPACT} />}
+                  {item === 'imc' && (
+                    <ImcCard
+                      value={profile?.bmi ?? data.imc.value}
+                      compact={COMPACT}
+                    />
+                  )}
                 </View>
               </View>
             )}
@@ -249,7 +267,7 @@ const fsFix = fontScale > 1.1 ? 0.92 : 1; // reduce un poco alturas si la tipogr
                     width: isActive ? DOT_ACTIVE : DOT,
                     height: isActive ? DOT_ACTIVE : DOT,
                     borderRadius: s(5),
-                    backgroundColor: isActive ? colors.dotActive : 'rgba(255,255,255,0.6)',
+                    backgroundColor: isActive ? colors.dotActive : colors.dot,
                     transform: [{ scale: isActive ? 1.08 : 1 }],
                   }}
                 />

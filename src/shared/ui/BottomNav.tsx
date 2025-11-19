@@ -12,8 +12,11 @@ import Profile from '@/assets/icons/profile-icon.svg';
 import Add from '@/assets/icons/add-icon.svg';
 import QuickActionsSheet from '@/src/shared/ui/QuickActionsSheet';
 import { useState } from 'react';
+import { useTheme } from '@/src/shared/styles/useTheme';
 
 export default function BottomNav() {
+  const { colors } = useTheme();
+  
   const router = useRouter();
   const segments = useSegments();
   // All hooks must run unconditionally. Call hooks first to satisfy Rules of Hooks.
@@ -53,6 +56,8 @@ export default function BottomNav() {
         style={[
           styles.container,
           {
+            backgroundColor: colors.mealsCard,
+            borderTopColor: colors.border,
             height: BAR_H + insets.bottom,
             paddingBottom: Math.max(insets.bottom, Platform.OS === 'ios' ? 8 : 10),
           },

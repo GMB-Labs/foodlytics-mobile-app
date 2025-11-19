@@ -56,7 +56,7 @@ export default function MealsList({
          ]}
         > 
         <View style={[styles.mealsHeader, { paddingBottom: compact ? 2 : 0 }]}> 
-          <AppText variant="ag7" style={{ color: colors.text }}>Comidas de Hoy</AppText>
+          <AppText variant="ag7" style={{ color: colors.subtext }}>Comidas de Hoy</AppText>
           <Pressable onPress={() => router.push(`/(tabs)/meals?dateISO=${encodeURIComponent(todayISO())}&from=home` as any)}>
             <AppText variant="ag9" style={{ color: colors.brandA }}>Ver todas</AppText>
           </Pressable>

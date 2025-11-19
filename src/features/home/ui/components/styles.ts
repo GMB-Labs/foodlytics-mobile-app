@@ -13,7 +13,6 @@ export const styles = StyleSheet.create({
   },
   headerAvatar: {
     width: 60, height: 60, borderRadius: 999,
-    backgroundColor: 'rgba(255,255,255,0.25)',
     alignItems: 'center', justifyContent: 'center',
   },
 
