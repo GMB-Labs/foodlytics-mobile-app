@@ -170,7 +170,7 @@ export default function MealsScreen() {
   // The Date object used to render the header and the native picker value.
   const displayDateObj = useMemo(() => dateFromISO(displayDateISO), [displayDateISO]);
 
-  const today = useMemo(() => dateFromISO(useTodayISO()), []);
+  const today = useMemo(() => dateFromISO(todayISO), [todayISO]);
   // Build week days around `weekCenterISO`. Pass `selectedDate` so getWeekDays
   // can mark the selected day only when the user has chosen one.
   const weekDays = useMemo(() => getWeekDays(dateFromISO(weekCenterISO), today, selectedDate ?? undefined), [weekCenterISO, today, selectedDate]);

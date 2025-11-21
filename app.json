@@ -5,7 +5,7 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "foodlyticsapp",
+    "scheme": "foodlytics",
     "userInterfaceStyle": "automatic",
     "owner": "belier_02",
     "newArchEnabled": true,
@@ -13,14 +13,17 @@
       "supportsTablet": true,
       "infoPlist": {
         "NSCameraUsageDescription": "Necesitamos usar tu cámara para actualizar tu foto de perfil.",
-        "NSPhotoLibraryUsageDescription": "Necesitamos acceder a tu galería para actualizar tu foto de perfil."
-      }
+        "NSPhotoLibraryUsageDescription": "Necesitamos acceder a tu galería para actualizar tu foto de perfil.",
+        "ITSAppUsesNonExemptEncryption": false
+      },
+      "bundleIdentifier": "com.belier-02.foodlytics-app"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
-      }
+      },
+      "package": "com.belier02.foodlyticsapp"
     },
     "web": {
       "bundler": "metro",
@@ -36,13 +39,21 @@
           "resizeMode": "cover",
           "backgroundColor": "#2FCCAC"
         }
-      ]
+      ],
+      "expo-secure-store",
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true
     },
     "assetBundlePatterns": [
       "**/*"
-    ]
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "79ffa1e4-a92c-4295-b1fa-ef93f0fc4e1d"
+      }
+    }
   }
 }
