@@ -26,25 +26,26 @@ export default function Profile() {
   const [, sessionActions] = useSession();
   
   async function handleSignOut() {
-    // Optional: confirm with the user
-    // clear persisted app data and notify session provider
     try {
-      // Clear local storage keys used by the app
+      // Limpiar datos locales adicionales de la app
       const AsyncStorage = (await import('@react-native-async-storage/async-storage')).default;
       await AsyncStorage.removeItem('@foodlytics:notif_prefs');
       await AsyncStorage.removeItem('@foodlytics:language');
-      // TODO: if you integrate Auth0, call the Auth0 logout endpoint here
     } catch (e) {
-      // swallow - logout should continue
+      // No crítico si falla, continuar con el logout
       // eslint-disable-next-line no-console
       console.warn('error clearing storage on signOut', e);
     }
 
-    // update in-memory session
+    // Cerrar sesión completamente:
+    // - Cierra sesión en Auth0 (cierra sesión del navegador)
+    // - Borra todos los tokens (access_token, id_token, refresh_token)
+    // - Borra datos de usuario de AsyncStorage
+    // - Resetea el estado de sesión
     await sessionActions.signOut();
 
-    // navigate to login and replace history so user can't go back
-    router.replace('/login');
+    // Navegar a login y reemplazar el historial para que el usuario no pueda volver
+    router.replace('/(auth)/login');
   }
 
   function openEdit(section: 'personal' | 'goals'){

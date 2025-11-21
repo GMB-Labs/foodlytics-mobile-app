@@ -1,16 +1,26 @@
 import { Redirect, Tabs } from 'expo-router';
-import { View } from 'react-native';
+import { View, ActivityIndicator } from 'react-native';
 import BottomNav from '@/src/shared/ui/BottomNav';
 import useSession from '@/src/shared/hooks/useSession';
 
 const Layout = () => {
   const [session] = useSession();
 
-  if (session.loading) return null;
-  if (!session.isAuthenticated) {
-    return <Redirect href="/login" />;
+  // Mostrar loader mientras se restaura la sesión
+  if (session.loading) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff' }}>
+        <ActivityIndicator size="large" color="#2fccac" />
+      </View>
+    );
   }
 
+  // Redirigir a login si no está autenticado
+  if (!session.isAuthenticated) {
+    return <Redirect href="/(auth)/login" />;
+  }
+
+  // Renderizar tabs protegidas
   return (
     <View style={{ flex: 1 }}>
       <Tabs
