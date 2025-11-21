@@ -1,3 +1,5 @@
+import { dark } from "./dark";
+
 // Base light theme tokens
 export const light = {
   // Surfaces
@@ -7,10 +9,13 @@ export const light = {
   
   // icono +
   white: '#FFFFFF',
+  color: '#57D1B9',
   backIcon: '#99A1AF',
-
+  //
+  textinfo: '#5175AF',
+  infoCardBg:'#EFF6FF',
   // Text
-  text: '#1A1A1A',
+  text: '#1A1A1A',  // negro en light y un blanquito suave para dark 
   subtext: '#4A5565',
   muted: '#6A7282',         // generic muted text (used by Home components)
   mutetext: '#6A7282',      // alias used in some profile tokens
@@ -21,14 +26,28 @@ export const light = {
   brandB: '#24A88C',
   iconbase: '#57D1B9',
 
+  // Icon semantic tokens
+  icons: {
+    active: '#2FCCAC',
+    idle: '#4A5565',
+    activeBg: '#EBFAF7',
+    idleBg: '#F3F4F6',
+    eyesIcon: '#DBEAFE',
+    dataIcon: '#D8D8D8',
+    secureIcon: '#DCFCE7',
+    shieldIcon: '#F3E8FF',
+
+  },
+
   // Status
   successBg: '#D1FAE5',
   success: '#00C950',
 
   // Borders / dividers
   border: '#F3F4F6',
+  border2: '#F3F4F6',
   ringoutline: '#EEF2F7',
-
+  noteBox: '#EBF7FF',
   // Controls
   // UI helpers used by the `home` feature (src/features/home)
   // These tokens are consumed by Home screens

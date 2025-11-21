@@ -5,11 +5,16 @@ export const dark = {
   card: '#072C26',
 
   white: '#2CC1A2',
+  color: '#FFFFFF',
   backIcon: '#2CC0A1',
 
   // Text
   text: '#E5E5E5',
   subtext: '#c5c5c5ff',
+  //
+  textinfo: '#5175AF',
+  infoCardBg:'#011D28',
+
   muted: '#6A7282',  
   gmted: '#B5B5B5',         // generic muted text (used by Home components)
   // Accent / brand
@@ -17,13 +22,28 @@ export const dark = {
   brandB: '#24A88C',
   iconbase: '#0C3A31',
 
+  // Icon semantic tokens
+  icons: {
+    active: '#41D3B6',
+    idle: '#4A5565',
+    activeBg: '#12211E',
+    idleBg: '#1B1B1B',
+    eyesIcon: '#021B3D',
+    dataIcon: '#333333',
+    secureIcon: '#053A18',
+    shieldIcon: '#280547',
+  },
+
   // Status
   successBg: '#063826',
   success: '#00C950',
 
   // Borders / dividers
-  border: '#0F2E27',
+  border: '#111111',
+  border2: '#282828',
   ringoutline: '#1F2228',
+
+  noteBox: '#06201B',
 
   // Controls
   // fondo del botón de añadir (circular)

@@ -59,7 +59,7 @@ export default React.memo(function Preferences({
       onPress={onOpenLanguage}
     />
 
-    <View style={{ paddingHorizontal: s(20), paddingVertical: s(16), borderBottomWidth: 1, borderBottomColor: colors.border, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+    <View style={{ paddingHorizontal: s(20), paddingVertical: s(16), borderBottomWidth: 1, borderColor: (colors as any)?.border, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: s(12) }}>
         <View style={{ width: s(40), height: s(40), borderRadius: s(20), backgroundColor: leftBgFor(mode), alignItems: 'center', justifyContent: 'center' }}>
           <LeftIcon width={20} height={20} color={leftIconColorFor(mode)} />

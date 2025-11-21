@@ -4,7 +4,8 @@ import AppText from '@/src/shared/ui/components/Typography';
 import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import SHeader from '../sections/SHeader';
-import { COLORS, s, cardShadow } from '../tokens';
+import { s } from '../tokens';
+import { useTheme } from '@/src/shared/styles/useTheme';
 
 const STORAGE_KEY = '@foodlytics:language';
 
@@ -15,6 +16,9 @@ const LANGS = [
 
 export default function LanguageScreen() {
   const router = useRouter();
+  const { colors, mode } = useTheme();
+  // Use colors from theme provider. Keep fallbacks for tokens that might not be present yet.
+  const themeColors = colors as any;
   const [selected, setSelected] = useState<string>('es');
   const [loading, setLoading] = useState(true);
 
@@ -45,7 +49,18 @@ export default function LanguageScreen() {
     const isActive = item.code === selected;
     return (
       <Pressable
-        style={[styles.cardRow, isActive ? styles.cardRowActive : styles.cardRowIdle]}
+        style={[
+          styles.cardRow,
+          isActive
+            ? [
+                styles.cardRowActive,
+                {
+                  backgroundColor: mode === 'light' ? 'rgba(47,204,172,0.06)' : themeColors.chipBg ?? '#F8FAFC',
+                  borderColor: themeColors.brandA ?? '#2FCCAC',
+                },
+              ]
+            : [styles.cardRowIdle, { backgroundColor: themeColors.mealsCard ?? '#FFFFFF', borderColor: themeColors.border ?? '#F3F4F6' }],
+        ]}
         android_ripple={{ color: '#00000010' }}
         onPress={() => {
           setSelected(item.code);
@@ -54,17 +69,17 @@ export default function LanguageScreen() {
       >
         <View style={styles.leftRow}>
           <View style={styles.flagBox}>
-            <AppText variant="ag1" color={COLORS.text} style={{ lineHeight: s(36) }}>{item.code === 'es' ? '🇪🇸' : '🇺🇸'}</AppText>
+            <AppText variant="ag1" color={themeColors.text ?? '#1A1A1A'} style={{ lineHeight: s(36) }}>{item.code === 'es' ? '🇪🇸' : '🇺🇸'}</AppText>
           </View>
           <View style={{ marginLeft: s(12) }}>
-            <AppText variant="ag7" color={COLORS.text}>{item.label}</AppText>
-            <AppText variant="ag10" color={COLORS.mutetext}>{item.label}</AppText>
+            <AppText variant="ag7" color={themeColors.text}>{item.label}</AppText>
+            <AppText variant="ag10" color={themeColors.mutetext ?? themeColors.subtext ?? '#6A7282'}>{item.label}</AppText>
           </View>
         </View>
 
         {isActive ? (
-          <View style={styles.checkOuter}>
-            <View style={styles.checkInner} />
+          <View style={[styles.checkOuter, { backgroundColor: themeColors.brandA ?? '#2FCCAC' }]}>
+            <View style={[styles.checkInner, { backgroundColor: themeColors.white ?? '#FFFFFF' }]} />
           </View>
         ) : null}
       </Pressable>
@@ -72,7 +87,7 @@ export default function LanguageScreen() {
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: themeColors.bg }]}>
      <SHeader
         title="Idioma"
         subtitle="Selecciona tu idioma preferido"
@@ -88,9 +103,9 @@ export default function LanguageScreen() {
             contentContainerStyle={{ padding: s(4) }}
           />
 
-          <View style={styles.noteBox}>
-            <AppText variant="ag9" color={COLORS.text} style={{ fontWeight: '700' }}>Nota: </AppText>
-            <AppText variant="ag10" color={COLORS.text} style={{ marginTop: s(6) }}>
+          <View style={[styles.noteBox, { backgroundColor: themeColors.infoCardBg}]}>
+            <AppText variant="ag9" color={themeColors.textinfo} style={{ fontWeight: '700' }}>Nota: </AppText>
+            <AppText variant="ag10" color={themeColors.textinfo} style={{ marginTop: s(6) }}>
               Actualmente la aplicación está disponible en Español. El soporte para inglés estará disponible en futuras actualizaciones.
             </AppText>
           </View>
@@ -101,15 +116,15 @@ export default function LanguageScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.bg },
+  container: { flex: 1 },
   content: { paddingHorizontal: s(24), paddingTop: s(16) },
   listWrap: { },
   cardRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: s(16), borderRadius: s(16), height: s(92) },
-  cardRowActive: { backgroundColor: 'rgba(47,204,172,0.06)', borderWidth: 2, borderColor: COLORS.brandA },
-  cardRowIdle: { backgroundColor: COLORS.card, borderWidth: 2, borderColor: '#F3F4F6' },
+  cardRowActive: { borderWidth: 2 },
+  cardRowIdle: { borderWidth: 2 },
   leftRow: { flexDirection: 'row', alignItems: 'center' },
   flagBox: { width: s(40), alignItems: 'center', justifyContent: 'center' },
-  checkOuter: { width: s(32), height: s(32), borderRadius: s(16), backgroundColor: COLORS.brandA, alignItems: 'center', justifyContent: 'center' },
-  checkInner: { width: s(20), height: s(20), borderRadius: s(10), backgroundColor: '#FFFFFF' },
+  checkOuter: { width: s(32), height: s(32), borderRadius: s(16), alignItems: 'center', justifyContent: 'center' },
+  checkInner: { width: s(20), height: s(20), borderRadius: s(10) },
   noteBox: { marginTop: s(12), backgroundColor: '#EBF7FF', padding: s(16), borderRadius: s(12) },
 });

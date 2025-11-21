@@ -3,7 +3,8 @@ import { View, Pressable, StyleSheet } from 'react-native';
 import Dark from '@/assets/icons/profile/dark.svg';
 import Light from '@/assets/icons/profile/light.svg';
 import System from '@/assets/icons/profile/system.svg';
-import { s, COLORS } from '@/src/features/profile/ui/tokens';
+import { s } from '@/src/features/profile/ui/tokens';
+import { useTheme } from '@/src/shared/styles/useTheme';
 
 type Mode = 'system' | 'light' | 'dark';
 
@@ -31,6 +32,7 @@ export default function ThemeSelector({
     mode === 'light' ? '#2FCCAC' : mode === 'dark' ? '#121212' : '#F3F4F6';
 
   const iconColorFor = (mode: Mode) => (mode === 'light' ? '#FFFFFF' : mode === 'dark' ? '#FFFFFF' : '#4A5565');
+  const { colors } = useTheme();
 
   return (
     <View style={styles.row}>
@@ -72,6 +74,8 @@ function SelectorButton({
   testID?: string;
   children?: React.ReactNode;
 }) {
+  const { colors } = useTheme();
+
   return (
     <Pressable
       onPress={onPress}
@@ -80,9 +84,9 @@ function SelectorButton({
       accessibilityRole="button"
       accessibilityState={{ selected }}
     >
-      <View style={[styles.ring, { borderColor: selected ? bg : COLORS.border }]}>
-        <View style={[styles.inner, { backgroundColor: selected ? bg : idleBg }]}> 
-          {children ?? <System width={20} height={20} color={selected ? iconColor : COLORS.subtext} />}
+      <View style={[styles.ring, { borderColor: (colors as any)?.border }, selected && { borderColor: bg, borderWidth: 2 }]}>
+        <View style={[styles.inner, { backgroundColor: selected ? bg : idleBg }]}>
+          {children ?? <System width={20} height={20} color={selected ? iconColor : (colors as any)?.subtext || '#6B7280'} />}
         </View>
       </View>
     </Pressable>
