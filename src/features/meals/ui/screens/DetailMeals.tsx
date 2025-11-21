@@ -35,7 +35,8 @@ export default function MealDetailScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const { mealId, items: itemsParam } = params as { mealId?: string; items?: string };
-  const dateISO = (params as any)?.dateISO ?? useTodayISO();
+  const todayISO = useTodayISO();
+  const dateISO = (params as any)?.dateISO ?? todayISO;
 
   const [items, setItems] = useState<MealItem[]>(() => {
     try {

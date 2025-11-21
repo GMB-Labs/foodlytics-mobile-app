@@ -3,7 +3,7 @@ import { View } from 'react-native';
 import BottomNav from '@/src/shared/ui/BottomNav';
 import useSession from '@/src/shared/hooks/useSession';
 
-const _Layout = () => {
+const Layout = () => {
   const [session] = useSession();
 
   if (session.loading) return null;
@@ -30,4 +30,4 @@ const _Layout = () => {
   );
 };
 
-export default _Layout;
+export default Layout;

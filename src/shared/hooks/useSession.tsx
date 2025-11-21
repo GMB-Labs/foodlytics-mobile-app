@@ -1,12 +1,10 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import { Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
 import * as AuthSession from 'expo-auth-session';
 import * as WebBrowser from 'expo-web-browser';
 import { decode as base64Decode } from 'base-64';
 import Constants, { ExecutionEnvironment } from 'expo-constants';
-import { postJSON } from '../utils/api';
 
 // Ensure the browser is closed correctly on web/Android after redirect
 WebBrowser.maybeCompleteAuthSession();
@@ -18,8 +16,6 @@ const AUTH0 = {
   scheme: 'foodlytics',
   callbackPath: 'callback',
 };
-
-const API_URL = 'https://foodlytics-api-production.up.railway.app';
 
 const TOKEN_KEY = '@foodlytics:access_token';
 const IDTOKEN_KEY = '@foodlytics:id_token';
@@ -43,6 +39,7 @@ type SessionState = {
   roles?: string[];
   sub?: string;
   user: UserProfile | null;
+  bypass?: boolean;
 };
 
 type SessionActions = {
@@ -69,6 +66,7 @@ const initialState: SessionState = {
   roles: [],
   sub: undefined,
   user: null,
+  bypass: false,
 };
 
 function decodeJwt(token: string) {
@@ -81,8 +79,44 @@ function decodeJwt(token: string) {
   return JSON.parse(decoded);
 }
 
+function getValidTokenClaims(token: string) {
+  try {
+    const claims = decodeJwt(token);
+    const expMs = typeof claims.exp === 'number' ? claims.exp * 1000 : null;
+    if (!expMs || expMs <= Date.now()) {
+      return null;
+    }
+    return claims;
+  } catch (e) {
+    return null;
+  }
+}
+
 export function SessionProvider({ children }: { children: React.ReactNode }) {
   const [state, setState] = useState<SessionState>(initialState);
+
+  const bypassAuth = __DEV__ && process.env.EXPO_PUBLIC_BYPASS_AUTH === 'true';
+
+  const buildFakeSession = useCallback((): SessionState => {
+    const fakeUser: UserProfile = {
+      id: 'fake-user-id',
+      email: 'designer@foodlytics.test',
+      heightCm: 170,
+      weightKg: 65,
+      role: 'designer',
+    };
+    return {
+      loading: false,
+      isAuthenticated: true,
+      accessToken: null,
+      idToken: null,
+      email: fakeUser.email,
+      roles: ['designer'],
+      sub: 'fake|designer',
+      user: fakeUser,
+      bypass: true,
+    };
+  }, []);
 
   const discovery = useMemo(
     () => ({
@@ -156,24 +190,16 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  const syncUserWithBackend = useCallback(
-    async (accessToken: string) => {
-      try {
-        return await postJSON('/api/v1/users-sync/sync', {}, { baseUrl: API_URL, token: accessToken });
-      } catch (err: any) {
-        if (err?.status === 401 || err?.status === 403) {
-          await clearPersistedSession();
-          setState({ ...initialState, loading: false });
-          throw new Error('Sesión expirada, vuelve a iniciar sesión.');
-        }
-        throw err;
-      }
-    },
-    [clearPersistedSession]
-  );
+  // Simplified provider: no refresh token rotation or backend sync here.
 
   const handleAuthSuccess = useCallback(
     async (code: string, codeVerifier: string) => {
+      if (bypassAuth) {
+        const fake = buildFakeSession();
+        console.log('Bypass auth active; skipping exchange, using fake session');
+        setState(fake);
+        return;
+      }
       console.log('exchangeCodeAsync start', { redirectUri, hasCode: !!code });
       const tokenResult = await AuthSession.exchangeCodeAsync(
         {
@@ -202,28 +228,24 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       }
 
       const claims = decodeJwt(accessToken);
-      const email = claims['https://foodlytics.app/email'] || claims.email;
-      const roles = claims['https://foodlytics.app/roles'] || claims.roles || [];
-      const sub = claims.sub;
+      const emailFromClaims = claims['https://foodlytics.app/email'] || claims.email;
+      const rolesFromClaims = claims['https://foodlytics.app/roles'] || claims.roles || [];
+      const subFromClaims = claims.sub;
 
-      let syncedProfile: any = null;
+      let persistedSession: StoredSession | null = null;
       try {
-        syncedProfile = await syncUserWithBackend(accessToken);
-      } catch (err: any) {
-        Alert.alert('No se pudo sincronizar tu cuenta', err?.message || 'Inténtalo de nuevo.');
-        if (err?.message?.toLowerCase().includes('expirada')) {
-          throw err;
-        }
+        const storedSessionRaw = await AsyncStorage.getItem(SESSION_KEY);
+        persistedSession = storedSessionRaw ? JSON.parse(storedSessionRaw) : null;
+      } catch {
+        persistedSession = null;
       }
 
-      const user: UserProfile | null = syncedProfile
-        ? {
-          id: syncedProfile.user_id || syncedProfile.id,
-          email: email || syncedProfile.email,
-          ...syncedProfile,
-        }
-        : email
-          ? { email }
+      const sessionEmail = emailFromClaims || persistedSession?.user?.email || persistedSession?.email;
+      const storedUser = persistedSession?.user || null;
+      const user: UserProfile | null = storedUser
+        ? { ...storedUser, email: sessionEmail || storedUser.email }
+        : sessionEmail
+          ? { email: sessionEmail }
           : null;
 
       const nextState: SessionState = {
@@ -231,20 +253,32 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
         isAuthenticated: true,
         accessToken,
         idToken,
-        email,
-        roles: Array.isArray(roles) ? roles : roles ? [roles] : [],
-        sub,
+        email: sessionEmail,
+        roles: Array.isArray(rolesFromClaims) && rolesFromClaims.length
+          ? rolesFromClaims
+          : Array.isArray(persistedSession?.roles) && persistedSession?.roles.length
+            ? persistedSession.roles
+            : rolesFromClaims
+              ? [rolesFromClaims]
+              : [],
+        sub: subFromClaims || persistedSession?.sub,
         user,
       };
 
       setState(nextState);
       await persistSession(nextState);
     },
-    [discovery, persistSession, redirectUri, syncUserWithBackend]
+    [discovery, persistSession, redirectUri]
   );
 
   const login = useCallback(
     async (opts?: { screenHint?: 'signup' | 'login' }) => {
+      if (bypassAuth) {
+        const fake = buildFakeSession();
+        console.log('Bypass auth active; returning fake session', fake);
+        setState(fake);
+        return;
+      }
       if (isExpoGo) {
         const msg = 'Auth0 login no es compatible con Expo Go. Usa un custom dev client (npx expo run) o build EAS.';
         console.log('login blocked on Expo Go', { executionEnvironment, isExpoGo, redirectUri, useProxy });
@@ -322,46 +356,82 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   );
 
   const restoreSession = useCallback(async () => {
+    if (bypassAuth) {
+      const fake = buildFakeSession();
+      setState(fake);
+      return;
+    }
+    setState((s) => ({ ...s, loading: true }));
     try {
       const [storedToken, storedIdToken, storedSession] = await Promise.all([
         SecureStore.getItemAsync(TOKEN_KEY),
         SecureStore.getItemAsync(IDTOKEN_KEY),
         AsyncStorage.getItem(SESSION_KEY),
       ]);
-
-      if (storedToken) {
-        let parsed: StoredSession | null = null;
-        try {
-          parsed = storedSession ? JSON.parse(storedSession) : null;
-        } catch (e) {
-          parsed = null;
-        }
-        setState({
-          loading: false,
-          isAuthenticated: true,
-          accessToken: storedToken,
-          idToken: storedIdToken,
-          email: parsed?.email,
-          roles: parsed?.roles || [],
-          sub: parsed?.sub,
-          user: parsed?.user || null,
-        });
+  
+      if (!storedToken) {
+        await clearPersistedSession();
+        setState({ ...initialState, loading: false });
         return;
       }
-    } catch (e) {
-      // ignore, fall through to clear state
+  
+      let parsed: StoredSession | null = null;
+      try {
+        parsed = storedSession ? JSON.parse(storedSession) : null;
+      } catch {
+        parsed = null; // no limpiar; rehidratar con claims
+      }
+  
+      const claims = getValidTokenClaims(storedToken);
+      if (!claims) {
+        await clearPersistedSession();
+        setState({ ...initialState, loading: false });
+        return;
+      }
+  
+      const email = claims['https://foodlytics.app/email'] || claims.email || parsed?.email;
+      const rolesFromClaims = claims['https://foodlytics.app/roles'] || claims.roles || [];
+      const roles =
+        (Array.isArray(rolesFromClaims) && rolesFromClaims.length && rolesFromClaims) ||
+        (Array.isArray(parsed?.roles) ? parsed?.roles : []) ||
+        (rolesFromClaims ? [rolesFromClaims] : []);
+      const sub = claims.sub || parsed?.sub;
+      const userFromStore = parsed?.user || null;
+      const user = userFromStore ? { ...userFromStore, email: email || userFromStore.email } : email ? { email } : null;
+  
+      const nextState: SessionState = {
+        loading: false,
+        isAuthenticated: true,
+        accessToken: storedToken,
+        idToken: storedIdToken || null,
+        email,
+        roles,
+        sub,
+        user,
+      };
+  
+      setState(nextState);
+      await persistSession(nextState); // reescribe SESSION_KEY si faltaba
+    } catch {
+      // Si algo raro ocurre al restaurar, no limpies SecureStore; solo cae a estado no autenticado.
+      setState({ ...initialState, loading: false });
     }
-    setState({ ...initialState, loading: false });
-  }, []);
-
+  }, [bypassAuth, buildFakeSession, clearPersistedSession, persistSession]);
+  
   useEffect(() => {
     restoreSession();
   }, [restoreSession]);
 
   const signOut = useCallback(async () => {
     await clearPersistedSession();
+    if (bypassAuth) {
+      // Dev bypass: keep fake session but ensure any stored tokens are wiped first
+      const fake = buildFakeSession();
+      setState(fake);
+      return;
+    }
     setState({ ...initialState, loading: false });
-  }, [clearPersistedSession]);
+  }, [bypassAuth, buildFakeSession, clearPersistedSession]);
 
   const setUserProfile = useCallback(
     async (u: Partial<UserProfile>) => {
