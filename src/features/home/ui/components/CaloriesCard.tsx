@@ -33,18 +33,18 @@ export default function CaloriesCard({ consumed = 0, burned = 0, goal = 0, remai
       <View style={[styles.metricsRow, { gap: 6 }] }>
         <View style={styles.metricCol}>
           <View style={styles.metricIcon}><ConsumedIcon width={16} height={16} color="#2FCCAC" /></View>
-          <AppText variant="ag10" style={[styles.muted, { color: colors.gmted }]}>Consumidas</AppText>
-          <AppText variant="ag6" style={{ color: colors.muted }}>{consumed != null ? consumed.toString() : '0'}</AppText>
+          <AppText variant="ag10" style={[styles.muted, { color: colors.muted }]}>Consumidas</AppText>
+          <AppText variant="ag6" style={{ color: colors.gmted }}>{consumed != null ? consumed.toString() : '0'}</AppText>
         </View>
         <View style={styles.metricCol}>
           <View style={styles.metricIcon}><BurnedIcon width={16} height={16} color="#FF5A3D" /></View>
-          <AppText variant="ag10" style={[styles.muted, { color: colors.gmted }]}>Quemadas</AppText>
-          <AppText variant="ag6" style={{ color: colors.muted }}>{burned != null ? burned.toString() : '0'}</AppText>
+          <AppText variant="ag10" style={[styles.muted, { color: colors.muted }]}>Quemadas</AppText>
+          <AppText variant="ag6" style={{ color: colors.gmted }}>{burned != null ? burned.toString() : '0'}</AppText>
         </View>
         <View style={styles.metricCol}>
           <View style={styles.metricIcon}><RemainingIcon width={16} height={16} color="#2B7FFF" /></View>
-          <AppText variant="ag10" style={[styles.muted, { color: colors.gmted }]}>Restantes</AppText>
-          <AppText variant="ag6" style={{ color: colors.muted }}>{remaining != null ? remaining.toString() : '0'}</AppText>
+          <AppText variant="ag10" style={[styles.muted, { color: colors.muted }]}>Restantes</AppText>
+          <AppText variant="ag6" style={{ color: colors.gmted }}>{remaining != null ? remaining.toString() : '0'}</AppText>
         </View>
       </View>
     </>

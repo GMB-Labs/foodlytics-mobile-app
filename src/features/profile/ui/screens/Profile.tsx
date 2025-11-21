@@ -3,6 +3,7 @@ import { View, StyleSheet, ScrollView } from "react-native";
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS, s } from "../tokens";
 import { useProfile } from "../../application/useProfile";
+import { useTheme } from '@/src/shared/styles/useTheme';
 import { useSession } from '@/src/shared/hooks/useSession';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 
@@ -19,6 +20,7 @@ export default function Profile() {
   const params = useLocalSearchParams();
   const langUpdated = (params as any)?.langUpdated as string | undefined;
   const { profile, updateProfile, pickImage } = useProfile();
+  const { colors } = useTheme();
   const [editing, setEditing] = useState<null | 'personal' | 'goals'>(null);
   const insets = useSafeAreaInsets();
   const [, sessionActions] = useSession();
@@ -60,7 +62,7 @@ export default function Profile() {
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: (colors as any)?.bg }]}> 
   <Header name={profile.name} email={profile.email} imageUri={profile.avatar} onPick={pickImage} />
   <ScrollView 
   showsVerticalScrollIndicator={false}
@@ -73,7 +75,6 @@ export default function Profile() {
           heightCm={profile.heightCm}
           weightKg={profile.weightKg}
           bmi={profile.bmi}
-          bmiLabel={profile.bmiLabel}
           onEdit={() => openEdit('personal')}
           isEditing={editing === 'personal'}
           onCancel={() => setEditing(null)}

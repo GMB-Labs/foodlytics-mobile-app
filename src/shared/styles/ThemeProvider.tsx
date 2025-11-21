@@ -53,7 +53,6 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     }
     // debug
     // eslint-disable-next-line no-console
-    console.log('[ThemeProvider] setMode ->', m);
     setModeState(m);
   };
 

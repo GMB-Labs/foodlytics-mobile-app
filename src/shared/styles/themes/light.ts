@@ -13,6 +13,7 @@ export const light = {
   text: '#1A1A1A',
   subtext: '#4A5565',
   muted: '#6A7282',         // generic muted text (used by Home components)
+  mutetext: '#6A7282',      // alias used in some profile tokens
   gmted: '#4A5565',         // generic muted text (used by Home components)
 
   // Accent / brand
@@ -37,6 +38,9 @@ export const light = {
   dotActive: '#FFFFFF',     // active pager dot
   mealRowBg: '#F8FAFC',     // background for meal rows
   addBtnBg: '#2FCCAC',      // add button bg
+  // Small UI helpers used across profile components
+  chipBg: '#F8FAFC',        // input / chip background
+  danger: '#EF4444',        // error / danger color
 
   // Per-meal chip colors (used by MealsList / Home)
   mealChips: {
