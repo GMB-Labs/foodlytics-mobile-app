@@ -5,7 +5,8 @@ import SectionCard from "../components/SectionCard";
 import KeyValueBox from "../components/KeyValueBox";
 import BMIBlock from "../components/BMIBlock";
 import EditAction from '../components/EditAction';
-import { COLORS, s } from "../tokens";
+import { s } from "../tokens";
+import { useTheme } from '@/src/shared/styles/useTheme';
 
 export default React.memo(function PersonalData({
   age, gender, heightCm, weightKg, bmi, bmiLabel, onEdit, isEditing, onSave, onCancel,
@@ -16,6 +17,7 @@ export default React.memo(function PersonalData({
   onCancel?: () => void;
 }) {
   const [form, setForm] = useState({ age: String(age || ''), gender: gender || '', heightCm: String(heightCm || ''), weightKg: String(weightKg || '') });
+  const { colors } = useTheme();
 
   useEffect(() => {
     if (isEditing) {
@@ -31,17 +33,34 @@ export default React.memo(function PersonalData({
     return (
       <SectionCard
         title="Datos Personales"
-        right={<Pressable onPress={onCancel}><AppText variant="ag9" color={COLORS.brandA}>Cancelar</AppText></Pressable>}
+        right={<Pressable onPress={onCancel}><AppText variant="ag9" color={(colors as any)?.brandA}>Cancelar</AppText></Pressable>}
       >
         <View style={{ gap: s(12) }}>
-              <AppText variant="ag10">Altura (cm)</AppText>
-               <TextInput style={styles.input} keyboardType="numeric" value={form.heightCm} onChangeText={(v)=>setForm(f=>({...f, heightCm:v}))} />
+              <AppText variant="ag10" color={(colors as any)?.text} >Altura (cm)</AppText>
+               <TextInput 
+               style={[styles.input,
+                { backgroundColor: (colors as any)?.mealRowBg , color: (colors as any)?.text  }
+                ]}  
+                keyboardType="numeric"
+                value={form.heightCm} 
+                onChangeText={(v)=>setForm(f=>({...f, heightCm:v}))} 
+                placeholderTextColor={(colors as any)?.mutedText ?? '#999'} 
+                />
       
-              <AppText variant="ag10">Peso (kg)</AppText>
-              <TextInput style={styles.input} keyboardType="numeric" value={form.weightKg} onChangeText={(v)=>setForm(f=>({...f, weightKg:v}))} />
+              <AppText variant="ag10" color={(colors as any)?.text}>Peso (kg)</AppText>
+              <TextInput
+                style={[
+                  styles.input,
+                  { backgroundColor: (colors as any)?.mealRowBg, color: (colors as any)?.text } 
+                ]}
+                keyboardType="numeric"
+                value={form.weightKg}
+                onChangeText={(v) => setForm(f => ({ ...f, weightKg: v }))}
+                placeholderTextColor={(colors as any)?.mutedText ?? '#999'} 
+              />
               <View>
             </View>
-          <Pressable onPress={save} style={styles.saveBtn}><AppText variant="ag9" color="white">Guardar Cambios</AppText></Pressable>
+          <Pressable onPress={save} style={[styles.saveBtn, { backgroundColor: (colors as any)?.addBtnBg }]}><AppText variant="ag9" color={(colors as any)?.white}>Guardar Cambios</AppText></Pressable>
         </View>
       </SectionCard>
     );
@@ -65,6 +84,6 @@ export default React.memo(function PersonalData({
 
 const styles = StyleSheet.create({
   grid: { flexDirection: "row", flexWrap: "wrap", gap: s(16), marginBottom: s(12) },
-  input: { backgroundColor: COLORS.chipBg, borderRadius: s(12), padding: s(12), marginTop: s(6) },
-  saveBtn: { backgroundColor: COLORS.brandA, borderRadius: s(28), paddingVertical: s(14), alignItems: 'center', marginTop: s(10) },
+  input: {  borderRadius: s(12), padding: s(12), marginTop: s(6) },
+  saveBtn: { borderRadius: s(28), paddingVertical: s(14), alignItems: 'center', marginTop: s(10) },
 });

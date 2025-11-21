@@ -2,6 +2,7 @@ import React from 'react';
 import { View, StyleSheet, Pressable, ScrollView } from 'react-native';
 import SHeader from '../sections/SHeader';
 import AppText from '@/src/shared/ui/components/Typography';
+import { useTheme } from '@/src/shared/styles/useTheme';
 import { useRouter } from 'expo-router';
 import DataIcon from '@/assets/icons/profile/dataIcon.svg';
 import DeleteIcon from '@/assets/icons/profile/deleteIcon.svg';
@@ -12,9 +13,11 @@ import { COLORS, s, cardShadow } from '../tokens';
 
 export default function Privacy() {
   const router = useRouter();
+  const { colors } = useTheme();
+  const theme = colors as any;
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: theme.bg ?? COLORS.bg }]}>
       <SHeader
         title="Privacidad"
         subtitle="Controla tu información personal"
@@ -22,67 +25,67 @@ export default function Privacy() {
       />
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
 
-        <View style={[styles.card, cardShadow(true)]}>
+        <View style={[styles.card, cardShadow(true), { backgroundColor: theme.mealsCard ?? COLORS.card, borderColor: theme.border ?? 'rgba(228,228,228,0.6)' }]}>
           <View style={styles.rowTop}>
-            <View style={[styles.iconCircle, { backgroundColor: '#DBEAFE' }]}>
+            <View style={[styles.iconCircle, { backgroundColor: theme.icons?.eyesIcon ?? '#DBEAFE' }]}>
               <EyesIcon width={20} height={20} />
             </View>
-            <AppText variant="ag7" color={COLORS.text} style={styles.cardTitle}>Uso de Datos</AppText>
+            <AppText variant="ag7" color={theme.text ?? COLORS.text} style={styles.cardTitle}>Uso de Datos</AppText>
           </View>
-          <AppText variant="ag9" color={COLORS.subtext} style={styles.cardDesc}>Tus datos se utilizan exclusivamente para:</AppText>
+          <AppText variant="ag9" color={theme.subtext ?? COLORS.subtext} style={styles.cardDesc}>Tus datos se utilizan exclusivamente para:</AppText>
           <View style={styles.list}>
-            <View style={styles.listItem}><AppText variant="ag9" color={COLORS.brandA}>•</AppText><AppText variant="ag9" color={COLORS.subtext} style={styles.listText}>Calcular tus necesidades nutricionales</AppText></View>
-            <View style={styles.listItem}><AppText variant="ag9" color={COLORS.brandA}>•</AppText><AppText variant="ag9" color={COLORS.subtext} style={styles.listText}>Proporcionar recomendaciones personalizadas</AppText></View>
-            <View style={styles.listItem}><AppText variant="ag9" color={COLORS.brandA}>•</AppText><AppText variant="ag9" color={COLORS.subtext} style={styles.listText}>Hacer seguimiento de tu progreso</AppText></View>
-            <View style={styles.listItem}><AppText variant="ag9" color={COLORS.brandA}>•</AppText><AppText variant="ag9" color={COLORS.subtext} style={styles.listText}>Mejorar la precisión de nuestros servicios</AppText></View>
+            <View style={styles.listItem}><AppText variant="ag9" color={theme.color ?? COLORS.brandA}>•</AppText><AppText variant="ag9" color={theme.subtext ?? COLORS.subtext} style={styles.listText}>Calcular tus necesidades nutricionales</AppText></View>
+            <View style={styles.listItem}><AppText variant="ag9" color={theme.color ?? COLORS.brandA}>•</AppText><AppText variant="ag9" color={theme.subtext ?? COLORS.subtext} style={styles.listText}>Proporcionar recomendaciones personalizadas</AppText></View>
+            <View style={styles.listItem}><AppText variant="ag9" color={theme.color ?? COLORS.brandA}>•</AppText><AppText variant="ag9" color={theme.subtext ?? COLORS.subtext} style={styles.listText}>Hacer seguimiento de tu progreso</AppText></View>
+            <View style={styles.listItem}><AppText variant="ag9" color={theme.color ?? COLORS.brandA}>•</AppText><AppText variant="ag9" color={theme.subtext ?? COLORS.subtext} style={styles.listText}>Mejorar la precisión de nuestros servicios</AppText></View>
           </View>
         </View>
-        <View style={[styles.card, cardShadow(true)]}>
+        <View style={[styles.card, cardShadow(true), { backgroundColor: theme.mealsCard ?? COLORS.card, borderColor: theme.border ?? 'rgba(228,228,228,0.6)' }]}>
           <View style={styles.rowTop}>
-            <View style={[styles.iconCircle, { backgroundColor: '#D8D8D8' }]}>
+            <View style={[styles.iconCircle, { backgroundColor: theme.icons?.dataIcon ?? '#D8D8D8' }]}>
               <DataIcon width={20} height={20} />
             </View>
-            <AppText variant="ag7" color={COLORS.text} style={styles.cardTitle}>Recopilación de Datos</AppText>
+            <AppText variant="ag7" color={theme.text ?? COLORS.text} style={styles.cardTitle}>Recopilación de Datos</AppText>
           </View>
-          <AppText variant="ag9" color={COLORS.subtext} style={styles.cardDesc}>
+          <AppText variant="ag9" color={theme.subtext ?? COLORS.subtext} style={styles.cardDesc}>
             FoodLytics recopila información para proporcionarte una experiencia personalizada:
           </AppText>
           <View style={styles.list}>
-            <View style={styles.listItem}><AppText variant="ag9" color={COLORS.brandA}>•</AppText><AppText variant="ag9" color={COLORS.subtext} style={styles.listText}>Datos personales (edad, peso, altura, género)</AppText></View>
-            <View style={styles.listItem}><AppText variant="ag9" color={COLORS.brandA}>•</AppText><AppText variant="ag9" color={COLORS.subtext} style={styles.listText}>Registros de comidas y actividad física</AppText></View>
-            <View style={styles.listItem}><AppText variant="ag9" color={COLORS.brandA}>•</AppText><AppText variant="ag9" color={COLORS.subtext} style={styles.listText}>Preferencias y configuraciones</AppText></View>
+            <View style={styles.listItem}><AppText variant="ag9" color={theme.color ?? COLORS.brandA}>•</AppText><AppText variant="ag9" color={theme.subtext ?? COLORS.subtext} style={styles.listText}>Datos personales (edad, peso, altura, género)</AppText></View>
+            <View style={styles.listItem}><AppText variant="ag9" color={theme.color ?? COLORS.brandA}>•</AppText><AppText variant="ag9" color={theme.subtext ?? COLORS.subtext} style={styles.listText}>Registros de comidas y actividad física</AppText></View>
+            <View style={styles.listItem}><AppText variant="ag9" color={theme.color ?? COLORS.brandA}>•</AppText><AppText variant="ag9" color={theme.subtext ?? COLORS.subtext} style={styles.listText}>Preferencias y configuraciones</AppText></View>
           </View>
         </View>
-        <View style={[styles.card, cardShadow(true)]}>
+        <View style={[styles.card, cardShadow(true), { backgroundColor: theme.mealsCard ?? COLORS.card, borderColor: theme.border ?? 'rgba(228,228,228,0.6)' }]}>
           <View style={styles.rowTop}>
-            <View style={[styles.iconCircle, { backgroundColor: '#DCFCE7' }]}>
+            <View style={[styles.iconCircle, { backgroundColor: theme.icons?.secureIcon ?? '#DCFCE7' }]}>
               <SecureIcon width={20} height={20} />
             </View>
-            <AppText variant="ag7" color={COLORS.text} style={styles.cardTitle}>Seguridad de Datos</AppText>
+            <AppText variant="ag7" color={theme.text ?? COLORS.text} style={styles.cardTitle}>Seguridad de Datos</AppText>
           </View>
-          <AppText variant="ag9" color={COLORS.subtext} style={styles.cardDesc}>
+          <AppText variant="ag9" color={theme.subtext ?? COLORS.subtext} style={styles.cardDesc}>
             Tus datos se almacenan localmente en tu dispositivo y están protegidos. No compartimos tu información personal con terceros sin tu consentimiento explícito.
           </AppText>
         </View>
 
-        <View style={[styles.card, cardShadow(true)]}>
+        <View style={[styles.card, cardShadow(true), { backgroundColor: theme.mealsCard ?? COLORS.card, borderColor: theme.border ?? 'rgba(228,228,228,0.6)' }]}>
           <View style={styles.rowTop}>
-            <View style={[styles.iconCircle, { backgroundColor: '#F3E8FF' }]}>
+            <View style={[styles.iconCircle, { backgroundColor: theme.icons?.shieldIcon ?? '#F3E8FF' }]}>
               <ShieldIcon width={20} height={20} />
             </View>
-            <AppText variant="ag7" color={COLORS.text} style={styles.cardTitle}>Control de Datos</AppText>
+            <AppText variant="ag7" color={theme.text ?? COLORS.text} style={styles.cardTitle}>Control de Datos</AppText>
           </View>
 
           <View style={{ height: s(12) }} />
-          <Pressable style={styles.actionButton} android_ripple={{ color: '#00000010' }}>
-            <DataIcon width={16} height={16} />
-            <AppText variant="ag9" color={COLORS.text} style={styles.actionText}>Exportar mis datos</AppText>
+          <Pressable style={[styles.actionButton, { backgroundColor: theme.mealRowBg ?? '#FFFFFF', borderColor: theme.border ?? 'rgba(228,228,228,0.6)' }]} android_ripple={{ color: '#00000010' }}>
+            <DataIcon width={16} height={16} color={theme.subtext} />
+            <AppText variant="ag9" color={theme.text ?? COLORS.text} style={styles.actionText}>Exportar mis datos</AppText>
           </Pressable>
 
           <View style={{ height: s(10) }} />
-          <Pressable style={styles.deleteButton} android_ripple={{ color: '#00000010' }}>
+          <Pressable style={[styles.deleteButton, { backgroundColor: theme.deleteBg ?? '#FFF5F5', borderColor: theme.deleteBorder ?? '#FFC9C9' }]} android_ripple={{ color: '#00000010' }}>
             <DeleteIcon width={16} height={16} />
-            <AppText variant="ag9" color="#FB2C36" style={styles.actionText}>Eliminar todos mis datos</AppText>
+            <AppText variant="ag9" color={theme.danger ?? '#FB2C36'} style={styles.actionText}>Eliminar todos mis datos</AppText>
           </Pressable>
         </View>
 

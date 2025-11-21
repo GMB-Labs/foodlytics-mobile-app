@@ -45,7 +45,7 @@ export default function BottomNav() {
   const SHOW_LABELS = width >= 360;
 
   const isActive = (tab: string) => {
-    if (tab === 'home') return active === 'index' || active === '(tabs)';
+    if (tab === 'home') return  active === '(tabs)';
     return String(active).includes(tab);
   };
   const go = (route: string) => router.push(route as any);

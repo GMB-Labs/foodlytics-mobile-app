@@ -4,6 +4,7 @@ import { View, Switch, Pressable, Text, Platform, Modal, TouchableOpacity, Style
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Stack, useRouter } from 'expo-router';
 import SHeader from '../sections/SHeader';
+import { useTheme } from '@/src/shared/styles/useTheme';
 import { NotificationsPreferences } from '@/src/shared/types/notifications';
 import { loadNotifPrefs, saveNotifPrefs } from '@/src/shared/utils/notifications-storage';
 import { scheduleFromPrefs } from '@/src/shared/utils/notifications-orchestrator';
@@ -24,6 +25,8 @@ const FALLBACK: NotificationsPreferences = {
 
 export default function NotificationsScreen() {
   const router = useRouter();
+  const { colors } = useTheme();
+  const T = colors as any; // theme tokens (use T.* with fallbacks)
   const [prefs, setPrefs] = useState<NotificationsPreferences>(FALLBACK);
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [pickerMeal, setPickerMeal] = useState<'breakfast'|'lunch'|'dinner'|null>(null);
@@ -170,7 +173,7 @@ export default function NotificationsScreen() {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: T.bg ?? '#F9FAFB' }]}>
       <Stack.Screen options={{ headerShown: false }} />
 
       {/* Header with gradient */}
@@ -187,15 +190,15 @@ export default function NotificationsScreen() {
         showsVerticalScrollIndicator={false}
       >
         {/* Info card (parte del scroll) */}
-        <View style={[styles.infoCard, styles.infoCardAsCard]}>
+        <View style={[styles.infoCard, styles.infoCardAsCard, { backgroundColor: T.infoCardBg ?? '#EFF6FF', borderColor: T.border ?? 'rgba(228,228,228,0.6)' }]}>
           <InfoIcon width={20} height={20} />
-          <Text style={styles.infoText}>
+          <Text style={[styles.infoText, { color: T.textinfo ?? '#364153' }]}> 
             Las notificaciones te ayudarán a mantener la constancia en tu registro diario. Puedes activar o desactivar cada recordatorio según tus preferencias.
           </Text>
         </View>
         {/* Recordatorios de comidas */}
-        <Card>
-          <Text style={styles.cardTitle}>Recordatorios de comidas</Text>
+        <Card style={{ backgroundColor: T.mealsCard ?? '#FFFFFF', borderColor: T.border2 ?? 'rgba(228, 228, 228, 0.6)' }}>
+          <Text style={[styles.cardTitle, { color: T.text ?? '#171725' }]}>Recordatorios de comidas</Text>
           <View style={styles.mealList}>
             {(['breakfast', 'lunch', 'dinner'] as const).map((meal, index) => {
               const enabled = !!(prefs.mealReminders && prefs.mealReminders[meal]?.enabled);
@@ -204,15 +207,15 @@ export default function NotificationsScreen() {
                 <React.Fragment key={meal}>
                   <View style={styles.mealRow}>
                     <View style={styles.mealInfo}>
-                      <Text style={styles.mealLabel}>{getMealLabel(meal)}</Text>
-                      {selectedTime && <Text style={styles.mealTime}>{selectedTime}</Text>}
+                      <Text style={[styles.mealLabel, { color: T.text ?? '#171725' }]}>{getMealLabel(meal)}</Text>
+                      {selectedTime && <Text style={[styles.mealTime, { color: T.muted ?? '#999999' }]}>{selectedTime}</Text>}
                     </View>
                             <CustomSwitch
                               value={enabled}
                               onValueChange={(v) => toggleMealSwitch(meal, v)}
                             />
                   </View>
-                  {index < 2 && <View style={styles.divider} />}
+                  {index < 2 && <View style={[styles.divider, { backgroundColor: T.border2 ?? 'rgba(228, 228, 228, 0.6)' }]} />}
                 </React.Fragment>
               );
             })}
@@ -220,33 +223,29 @@ export default function NotificationsScreen() {
         </Card>
 
         {/* Alertas */}
-        <Card>
-          <Text style={styles.cardTitle}>Alertas</Text>
+        <Card style={{ backgroundColor: T.mealsCard ?? '#FFFFFF', borderColor: T.border2 ?? 'rgba(228, 228, 228, 0.6)' }}>
+          <Text style={[styles.cardTitle, { color: T.text ?? '#171725' }]}>Alertas</Text>
           <View style={styles.alertList}>
             <View style={styles.alertRow}>
               <View style={styles.alertInfo}>
-                <Text style={styles.alertLabel}>Déficit calórico</Text>
-                <Text style={styles.alertDescription}>
-                  Alerta cuando consumas menos del 70% de tu meta
-                </Text>
+                <Text style={[styles.alertLabel, { color: T.text ?? '#171725' }]}>Déficit calórico</Text>
+                <Text style={[styles.alertDescription, { color: T.subtext ?? '#999999' }]}>Alerta cuando consumas menos del 70% de tu meta</Text>
               </View>
               <CustomSwitch value={!!prefs.alerts?.deficit} onValueChange={(v) => handleAlertToggle('deficit', v)} />
             </View>
-            <View style={styles.divider} />
+            <View style={[styles.divider, { backgroundColor: T.border2 ?? 'rgba(228, 228, 228, 0.6)' }]} />
             <View style={styles.alertRow}>
               <View style={styles.alertInfo}>
-                <Text style={styles.alertLabel}>Exceso calórico</Text>
-                <Text style={styles.alertDescription}>
-                  Alerta cuando superes tu meta diaria
-                </Text>
+                <Text style={[styles.alertLabel, { color: T.text ?? '#171725' }]}>Exceso calórico</Text>
+                <Text style={[styles.alertDescription, { color: T.subtext ?? '#999999' }]}>Alerta cuando superes tu meta diaria</Text>
               </View>
               <CustomSwitch value={!!prefs.alerts?.excess} onValueChange={(v) => handleAlertToggle('excess', v)} />
             </View>
-            <View style={styles.divider} />
+            <View style={[styles.divider, { backgroundColor: T.border2 ?? 'rgba(228, 228, 228, 0.6)' }]} />
             <View style={styles.alertRow}>
               <View style={styles.alertInfo}>
-                <Text style={styles.alertLabel}>Recordatorio de agua</Text>
-                <Text style={styles.alertDescription}>Cada 2 horas</Text>
+                <Text style={[styles.alertLabel, { color: T.text ?? '#171725' }]}>Recordatorio de agua</Text>
+                <Text style={[styles.alertDescription, { color: T.subtext ?? '#999999' }]}>Cada 2 horas</Text>
               </View>
               <CustomSwitch value={!!prefs.alerts?.water} onValueChange={(v) => handleAlertToggle('water', v)} />
             </View>
@@ -254,28 +253,28 @@ export default function NotificationsScreen() {
         </Card>
 
         {/* Consejos y motivación */}
-        <Card>
-          <Text style={styles.cardTitle}>Consejos y motivación</Text>
+        <Card style={{ backgroundColor: T.mealsCard ?? '#FFFFFF', borderColor: T.border2 ?? 'rgba(228, 228, 228, 0.6)' }}>
+          <Text style={[styles.cardTitle, { color: T.text ?? '#171725' }]}>Consejos y motivación</Text>
           <View style={styles.tipsList}>
             <View style={styles.tipRow}>
               <View style={styles.tipInfo}>
-                <Text style={styles.tipLabel}>Consejos nutricionales</Text>
-                <Text style={styles.tipDescription}>Diariamente</Text>
+                <Text style={[styles.tipLabel, { color: T.text ?? '#171725' }]}>Consejos nutricionales</Text>
+                <Text style={[styles.tipDescription, { color: T.subtext ?? '#999999' }]}>Diariamente</Text>
               </View>
               <CustomSwitch value={!!prefs.tips?.nutrition} onValueChange={(v) => handleTipToggle('nutrition', v)} />
             </View>
-            <View style={styles.divider} />
+<View style={[styles.divider, { backgroundColor: T.border2 ?? 'rgba(228, 228, 228, 0.6)' }]} />
             <View style={styles.tipRow}>
               <View style={styles.tipInfo}>
-                <Text style={styles.tipLabel}>Consejos de ejercicio</Text>
+                <Text style={[styles.tipLabel, { color: T.text ?? '#171725' }]}>Consejos de ejercicio</Text>
                 <Text style={styles.tipDescription}>3 veces por semana</Text>
               </View>
               <CustomSwitch value={!!prefs.tips?.exercise} onValueChange={(v) => handleTipToggle('exercise', v)} />
             </View>
-            <View style={styles.divider} />
+<View style={[styles.divider, { backgroundColor: T.border2 ?? 'rgba(228, 228, 228, 0.6)' }]} />
             <View style={styles.tipRow}>
               <View style={styles.tipInfo}>
-                <Text style={styles.tipLabel}>Mensajes motivacionales</Text>
+                <Text style={[styles.tipLabel, { color: T.text ?? '#171725' }]}>Mensajes motivacionales</Text>
                 <Text style={styles.tipDescription}>Semanalmente</Text>
               </View>
               <CustomSwitch value={!!prefs.tips?.motivational} onValueChange={(v) => handleTipToggle('motivational', v)} />
@@ -284,21 +283,21 @@ export default function NotificationsScreen() {
         </Card>
 
         {/* Metas de actividad */}
-        <Card>
-          <Text style={styles.cardTitle}>Metas de actividad</Text>
+        <Card style={{ backgroundColor: T.mealsCard ?? '#FFFFFF', borderColor: T.border2 ?? 'rgba(228, 228, 228, 0.6)' }}>
+          <Text style={[styles.cardTitle, { color: T.text ?? '#171725' }]}>Metas de actividad</Text>
           <View style={styles.goalsList}>
             <View style={styles.goalRow}>
               <View style={styles.goalInfo}>
-                <Text style={styles.goalLabel}>Meta de pasos alcanzada</Text>
-                <Text style={styles.goalDescription}>Notificar al completar</Text>
+                <Text style={[styles.goalLabel, { color: T.text ?? '#171725' }]}>Meta de pasos alcanzada</Text>
+                <Text style={[styles.goalDescription, { color: T.subtext ?? '#999999' }]}>Notificar al completar</Text>
               </View>
               <CustomSwitch value={!!prefs.goals?.stepsReached} onValueChange={(v) => handleGoalToggle('stepsReached', v)} />
             </View>
-            <View style={styles.divider} />
-            <View style={styles.goalRow}>
+          <View style={[styles.divider, { backgroundColor: T.border2 ?? 'rgba(228, 228, 228, 0.6)' }]} />
+          <View style={styles.goalRow}>
               <View style={styles.goalInfo}>
-                <Text style={styles.goalLabel}>Resumen semanal</Text>
-                <Text style={styles.goalDescription}>Domingos a las 8:00 PM</Text>
+                <Text style={[styles.goalLabel, { color: T.text ?? '#171725' }]}>Resumen semanal</Text>
+                <Text style={[styles.goalDescription, { color: T.subtext ?? '#999999' }]}>Domingos a las 8:00 PM</Text>
               </View>
               <CustomSwitch value={!!prefs.goals?.weeklySummary} onValueChange={(v) => handleGoalToggle('weeklySummary', v)} />
             </View>
@@ -340,8 +339,8 @@ export default function NotificationsScreen() {
   );
 }
 
-function Card({ children }: { children: React.ReactNode }) {
-  return <View style={styles.card}>{children}</View>;
+function Card({ children, style }: { children: React.ReactNode; style?: any }) {
+  return <View style={[styles.card, style]}>{children}</View>;
 }
 
 function CustomSwitch({ value, onValueChange }: { value: boolean; onValueChange: (v: boolean) => void }) {

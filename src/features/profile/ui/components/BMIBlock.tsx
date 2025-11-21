@@ -37,9 +37,9 @@ export default function BMIBlock({ bmi, label }: { bmi: number; label?: string }
   const pillTextColor = (colors as any)?.imc?.pillText?.[colorKey] ?? (colors as any)?.text ?? '#00C950';
 
   return (
-    <View style={[{ backgroundColor: (colors as any)?.card, padding: s(16), borderRadius: s(20), marginTop: s(8), flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }, cardShadow()]}> 
+    <View style={[{ backgroundColor: (colors as any)?.bg, padding: s(16), borderRadius: s(20), marginTop: s(8), flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }]}> 
       <View style={{ gap: s(4) }}>
-        <AppText variant="ag9" color={(colors as any)?.subtext}>IMC Actual</AppText>
+        <AppText variant="ag9" color={(colors as any)?.muted}>IMC Actual</AppText>
         <AppText variant="ag1" color={(colors as any)?.brandA}>{bmi}</AppText>
       </View>
       <View style={{ backgroundColor: pillBg, paddingHorizontal: s(16), paddingVertical: s(8), borderRadius: s(18) }}>
