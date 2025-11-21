@@ -123,16 +123,21 @@ export default function MealCard({
               <AppText style={styles.viewDetailsArrow}>{TEXT_ARROW}</AppText>
             </Pressable>
 
-            <Pressable
-              style={[styles.addSmallButton, isSelectedFuture && styles.addButtonDisabled]}
-              onPress={() => {
-                if (isSelectedFuture) return;
-                onAddPress();
-              }}
-              disabled={isSelectedFuture}
-            >
-              <AppText style={styles.addButtonIcon}>{TEXT_PLUS}</AppText>
-            </Pressable>
+            {isSelectedToday && (
+              <Pressable
+                style={[
+                  styles.addSmallButton,
+                  (isSelectedFuture || !isSelectedToday) && styles.addButtonDisabled,
+                ]}
+                onPress={() => {
+                  if (isSelectedFuture || !isSelectedToday) return;
+                  onAddPress();
+                }}
+                disabled={isSelectedFuture || !isSelectedToday}
+              >
+                <AppText style={styles.addButtonIcon}>{TEXT_PLUS}</AppText>
+              </Pressable>
+            )}
           </View>
         </View>
       ) : (

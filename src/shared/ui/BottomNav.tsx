@@ -12,8 +12,11 @@ import Profile from '@/assets/icons/profile-icon.svg';
 import Add from '@/assets/icons/add-icon.svg';
 import QuickActionsSheet from '@/src/shared/ui/QuickActionsSheet';
 import { useState } from 'react';
+import { useTheme } from '@/src/shared/styles/useTheme';
 
 export default function BottomNav() {
+  const { colors } = useTheme();
+  
   const router = useRouter();
   const segments = useSegments();
   // All hooks must run unconditionally. Call hooks first to satisfy Rules of Hooks.
@@ -53,6 +56,8 @@ export default function BottomNav() {
         style={[
           styles.container,
           {
+            backgroundColor: colors.mealsCard,
+            borderTopColor: colors.border,
             height: BAR_H + insets.bottom,
             paddingBottom: Math.max(insets.bottom, Platform.OS === 'ios' ? 8 : 10),
           },
@@ -103,7 +108,7 @@ export default function BottomNav() {
           showLabel={SHOW_LABELS}
         />
 
-        {/* Botón central (no tocar) */}
+        {/* Botón central*/}
         <Pressable
           style={[
             styles.centerButton,
@@ -116,7 +121,7 @@ export default function BottomNav() {
           onPress={() => setOpenQuick(true)}
         >
           <LinearGradient
-            colors={['#2FCCAC', '#24A88C']}
+            colors={((colors as any)?.gradient && [(colors as any).gradient.primaryFrom, (colors as any).gradient.primaryTo]) || ['#2FCCAC', '#24A88C']}
             style={[
               styles.centerGradient,
               { width: CENTER_DOT, height: CENTER_DOT, borderRadius: CENTER_DOT / 2 },
@@ -154,7 +159,7 @@ export default function BottomNav() {
               width={ICON_SIZE}
               height={ICON_SIZE}
               color={isActive('profile') ? '#2FCCAC' : '#99A1AF'}
-              strokeWidth={isActive('profile') ? 2.5 : 2}
+strokeWidth={isActive('profile') ? 2.5 : 2}
             />
           }
           onPress={() => go('/(tabs)/profile')}

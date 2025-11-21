@@ -10,8 +10,9 @@ import AppText from '@/src/shared/ui/components/Typography';
 import { useTodayISO } from '@/src/shared/hooks/useTodayISO';
 import { getAllMeals, DetectedItem } from '@/src/features/meals/infrastructure/mealsApi';
 import { PrimaryGradient } from '@/src/shared/ui/components/Gradients';
-import BottomNav from '@/src/shared/ui/BottomNav';
 import { PixelRatio } from 'react-native';
+import { useTheme } from '@/src/shared/styles/useTheme';
+import { useProfile } from '@/src/features/profile/application/useProfile';
 
 // local icons still used by Home header
 import Profile from '@/assets/icons/profile-icon.svg';
@@ -31,7 +32,7 @@ const data = {
     carbs:   { done: 90, goal: 179, color: '#FF6900', label: 'Carbohidratos' },
     fats:    { done: 29, goal: 60,  color: '#F0B100', label: 'Grasas' },
   },
-  imc: { value: 24.2, label: 'Normal' },
+  imc: { value: 22.5, label: 'Normal' },
   meals: [
     { key: 'breakfast', title: 'Desayuno', calories: '', chipBg: '#FFEDD4' },
     { key: 'lunch',     title: 'Almuerzo', calories: '238 kcal', chipBg: '#FEF9C2' },
@@ -39,12 +40,13 @@ const data = {
   ],
 };
 
-const BG = '#F9FAFB';
+// Background now comes from theme tokens
 
 // =====================================================
 // Home
 // =====================================================
 export default function Home() {
+  const { colors} = useTheme();
   const { width, height } = useWindowDimensions();
 
   // === base para 390 x 844
@@ -64,9 +66,9 @@ export default function Home() {
     // helper para elegir valores por tier
     const byTier = <T,>(vals: {  plus: T; tall: T }) => vals[tier];
 
-// opcional: compensar si el usuario tiene font scale grande
-const fontScale = PixelRatio.getFontScale();
-const fsFix = fontScale > 1.1 ? 0.92 : 1; // reduce un poco alturas si la tipografía “crece”
+    // opcional: compensar si el usuario tiene font scale grande
+    const fontScale = PixelRatio.getFontScale();
+    const fsFix = fontScale > 1.1 ? 0.92 : 1; // reduce un poco alturas si la tipografía “crece”
 
 
   // Modo compacto en alturas hasta 844
@@ -136,31 +138,43 @@ const fsFix = fontScale > 1.1 ? 0.92 : 1; // reduce un poco alturas si la tipogr
     return data.calories.consumed;
   }, [allMeals, todayISO]);
 
+  const { profile } = useProfile();
+
   const remaining = Math.max(0, data.calories.goal - consumed);
   const progress = Math.max(0, Math.min(1, consumed / data.calories.goal)); // 0..1
 
   // Build meals array for MealsList using the fetched data when available
   const mealsForList = React.useMemo(() => {
+    // Read per-meal chip tokens from the theme so other components can reuse them
     const defs = [
-      { key: 'breakfast', title: 'Desayuno', chipBg: '#FFEDD4' },
-      { key: 'lunch', title: 'Almuerzo', chipBg: '#FEF9C2' },
-      { key: 'dinner', title: 'Cena', chipBg: '#E9D5FF' },
+      { key: 'breakfast', title: 'Desayuno', chipBg: (colors as any).mealChips?.breakfast?.bg ?? '#FFEDD4', iconColor: (colors as any).mealChips?.breakfast?.icon ?? (colors as any).text ?? '#1A1A1A' },
+      { key: 'lunch',     title: 'Almuerzo', chipBg: (colors as any).mealChips?.lunch?.bg ?? '#FEF9C2',     iconColor: (colors as any).mealChips?.lunch?.icon ?? (colors as any).text ?? '#1A1A1A' },
+      { key: 'dinner',    title: 'Cena',     chipBg: (colors as any).mealChips?.dinner?.bg ?? '#E9D5FF',    iconColor: (colors as any).mealChips?.dinner?.icon ?? (colors as any).text ?? '#1A1A1A' },
     ];
+
+    // Map demo data by key so we keep demo calories text when falling back
+    const demoMap: Record<string, { calories?: string | null }> = Object.fromEntries(
+      data.meals.map((m) => [m.key, { calories: m.calories }])
+    );
+
     const byDate = allMeals && allMeals[todayISO] ? allMeals[todayISO] : null;
-    if (!byDate) return data.meals;
+    // If no fetched meals for today, return themed defs (so chip/icon colors reflect the active theme)
+    if (!byDate) return defs.map((m) => ({ key: m.key, title: m.title, calories: demoMap[m.key]?.calories ?? '', chipBg: m.chipBg, iconColor: m.iconColor }));
+
+    // When there are fetched items, compute kcal sums and include themed iconColor
     return defs.map((m) => {
       const items = byDate[m.key] ?? [];
       const kcalSum = items.reduce((acc, it) => acc + (it?.kcal ?? 0), 0);
-      return { key: m.key, title: m.title, calories: kcalSum > 0 ? `${kcalSum} kcal` : '', chipBg: m.chipBg };
+      return { key: m.key, title: m.title, calories: kcalSum > 0 ? `${kcalSum} kcal` : '', chipBg: m.chipBg, iconColor: m.iconColor };
     });
-  }, [allMeals, todayISO]);
+  }, [allMeals, todayISO, colors]);
 
   return (
-    <SafeAreaView style={styles.screen} edges={['left','right']}>
+    <SafeAreaView style={[styles.screen, { backgroundColor: colors.bg }]} edges={['left','right']}>
       <StatusBar style="light" translucent backgroundColor="transparent" />
 
       {/* Área superior con gradiente */}
-      <View style={{ backgroundColor: BG }}>
+      <View style={{ backgroundColor: colors.bg }}>
         <View
           style={{
             height: TOP_H,
@@ -175,8 +189,16 @@ const fsFix = fontScale > 1.1 ? 0.92 : 1; // reduce un poco alturas si la tipogr
           <View style={{ marginBottom: HEADER_MBOTTOM }}>
             <View style={[styles.headerRow, { paddingHorizontal: s(24), paddingTop: HEADER_PT, height: undefined }]}>
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <Pressable onPress={() => {}} style={[styles.headerAvatar, { width: AVATAR, height: AVATAR }]}>
-                  <Profile width={s(28)} height={s(28)} color="#FFFFFF" strokeWidth={2} />
+                <Pressable onPress={() => {}} 
+                style={[styles.headerAvatar,
+                 {
+                   backgroundColor: colors.iconbase,
+                   width: AVATAR, 
+                   height: AVATAR
+                   }
+                 ]}
+                 >
+                  <Profile width={s(28)} height={s(28)}color={colors.white} strokeWidth={2} />
                 </Pressable>
                 <View style={{ marginLeft: s(10) }}>
                   <AppText variant="ag5" style={{ color: '#FFFFFF' }}>Hola, Liliana</AppText>
@@ -197,7 +219,9 @@ const fsFix = fontScale > 1.1 ? 0.92 : 1; // reduce un poco alturas si la tipogr
             decelerationRate="fast"
             onMomentumScrollEnd={onMomentumEnd}
             renderItem={({ item }) => (
-              <View style={[styles.card, { width: CARD_W, height: CARD_H, marginRight: CARD_GAP }]}>
+              <View style={[styles.card,{
+                backgroundColor: colors.mealsCard
+              }, { width: CARD_W, height: CARD_H, marginRight: CARD_GAP }]}>
                 <View style={{ padding: s(18) }}>
                   {item === 'calories' && (
                     <CaloriesCard
@@ -211,7 +235,12 @@ const fsFix = fontScale > 1.1 ? 0.92 : 1; // reduce un poco alturas si la tipogr
                     />
                   )}
                   {item === 'macros' && <MacrosCard macros={data.macros} compact={COMPACT} />}
-                  {item === 'imc' && <ImcCard value={data.imc.value} label={data.imc.label} compact={COMPACT} />}
+                  {item === 'imc' && (
+                    <ImcCard
+                      value={profile?.bmi ?? data.imc.value}
+                      compact={COMPACT}
+                    />
+                  )}
                 </View>
               </View>
             )}
@@ -238,7 +267,7 @@ const fsFix = fontScale > 1.1 ? 0.92 : 1; // reduce un poco alturas si la tipogr
                     width: isActive ? DOT_ACTIVE : DOT,
                     height: isActive ? DOT_ACTIVE : DOT,
                     borderRadius: s(5),
-                    backgroundColor: isActive ? '#FFFFFF' : 'rgba(255,255,255,0.6)',
+                    backgroundColor: isActive ? colors.dotActive : colors.dot,
                     transform: [{ scale: isActive ? 1.08 : 1 }],
                   }}
                 />
@@ -248,7 +277,7 @@ const fsFix = fontScale > 1.1 ? 0.92 : 1; // reduce un poco alturas si la tipogr
         </View>
       </View>
         {/* Sin scroll vertical: sección inferior compacta */}
-        <View style={{ flex: 1, backgroundColor: BG }}>
+        <View style={{ flex: 1, backgroundColor: colors.bg }}>
           <MealsList
             meals={mealsForList}
             onAdd={(k) => {}}

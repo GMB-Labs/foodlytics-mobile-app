@@ -8,16 +8,19 @@ import { styles } from './styles';
 import { useRouter } from 'expo-router';
 
 import Flecha from '@/assets/icons/flehaIcon.svg';
+import { useTheme } from '@/src/shared/styles/useTheme';
 
 export default function MealsList({
   meals, onAdd, compact = false, rowH = 74, iconSize = 44, radius = 16, horizontalPad = 20,
 }: {
-  meals: { key: string; title: string; calories?: string | null; chipBg: string; }[];
+  meals: { key: string; title: string; calories?: string | null; chipBg: string; iconColor?: string }[];
   onAdd: (k: string) => void;
   compact?: boolean;
   rowH?: number; iconSize?: number; radius?: number; horizontalPad?: number;
 }) {
   const router = useRouter();
+
+  const { colors } = useTheme();
 
   const todayISO = () => {
     const d = new Date();
@@ -45,11 +48,17 @@ export default function MealsList({
   };
   return (
     <View style={[styles.mealsWrapper, { paddingHorizontal: horizontalPad, marginTop: compact ? 30 : 40 }]}> 
-      <View style={[styles.mealsCard, { padding: compact ? 20 : 30,  }]}> 
+      <View style={ [styles.mealsCard,
+        { 
+          padding: compact ? 20 : 30,  
+          backgroundColor: colors.mealsCard 
+        }
+         ]}
+        > 
         <View style={[styles.mealsHeader, { paddingBottom: compact ? 2 : 0 }]}> 
-          <AppText variant="ag7">Comidas de Hoy</AppText>
+          <AppText variant="ag7" style={{ color: colors.subtext }}>Comidas de Hoy</AppText>
           <Pressable onPress={() => router.push(`/(tabs)/meals?dateISO=${encodeURIComponent(todayISO())}&from=home` as any)}>
-            <AppText variant="ag9" style={{ color: '#2FCCAC' }}>Ver todas</AppText>
+            <AppText variant="ag9" style={{ color: colors.brandA }}>Ver todas</AppText>
           </Pressable>
         </View>
 
@@ -65,6 +74,7 @@ export default function MealsList({
                   paddingHorizontal: compact ? 12 : 16,
                   borderRadius: radius,
                   marginBottom: compact ? 8 : 12,
+                  backgroundColor: colors.mealRowBg 
                 }
               ]}
             >
@@ -83,15 +93,16 @@ export default function MealsList({
                 {/* choose icon internally by meal key; icons are bundled locally */}
                 {(() => {
                   const IconComp = key === 'lunch' ? LunchIcon : key === 'dinner' ? DinnerIcon : BreakfastIcon;
-                  return <IconComp width={Math.round(iconSize * 0.5)} height={Math.round(iconSize * 0.5)} color="#1A1A1A" />;
+                  const iconColorToUse = (meals.find(m => m.key === key) as any)?.iconColor || colors.text;
+                  return <IconComp width={Math.round(iconSize * 0.5)} height={Math.round(iconSize * 0.5)} color={iconColorToUse} />;
                 })()}
               </View>
               <View style={{ flex: 1 }}>
-                <AppText variant="ag9" style={{ color: '#1A1A1A' }} numberOfLines={1}>{title}</AppText>
+                <AppText variant="ag9" style={{ color: colors.text }} numberOfLines={1}>{title}</AppText>
                 {/* if calories is missing or empty, show 'No registrada' */}
                 <AppText
                   variant="ag9"
-                  style={{ color: calories && String(calories).trim() !== '' ? '#2FCCAC' : '#6A7282' }}
+                  style={{ color: calories && String(calories).trim() !== '' ? colors.brandA : colors.muted }}
                   numberOfLines={1}
                 >
                   {calories && String(calories).trim() !== '' ? String(calories) : 'No registrada'}
@@ -101,11 +112,11 @@ export default function MealsList({
               {/* right action: if there is calories, show chevron; else show + add button */}
               {calories && String(calories).trim() !== '' ? (
                 <Pressable onPress={() => goToMeals(key)} style={[styles.arrowContainer, { width: 18, height: 18 }]}> 
-                  <Flecha width={16} height={16} />
+                  <Flecha width={16} height={16} color={colors.backIcon}/>
                 </Pressable>
               ) : (
-                <Pressable onPress={() => { if (onAdd) onAdd(key); goToCameraFor(key); }} style={styles.addBtn}>
-                  <AppText variant="ag7" style={{ color: '#FFFFFF' }}>+</AppText>
+                <Pressable onPress={() => { if (onAdd) onAdd(key); goToCameraFor(key); }} style={[styles.addBtn, { backgroundColor: colors.addBtnBg }] }>
+                  <AppText variant="ag7" style={{ color: colors.white }}>+</AppText>
                 </Pressable>
               )}
             </View>

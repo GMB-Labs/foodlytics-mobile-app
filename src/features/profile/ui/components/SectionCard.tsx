@@ -1,7 +1,8 @@
 import React from "react";
 import { View, StyleSheet } from "react-native";
 import AppText from "@/src/shared/ui/components/Typography";
-import { COLORS, s, cardShadow } from "../tokens";
+import { s, cardShadow } from "../tokens";
+import { useTheme } from '@/src/shared/styles/useTheme';
 
 export default function SectionCard({
   title,
@@ -14,11 +15,16 @@ export default function SectionCard({
   children: React.ReactNode;
   padded?: boolean;
 }) {
+  const { colors } = useTheme();
+
+  const cardStyle = [styles.card, cardShadow(), { backgroundColor: (colors as any)?.mealsCard }];
+  const headerStyle = [styles.header, !right && styles.headerSimple, { borderBottomColor: (colors as any)?.border }];
+
   return (
-    <View style={[styles.card, cardShadow()]}>
+    <View style={cardStyle}>
       {(title || right) && (
-        <View style={[styles.header, !right && styles.headerSimple]}>
-          {title ? <AppText variant="ag7" color={COLORS.text}>{title}</AppText> : <View />}
+        <View style={headerStyle}>
+          {title ? <AppText variant="ag7" color={(colors as any)?.text}>{title}</AppText> : <View />}
           {right}
         </View>
       )}
@@ -28,7 +34,7 @@ export default function SectionCard({
 }
 
 const styles = StyleSheet.create({
-  card: { backgroundColor: COLORS.card, borderRadius: s(16) },
+  card: { borderRadius: s(16) },
   header: {
     flexDirection: "row",
     alignItems: "center",
@@ -36,7 +42,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: s(20),
     paddingVertical: s(20),
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
   },
   headerSimple: { justifyContent: "flex-start" },
   body: { padding: s(20) },

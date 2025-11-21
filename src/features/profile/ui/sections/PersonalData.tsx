@@ -11,7 +11,7 @@ export default React.memo(function PersonalData({
   age, gender, heightCm, weightKg, bmi, bmiLabel, onEdit, isEditing, onSave, onCancel,
 }: {
   age: number; gender: string; heightCm: number; weightKg: number;
-  bmi: number; bmiLabel: string; onEdit: () => void; isEditing?: boolean;
+  bmi: number; bmiLabel?: string; onEdit: () => void; isEditing?: boolean;
   onSave?: (data: { age?: number; gender?: string; heightCm?: number; weightKg?: number }) => void;
   onCancel?: () => void;
 }) {
