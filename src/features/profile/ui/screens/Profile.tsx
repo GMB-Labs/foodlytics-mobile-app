@@ -41,7 +41,7 @@ export default function Profile() {
     }
 
     // update in-memory session
-    sessionActions.signOut();
+    await sessionActions.signOut();
 
     // navigate to login and replace history so user can't go back
     router.replace('/login');

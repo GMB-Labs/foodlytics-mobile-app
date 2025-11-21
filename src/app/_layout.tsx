@@ -26,7 +26,7 @@ export default function RootLayout() {
       <StatusBar style="auto" />
       {/* ThemeProvider supplies theme tokens and mode to the app */}
       <ThemeProvider>
-        {/* SessionProvider is a lightweight skeleton; replace with real Auth0 wiring later */}
+        {/* SessionProvider now wires Auth0 + backend sync */}
         <SessionProvider>
           <Slot />
         </SessionProvider>

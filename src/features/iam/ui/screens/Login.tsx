@@ -1,26 +1,30 @@
-import React from "react";
-import { View, TouchableOpacity } from "react-native";
+import React, { useState } from "react";
+import { View, TouchableOpacity, ActivityIndicator } from "react-native";
 import { Stack, useRouter } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import AppText from "@/src/shared/ui/components/Typography";
 import ForkIcon from "@/assets/icons/fork-icon.svg";
+import useSession from "@/src/shared/hooks/useSession";
 
 export default function LoginScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const [, sessionActions] = useSession();
+  const [loading, setLoading] = useState(false);
 
-  function handleLogin() {
-    // TODO: Integrar Auth0 login flow
-    // Por ahora va directo a onboarding
-    router.replace("/onboarding/step-dob");
-  }
-
-  function handleRegister() {
-    // TODO: Integrar Auth0 signup flow
-    router.push("/register");
-  }
+  const runAuth = async (screenHint?: 'signup' | 'login') => {
+    setLoading(true);
+    try {
+      await sessionActions.login({ screenHint });
+      router.replace("/(tabs)");
+    } catch (err: any) {
+      // handled inside the session hook
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <View style={{ flex: 1 }}>
@@ -48,31 +52,38 @@ export default function LoginScreen() {
           </View>
 
           {/* Botones en la parte inferior */}
-          <View 
+          <View
             className="px-8 pb-8"
             style={{ paddingBottom: Math.max(32, insets.bottom + 16) }}
           >
             {/* Botón Registrarse (blanco) */}
             <TouchableOpacity
-              onPress={handleRegister}
+              onPress={() => runAuth('signup')}
               className="bg-white rounded-[20px] mb-4 items-center justify-center"
-              style={{ height: 56 }}
+              style={{ height: 56, opacity: loading ? 0.7 : 1 }}
+              disabled={loading}
             >
               <AppText variant="ag9" align="center" color="#000000">
-                Registrarse
+                {loading ? "Abriendo..." : "Registrarse"}
               </AppText>
             </TouchableOpacity>
 
             {/* Botón Iniciar Sesión (verde) */}
             <TouchableOpacity
-              onPress={handleLogin}
+              onPress={() => runAuth('login')}
               className="bg-[#2fccac] rounded-[20px] items-center justify-center"
-              style={{ height: 56 }}
+              style={{ height: 56, opacity: loading ? 0.7 : 1 }}
+              disabled={loading}
             >
               <AppText variant="ag9" align="center" color="#FFFFFF">
-                Iniciar Sesión
+                {loading ? "Conectando..." : "Iniciar Sesión"}
               </AppText>
             </TouchableOpacity>
+            {loading && (
+              <View style={{ marginTop: 12, alignItems: "center" }}>
+                <ActivityIndicator color="#FFFFFF" />
+              </View>
+            )}
           </View>
         </SafeAreaView>
       </LinearGradient>
