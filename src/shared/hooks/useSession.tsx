@@ -1,5 +1,5 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import { Alert, Platform } from 'react-native';
+import { Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
 import * as AuthSession from 'expo-auth-session';
@@ -87,25 +87,64 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     []
   );
 
-  const isExpoGo = Constants?.executionEnvironment === ExecutionEnvironment.StoreClient;
-  const redirectUri = useMemo(() => {
-    const proxyUri = 'https://auth.expo.io/@belier_02/foodlytics-app';
+  const executionEnvironment = Constants.executionEnvironment;
+  const isExpoGo = executionEnvironment === ExecutionEnvironment.StoreClient;
 
+<<<<<<< ours
+  const { redirectUri, useProxy } = useMemo(() => {
+    const proxyRedirect = 'https://auth.expo.io/@belier_02/foodlytics-app';
     if (isExpoGo) {
-      console.log('redirectUri =>', proxyUri);
-      return proxyUri;
+      console.log('Auth redirect config (Expo Go)', {
+        redirectUri: proxyRedirect,
+        useProxy: true,
+        executionEnvironment,
+        isExpoGo,
+      });
+      return { redirectUri: proxyRedirect, useProxy: true };
     }
 
-    const nativeUri = AuthSession.makeRedirectUri({
-      scheme: 'foodlyticsapp',
+    const nativeUri =
+      AuthSession.makeRedirectUri({
+        scheme: 'foodlyticsapp',
+        path: 'redirect',
+      }) || 'foodlyticsapp://redirect';
+
+    console.log('Auth redirect config (Native/Dev Build)', {
+      redirectUri: nativeUri,
+      useProxy: false,
+      executionEnvironment,
+      isExpoGo,
     });
-    console.log('isExpoGo =>', isExpoGo);
-    console.log('scheme =>', 'foodlyticsapp');
-    console.log('redirectUri =>', nativeUri);
-    console.log("appOwnership:", Constants.appOwnership);
-    console.log("executionEnvironment:", Constants.executionEnvironment);
-    return nativeUri;
-  }, []);
+
+    return { redirectUri: nativeUri, useProxy: false };
+  }, [executionEnvironment, isExpoGo]);
+=======
+    const { redirectUri, useProxy } = useMemo(() => {
+        if (isExpoGo) {
+            const proxyUri = 'https://auth.expo.io/@belier_02/foodlytics-app';
+
+            console.log('Auth redirect config (Expo Go)', {
+                redirectUri: proxyUri,
+                useProxy: true,
+                executionEnvironment,
+                isExpoGo,
+            });
+
+            return { redirectUri: proxyUri, useProxy: true };
+        }
+
+        const nativeUri = 'foodlyticsapp://redirect';
+
+        console.log('Auth redirect config (Native/Dev Build)', {
+            redirectUri: nativeUri,
+            useProxy: false,
+            executionEnvironment,
+            isExpoGo,
+        });
+
+        return { redirectUri: nativeUri, useProxy: false };
+    }, [executionEnvironment, isExpoGo]);
+>>>>>>> theirs
 
 
   const persistSession = useCallback(async (payload: SessionState) => {
@@ -246,10 +285,24 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       });
 
       try {
-        const useProxy = isExpoGo;
-        console.log('promptAsync start', { redirectUri, useProxy, screenHint: opts?.screenHint });
+        console.log('promptAsync start', {
+          redirectUri,
+          useProxy,
+          executionEnvironment,
+          isExpoGo,
+          screenHint: opts?.screenHint,
+        });
         const result = await request.promptAsync(discovery, { useProxy });
-        console.log('promptAsync result', { type: result.type, params: result.params, error: (result as any).error, url: result.url });
+        console.log('promptAsync result', {
+          type: result.type,
+          params: result.params,
+          error: (result as any).error,
+          url: result.url,
+          redirectUri,
+          useProxy,
+          executionEnvironment,
+          isExpoGo,
+        });
         if (result.type !== 'success' || !result.params?.code) {
           if (result.type !== 'dismiss') {
             throw new Error(result.params?.error_description || 'Inicio cancelado');
@@ -270,7 +323,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
         throw err;
       }
     },
-    [discovery, handleAuthSuccess, redirectUri]
+    [discovery, executionEnvironment, handleAuthSuccess, isExpoGo, redirectUri, useProxy]
   );
 
   const restoreSession = useCallback(async () => {
