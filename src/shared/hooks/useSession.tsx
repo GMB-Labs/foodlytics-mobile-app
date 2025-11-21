@@ -11,9 +11,14 @@ import { postJSON } from '../utils/api';
 // Ensure the browser is closed correctly on web/Android after redirect
 WebBrowser.maybeCompleteAuthSession();
 
-const AUTH0_DOMAIN = 'dev-ydl81668b887kqqx.us.auth0.com';
-const AUTH0_CLIENT_ID = 'kNXBPgHkHo7nYCOHUOgOFxnOt27C353y';
-const AUTH0_AUDIENCE = 'https://foodlytics/api/v1/auth';
+const AUTH0 = {
+  domain: 'dev-ydl81668b887kqqx.us.auth0.com',
+  clientId: 'kNXBPgHkHo7nYCOHUOgOFxnOt27C353y',
+  audience: 'https://foodlytics/api/v1/auth',
+  scheme: 'foodlytics',
+  callbackPath: 'callback',
+};
+
 const API_URL = 'https://foodlytics-api-production.up.railway.app';
 
 const TOKEN_KEY = '@foodlytics:access_token';
@@ -81,8 +86,8 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
 
   const discovery = useMemo(
     () => ({
-      authorizationEndpoint: `https://${AUTH0_DOMAIN}/authorize`,
-      tokenEndpoint: `https://${AUTH0_DOMAIN}/oauth/token`,
+      authorizationEndpoint: `https://${AUTH0.domain}/authorize`,
+      tokenEndpoint: `https://${AUTH0.domain}/oauth/token`,
     }),
     []
   );
@@ -90,61 +95,29 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   const executionEnvironment = Constants.executionEnvironment;
   const isExpoGo = executionEnvironment === ExecutionEnvironment.StoreClient;
 
-<<<<<<< ours
   const { redirectUri, useProxy } = useMemo(() => {
-    const proxyRedirect = 'https://auth.expo.io/@belier_02/foodlytics-app';
-    if (isExpoGo) {
-      console.log('Auth redirect config (Expo Go)', {
-        redirectUri: proxyRedirect,
-        useProxy: true,
-        executionEnvironment,
-        isExpoGo,
-      });
-      return { redirectUri: proxyRedirect, useProxy: true };
-    }
-
-    const nativeUri =
+    const usingProxy = false; // Expo Go is unsupported for this Auth0 SDK; custom dev/eas only
+    const uri =
       AuthSession.makeRedirectUri({
-        scheme: 'foodlyticsapp',
-        path: 'redirect',
-      }) || 'foodlyticsapp://redirect';
+        useProxy: usingProxy,
+        scheme: AUTH0.scheme,
+        path: AUTH0.callbackPath,
+      }) || `${AUTH0.scheme}://${AUTH0.callbackPath}`;
 
-    console.log('Auth redirect config (Native/Dev Build)', {
-      redirectUri: nativeUri,
-      useProxy: false,
+    console.log('Auth redirect config', {
+      redirectUri: uri,
+      useProxy: usingProxy,
       executionEnvironment,
       isExpoGo,
     });
+    if (isExpoGo) {
+      console.log(
+        '⚠️ Expo Go detected. Auth0 SDK requires custom dev client / EAS build. Build with "npx expo run:ios" or EAS.'
+      );
+    }
 
-    return { redirectUri: nativeUri, useProxy: false };
+    return { redirectUri: uri, useProxy: usingProxy };
   }, [executionEnvironment, isExpoGo]);
-=======
-    const { redirectUri, useProxy } = useMemo(() => {
-        if (isExpoGo) {
-            const proxyUri = 'https://auth.expo.io/@belier_02/foodlytics-app';
-
-            console.log('Auth redirect config (Expo Go)', {
-                redirectUri: proxyUri,
-                useProxy: true,
-                executionEnvironment,
-                isExpoGo,
-            });
-
-            return { redirectUri: proxyUri, useProxy: true };
-        }
-
-        const nativeUri = 'foodlyticsapp://redirect';
-
-        console.log('Auth redirect config (Native/Dev Build)', {
-            redirectUri: nativeUri,
-            useProxy: false,
-            executionEnvironment,
-            isExpoGo,
-        });
-
-        return { redirectUri: nativeUri, useProxy: false };
-    }, [executionEnvironment, isExpoGo]);
->>>>>>> theirs
 
 
   const persistSession = useCallback(async (payload: SessionState) => {
@@ -204,12 +177,12 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       console.log('exchangeCodeAsync start', { redirectUri, hasCode: !!code });
       const tokenResult = await AuthSession.exchangeCodeAsync(
         {
-          clientId: AUTH0_CLIENT_ID,
+          clientId: AUTH0.clientId,
           code,
           redirectUri,
           extraParams: {
             code_verifier: codeVerifier,
-            audience: AUTH0_AUDIENCE,
+            audience: AUTH0.audience,
           },
         },
         discovery
@@ -272,14 +245,21 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
 
   const login = useCallback(
     async (opts?: { screenHint?: 'signup' | 'login' }) => {
+      if (isExpoGo) {
+        const msg = 'Auth0 login no es compatible con Expo Go. Usa un custom dev client (npx expo run) o build EAS.';
+        console.log('login blocked on Expo Go', { executionEnvironment, isExpoGo, redirectUri, useProxy });
+        Alert.alert('Auth no disponible en Expo Go', msg);
+        throw new Error(msg);
+      }
+
       const request = new AuthSession.AuthRequest({
         responseType: AuthSession.ResponseType.Code,
-        clientId: AUTH0_CLIENT_ID,
+        clientId: AUTH0.clientId,
         redirectUri,
         usePKCE: true,
         scopes: ['openid', 'profile', 'email'],
         extraParams: {
-          audience: AUTH0_AUDIENCE,
+          audience: AUTH0.audience,
           ...(opts?.screenHint ? { screen_hint: opts.screenHint } : {}),
         },
       });
@@ -287,6 +267,9 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       try {
         console.log('promptAsync start', {
           redirectUri,
+          requestRedirectUri: request.redirectUri,
+          state: request.state,
+          codeVerifier: !!request.codeVerifier,
           useProxy,
           executionEnvironment,
           isExpoGo,
@@ -299,11 +282,15 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
           error: (result as any).error,
           url: result.url,
           redirectUri,
+          requestRedirectUri: request.redirectUri,
           useProxy,
           executionEnvironment,
           isExpoGo,
         });
         if (result.type !== 'success' || !result.params?.code) {
+          if (result.url) {
+            console.log('promptAsync result.url', result.url);
+          }
           if (result.type !== 'dismiss') {
             throw new Error(result.params?.error_description || 'Inicio cancelado');
           }
@@ -318,7 +305,15 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
         await handleAuthSuccess(result.params.code, request.codeVerifier);
       } catch (err: any) {
         const msg = err?.message || 'No se pudo iniciar sesión';
-        console.log('login flow error', { message: msg, err });
+        console.log('login flow error', {
+          message: msg,
+          err,
+          redirectUri,
+          requestRedirectUri: request.redirectUri,
+          useProxy,
+          executionEnvironment,
+          isExpoGo,
+        });
         Alert.alert('Autenticación fallida', msg);
         throw err;
       }
