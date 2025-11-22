@@ -6,6 +6,7 @@ export const light = {
   bg: '#F9FAFB',
   card: '#FFFFFF',
   //E5E7EB
+
   
   // icono +
   white: '#FFFFFF',
@@ -25,6 +26,7 @@ export const light = {
   brandA: '#2FCCAC',
   brandB: '#24A88C',
   iconbase: '#57D1B9',
+  iconbase2: 'rgba(255,255,255,0.20)',
 
   // Icon semantic tokens
   icons: {
@@ -46,7 +48,10 @@ export const light = {
   // Borders / dividers
   border: '#F3F4F6',
   border2: '#F3F4F6',
+  border3: '#F3F4F6',
   ringoutline: '#EEF2F7',
+  linea: '#E5E7EB',
+
   noteBox: '#EBF7FF',
   // Controls
   // UI helpers used by the `home` feature (src/features/home)
@@ -66,6 +71,7 @@ export const light = {
     breakfast: { bg: '#FFEDD4', icon: '#FF6900' },
     lunch:     { bg: '#FEF9C2', icon: '#D08700' },
     dinner:    { bg: '#E9D5FF', icon: '#AD46FF' },
+    snack:     { bg: '#FBCFE8', icon: '#D9467C' },
   },
 
   // IMC tokens: bubble + per-category pill colors
@@ -95,6 +101,23 @@ export const light = {
       overweightIII: '#DC2626',
       obese: '#DC2626',
     },
+  },
+
+  // Quick actions colors used by QuickActionsSheet
+  quickActions: {
+    food: '#2FCCAC',     // Registrar Comida (matches brandA)
+    weight: '#2B7FFF',   // Registrar Peso
+    activity: '#FF6900', // Registrar Actividad
+    goal: '#AD46FF',     // Nueva Meta
+  },
+
+  gainsToday:{
+    protein: '#5175AF',
+    carbs: '#d06010ff',
+    fats: '#cd9609ff',
+    proteinBg: '#EFF6FF',
+    carbsBg: '#FFF7ED',
+    fatsBg: '#FFFAEB',
   },
 
 } as const;

@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, StyleSheet, Pressable } from 'react-native';
 import AppText from '@/src/shared/ui/components/Typography';
+import { useTheme } from '@/src/shared/styles/useTheme';
 
 interface MealItem {
   id: string;
@@ -44,6 +45,7 @@ export default function MealCard({
   onAddPress,
   onViewPress,
 }: MealCardProps) {
+  const { colors } = useTheme();
   // compute totals
   const totals = items.reduce(
     (acc, it) => {
@@ -57,19 +59,19 @@ export default function MealCard({
   );
 
   return (
-    <View style={styles.mealCard}>
+    <View style={[styles.mealCard, { backgroundColor: colors?.mealsCard ?? '#FFFFFF' }]}>
       {/* Meal Header */}
       <View style={styles.mealHeader}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
           <View style={[styles.iconCircle, { backgroundColor }]}> 
             <Icon width={24} height={24} />
           </View>
-          <AppText style={styles.mealLabel}>{label}</AppText>
+          <AppText style={[styles.mealLabel, { color: colors?.text ?? '#1A1A1A' }]}>{label}</AppText>
         </View>
         {/* Show total kcal badge if there are items */}
         {hasItems && items.length > 0 && (
-          <View style={styles.kcalBadge}>
-            <AppText style={styles.kcalBadgeText}>{`${totals.kcal} kcal`}</AppText>
+          <View style={[styles.kcalBadge, { backgroundColor: colors?.addBtnBg ?? '#2FCCAC' }]}>
+            <AppText style={[styles.kcalBadgeText, { color: colors?.white ?? '#FFFFFF' }]}>{`${totals.kcal} kcal`}</AppText>
           </View>
         )}
       </View>
@@ -85,10 +87,10 @@ export default function MealCard({
               return (
                 <View key={it.id} style={styles.itemRow}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
-                    <View style={styles.bulletPoint} />
-                    <AppText variant="ag9" style={styles.itemName}>{it.name}</AppText>
+                    <View style={[styles.bulletPoint, { backgroundColor: colors?.addBtnBg ?? '#2FCCAC' }]} />
+                    <AppText variant="ag9" style={[styles.itemName, { color: colors?.subtext ?? '#364153' }]}>{it.name}</AppText>
                   </View>
-                  <AppText variant="ag10" color="#6A7282">{timeText}</AppText>
+                  <AppText variant="ag10" color={colors?.subtext ?? '#6A7282'}>{timeText}</AppText>
                 </View>
               );
             })}
@@ -96,37 +98,38 @@ export default function MealCard({
 
           {/* Macros cards */}
           <View style={styles.macrosRow}>
-            <View style={[styles.macroCard, { backgroundColor: '#EFF6FF' }]}>
+            <View style={[styles.macroCard, { backgroundColor: colors?.gainsToday?.proteinBg ?? '#EFF6FF' }]}>
               <AppText style={[styles.macroValue, { color: '#2B7FFF' }]}>
                 {`${totals.protein}g`}
               </AppText>
-              <AppText style={styles.macroLabel}>{TEXT_PROTEINAS}</AppText>
+              <AppText style={[styles.macroLabel, { color: colors?.gainsToday?.protein ?? '#2B7FFF' }]}>{TEXT_PROTEINAS}</AppText>
             </View>
-            <View style={[styles.macroCard, { backgroundColor: '#FFF7ED' }]}>
-              <AppText style={[styles.macroValue, { color: '#FF6900' }]}>
+            <View style={[styles.macroCard, { backgroundColor: colors?.gainsToday?.carbsBg ?? '#FFF7ED' }]}>
+              <AppText style={[styles.macroValue, { color:  '#FF6900' }]}>
                 {`${totals.carbs}g`}
               </AppText>
-              <AppText style={styles.macroLabel}>{TEXT_CARBOS}</AppText>
+              <AppText style={[styles.macroLabel, { color: colors?.gainsToday?.carbs ?? '#FF6900' }]}>{TEXT_CARBOS}</AppText>
             </View>
-            <View style={[styles.macroCard, { backgroundColor: '#FEFCE8' }]}>
+            <View style={[styles.macroCard, { backgroundColor: colors?.gainsToday?.fatsBg ?? '#FEFCE8' }]}>
               <AppText style={[styles.macroValue, { color: '#F0B100' }]}>
                 {`${totals.fats}g`}
               </AppText>
-              <AppText style={styles.macroLabel}>{TEXT_GRASAS}</AppText>
+              <AppText style={[styles.macroLabel, { color: colors?.gainsToday?.fats ?? '#F0B100' }]}>{TEXT_GRASAS}</AppText>
             </View>
           </View>
 
           {/* Actions: Ver detalles + agregar (+) */}
           <View style={styles.actionsRow}>
             <Pressable onPress={onViewPress} style={styles.viewDetails}>
-              <AppText style={styles.viewDetailsText}>{TEXT_VER_DETALLES}</AppText>
-              <AppText style={styles.viewDetailsArrow}>{TEXT_ARROW}</AppText>
+              <AppText style={[styles.viewDetailsText, { color: colors?.brandA ?? '#2FCCAC' }]}>{TEXT_VER_DETALLES}</AppText>
+              <AppText style={[styles.viewDetailsArrow, { color: colors?.brandA ?? '#2FCCAC' }]}>{TEXT_ARROW}</AppText>
             </Pressable>
 
             {isSelectedToday && (
               <Pressable
                 style={[
                   styles.addSmallButton,
+                  { backgroundColor: colors?.addBtnBg ?? '#2FCCAC' },
                   (isSelectedFuture || !isSelectedToday) && styles.addButtonDisabled,
                 ]}
                 onPress={() => {
@@ -135,7 +138,7 @@ export default function MealCard({
                 }}
                 disabled={isSelectedFuture || !isSelectedToday}
               >
-                <AppText style={styles.addButtonIcon}>{TEXT_PLUS}</AppText>
+                <AppText style={[styles.addButtonIcon, { color: colors?.white ?? '#FFFFFF' }]}>{TEXT_PLUS}</AppText>
               </Pressable>
             )}
           </View>
@@ -145,24 +148,25 @@ export default function MealCard({
           style={[
             styles.mealContent,
             styles.mealContentEmpty,
+            { borderColor: colors?.linea ?? '#E5E7EB' },
           ]}
         >
-          <AppText style={styles.emptyText}>
+          <AppText style={[styles.emptyText, { color: colors?.gmted ?? '#6A7282' }]}>
             {`No has registrado ${label.toLowerCase()}`}
           </AppText>
 
           {/* Show button only for today; for past/future dates, hide it */}
           {isSelectedToday && (
             <Pressable
-              style={[styles.addButton, isSelectedFuture && styles.addButtonDisabled]}
+              style={[styles.addButton, { backgroundColor: colors?.addBtnBg ?? colors?.brandA ?? '#2FCCAC' }, isSelectedFuture && styles.addButtonDisabled]}
               onPress={() => {
                 if (isSelectedFuture) return;
                 onAddPress();
               }}
               disabled={isSelectedFuture}
             >
-              <AppText style={styles.addButtonIcon}>{TEXT_PLUS}</AppText>
-              <AppText style={styles.addButtonText}>{TEXT_AGREGAR_COMIDA}</AppText>
+              <AppText style={[styles.addButtonIcon, { color: colors?.white ?? '#FFFFFF' }]}>{TEXT_PLUS}</AppText>
+              <AppText style={[styles.addButtonText, { color: colors?.white ?? '#FFFFFF' }]}>{TEXT_AGREGAR_COMIDA}</AppText>
             </Pressable>
           )}
         </View>

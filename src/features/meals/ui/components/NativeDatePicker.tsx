@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
-import { Modal, View, Platform, Pressable, StyleSheet, Text } from 'react-native';
-import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
+import { Modal, Pressable, StyleSheet, View } from 'react-native';
+import DatePicker from '@amjed-bouhouch/react-native-ui-datepicker';
+import dayjs, { Dayjs } from 'dayjs';
+import { useTheme } from '@/src/shared/styles/useTheme';
 import AppText from '@/src/shared/ui/components/Typography';
 
-interface NativeDatePickerProps {
+interface Props {
   visible: boolean;
   value: Date;
   minimumDate?: Date;
@@ -12,62 +14,85 @@ interface NativeDatePickerProps {
   onChange: (date: Date) => void;
 }
 
-export default function NativeDatePicker({ visible, value, minimumDate, maximumDate, onClose, onChange }: NativeDatePickerProps) {
-  const [showAndroid, setShowAndroid] = useState(visible && Platform.OS === 'android');
+export default function NativeDatePicker({
+  visible,
+  value,
+  minimumDate,
+  maximumDate,
+  onClose,
+  onChange,
+}: Props) {
+  const { colors } = useTheme();
+  const [tempDate, setTempDate] = useState<Dayjs>(dayjs(value));
 
-  // Keep local visibility in sync (when parent toggles visible)
-  React.useEffect(() => {
-    if (Platform.OS === 'android') {
-      setShowAndroid(visible);
-    }
-  }, [visible]);
-
-  const handleChange = (event: DateTimePickerEvent, selected?: Date) => {
-    if (Platform.OS === 'android') {
-      setShowAndroid(false);
-      onClose();
-      if (selected) onChange(selected);
-    } else {
-      // iOS: update immediately for inline calendar mode
-      if (selected) onChange(selected);
-    }
+  const handleConfirm = () => {
+    onChange(tempDate.toDate());
+    onClose();
   };
 
-  if (Platform.OS === 'android') {
-    return showAndroid ? (
-      <DateTimePicker
-        value={value}
-        mode="date"
-        display="calendar"
-        onChange={handleChange}
-        maximumDate={maximumDate}
-        minimumDate={minimumDate}
-      />
-    ) : null;
-  }
+  const currentYear = new Date().getFullYear();
+  const futureYears = Array.from({ length: 50 }, (_, i) => currentYear + 1 + i);
 
-  // iOS: render a modal with inline calendar picker
+
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+    <Modal visible={visible} transparent animationType="fade">
       <Pressable style={styles.overlay} onPress={onClose}>
-        <Pressable style={styles.container} onPress={(e) => e.stopPropagation()}>
-          <DateTimePicker
-            value={value}
-            mode="date"
-            display="inline"
-            onChange={handleChange}
-            maximumDate={maximumDate}
-            minimumDate={minimumDate}
-            style={styles.picker}
-            themeVariant="light"
-            accentColor="#2FCCAC"
+        <Pressable
+          style={[styles.container, { backgroundColor: colors.mealsCard ?? '#FFFFFF' }]}
+          onPress={(e) => e.stopPropagation()}
+        >
+
+          {/* Calendario */}
+          <DatePicker
+          
+            mode="single"
+            date={tempDate}
+            onChange={(params) => params.date && setTempDate(dayjs(params.date))}
+
+            minDate={dayjs('1900-01-01')}  // o el año mínimo que quieras
+            maxDate={dayjs()}              // hoy → no permite 2026+
+
+            firstDayOfWeek={1}
+            selectedItemColor={colors.iconbase}
+            calendarTextStyle={{ color: colors.text }}
+            selectedTextStyle={{ color: '#FFFFFF' }}
+            headerTextStyle={{ color: colors.text }}
+            weekDaysTextStyle={{ color: colors.text }}
+            todayTextStyle={{ color: colors. brandA }}
+            headerButtonColor={colors.iconbase}
+            weekDaysContainerStyle={{
+              borderBottomColor: colors.border2,
+            }}
+            // Cajas de MESES
+            monthContainerStyle={{
+              backgroundColor: colors.mealsCard,   // fondo en light/dark
+              borderRadius: 12,
+              borderWidth: 1,
+              borderColor: colors.border2,
+              paddingVertical: 10,
+            }}
+            // Cajas de AÑOS
+            yearContainerStyle={{
+              backgroundColor: colors.mealsCard,
+              borderRadius: 12,
+              borderWidth: 1,
+              borderColor: colors.border,
+              paddingVertical: 10,
+            }}
           />
-          <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginTop: 12, gap: 12 }}>
-            <Pressable style={styles.cancelButton} onPress={onClose}>
-              <Text style={styles.cancelButtonText}>Cancelar</Text>
+
+          {/* Botones */}
+          <View style={styles.buttonsRow}>
+            <Pressable onPress={onClose} style={styles.btn}>
+              <AppText style={[styles.btnText, { color: colors.text }]}>
+                Cancelar
+              </AppText>
             </Pressable>
-            <Pressable style={styles.confirmButton} onPress={onClose}>
-              <Text style={styles.confirmButtonText}>Aceptar</Text>
+
+            <Pressable onPress={handleConfirm} style={styles.btn}>
+              <AppText style={[styles.btnText, { color: colors.brandA }]}>
+                Aceptar
+              </AppText>
             </Pressable>
           </View>
         </Pressable>
@@ -79,38 +104,28 @@ export default function NativeDatePicker({ visible, value, minimumDate, maximumD
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.4)',
+    backgroundColor: 'rgba(0,0,0,0.45)',
     justifyContent: 'center',
     alignItems: 'center',
     padding: 24,
   },
   container: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 10,
     width: '100%',
     maxWidth: 420,
+    borderRadius: 16,
+    padding: 16,
   },
-  picker: {
-    width: '100%',
-    height: 320, // Fixed height for inline calendar
+  buttonsRow: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    marginTop: 1,
+    gap: 16,
   },
-  cancelButton: {
+  btn: {
     paddingHorizontal: 12,
     paddingVertical: 8,
   },
-  cancelButtonText: {
-    fontFamily: 'Poppins-Regular',
+  btnText: {
     fontSize: 16,
-    color: '#6B7280',
-  },
-  confirmButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-  },
-  confirmButtonText: {
-    fontFamily: 'Poppins-Regular',
-    fontSize: 16,
-    color: '#2FCCAC',
   },
 });

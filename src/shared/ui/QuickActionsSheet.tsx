@@ -2,6 +2,7 @@ import React from 'react';
 import { Animated, View, Pressable, StyleSheet, Platform } from 'react-native';
 import { useRouter, usePathname } from 'expo-router';
 import AppText from '@/src/shared/ui/components/Typography';
+import { useTheme } from '@/src/shared/styles/useTheme';
 
 import CameraIcon from '@/assets/icons/cameraIcon.svg';
 import WeightIcon from '@/assets/icons/activity/weightIcon.svg';
@@ -14,6 +15,7 @@ type Props = {
 };
 
 export default function QuickActionsSheet({ visible, onClose }: Props) {
+  const { colors } = useTheme();
   const router = useRouter();
   const pathname = usePathname();
   const opacity = React.useRef(new Animated.Value(0)).current;
@@ -64,6 +66,20 @@ export default function QuickActionsSheet({ visible, onClose }: Props) {
     router.push('/modals/edit-goals');
   };
 
+  // Grid item component lives here so it can access `colors` from the theme
+  function GridItem({ onPress, icon, label, bg }: any) {
+    return (
+      <Pressable onPress={onPress} style={[styles.gridItem, { backgroundColor: (colors as any)?.border3 }]} hitSlop={8}>
+        <View style={[styles.iconBox, { backgroundColor: bg }]}>
+          {icon}
+        </View>
+        <AppText variant="ag9" style={[styles.itemLabel, { color: (colors as any)?.text }]}>
+          {label}
+        </AppText>
+      </Pressable>
+    );
+  }
+
   return (
     <Animated.View
       style={[styles.overlay, { opacity }]}
@@ -72,10 +88,10 @@ export default function QuickActionsSheet({ visible, onClose }: Props) {
       {/* Fondo semitransparente igual al frame */}
       <Pressable style={styles.backdrop} onPress={onClose} />
 
-      {/* Sheet blanco con radius 32 y altura tipo Figma */}
-      <Animated.View style={[styles.sheet, { transform: [{ translateY }] }]}>
+      {/* Sheet blanco*/}
+      <Animated.View style={[styles.sheet, { transform: [{ translateY }], backgroundColor: (colors as any)?.bg }]}>
         <View style={styles.headerRow}>
-          <AppText variant="ag5" style={styles.title}>Acciones Rápidas</AppText>
+          <AppText variant="ag5" style={[styles.title, { color: (colors as any)?.text }]}>Acciones Rápidas</AppText>
 
           <Pressable
             onPress={onClose}
@@ -83,8 +99,8 @@ export default function QuickActionsSheet({ visible, onClose }: Props) {
             hitSlop={10}
             accessibilityLabel="Cerrar"
           >
-            <View style={styles.closeCircle}>
-              <AppText variant="ag7" style={styles.closeX}>✕</AppText>
+            <View style={[styles.closeCircle, { backgroundColor: (colors as any)?.icons?.idleBg ?? (colors as any)?.border }]}>
+              <AppText variant="ag7" style={[styles.closeX, { color: (colors as any)?.text } ]}>✕</AppText>
             </View>
           </Pressable>
         </View>
@@ -92,55 +108,27 @@ export default function QuickActionsSheet({ visible, onClose }: Props) {
         <View style={styles.grid}>
           <GridItem
             onPress={goCamera}
-            icon={
-              <CameraIcon
-                width={28}
-                height={28}
-                color="#FFFFFF"
-                strokeWidth={2}
-              />
-            }
+            icon={<CameraIcon width={28} height={28} color="#FFFFFF" strokeWidth={2} />}
             label="Registrar Comida"
-            bgColor="#2FCCAC" // Figma
+            bg={(colors as any)?.quickActions?.food ?? '#2FCCAC'}
           />
           <GridItem
             onPress={goAddWeight}
-            icon={
-              <WeightIcon
-                width={28}
-                height={28}
-                color="#FFFFFF"
-                strokeWidth={2}
-              />
-            }
+            icon={<WeightIcon width={28} height={28} color="#FFFFFF" strokeWidth={2} />}
             label="Registrar Peso"
-            bgColor="#2B7FFF" // #2b7fff del frame
+            bg={(colors as any)?.quickActions?.weight ?? '#2B7FFF'}
           />
           <GridItem
             onPress={goActivity}
-            icon={
-              <ActivityIcon
-                width={28}
-                height={28}
-                color="#FFFFFF"
-                strokeWidth={2}
-              />
-            }
+            icon={<ActivityIcon width={28} height={28} color="#FFFFFF" strokeWidth={2} />}
             label="Registrar Actividad"
-            bgColor="#FF6900" // #ff6900 del frame
+            bg={(colors as any)?.quickActions?.activity ?? '#FF6900'}
           />
           <GridItem
             onPress={goNewGoal}
-            icon={
-              <GoalIcon
-                width={28}
-                height={28}
-                color="#FFFFFF"
-                strokeWidth={2}
-              />
-            }
+            icon={<GoalIcon width={28} height={28} color="#FFFFFF" strokeWidth={2} />}
             label="Nueva Meta"
-            bgColor="#AD46FF" // #ad46ff del frame
+            bg={(colors as any)?.quickActions?.goal ?? '#AD46FF'}
           />
         </View>
       </Animated.View>
@@ -148,18 +136,6 @@ export default function QuickActionsSheet({ visible, onClose }: Props) {
   );
 }
 
-function GridItem({ onPress, icon, label, bgColor }: any) {
-  return (
-    <Pressable onPress={onPress} style={styles.gridItem} hitSlop={8}>
-      <View style={[styles.iconBox, { backgroundColor: bgColor }]}>
-        {icon}
-      </View>
-      <AppText variant="ag9" style={styles.itemLabel}>
-        {label}
-      </AppText>
-    </Pressable>
-  );
-}
 
 const styles = StyleSheet.create({
   overlay: {
@@ -230,7 +206,6 @@ const styles = StyleSheet.create({
   gridItem: {
     // dos columnas dentro de 382 px -> aprox 48 %
     width: '47%',
-    backgroundColor: '#F9FAFB', // gray-50
     borderRadius: 16,
     paddingVertical: 24,
     paddingHorizontal: 0,

@@ -10,6 +10,7 @@ import DinnerIcon from '@/assets/icons/meals/DdinnerIcon.svg';
 import LunchIcon from '@/assets/icons/meals/DlunchIcon.svg';
 import SnackIcon from '@/assets/icons/meals/DsnackIcon.svg';
 import BreakfastIcon from '@/assets/icons/meals/DbreakIcon.svg';
+import { useTheme } from '@/src/shared/styles/useTheme';
 
 interface MealItem {
   id: string;
@@ -120,19 +121,24 @@ export default function MealDetailScreen() {
     }
   }, [dateISO, items]);
 
+  const { colors } = useTheme();
+  const mealKey = (mealId as string) ?? DEFAULT_MEAL;
+  const mealChipsAny = (colors as any)?.mealChips;
+  const mealColors = (mealChipsAny?.[mealKey] ?? mealChipsAny?.breakfast) || { bg: 'rgba(255,255,255,0.2)', icon: undefined };
+
   return (
-    <View style={styles.container}>
-      <LinearGradient colors={['#2FCCAC', '#24A88C']} style={styles.header}>
+    <View style={[styles.container, { backgroundColor: colors?.bg ?? '#F9FAFB' }]}>
+      <LinearGradient colors={[(colors as any)?.gradient?.primaryFrom ?? '#2FCCAC', (colors as any)?.gradient?.primaryTo ?? '#24A88C']} style={styles.header}>
         <Pressable
           onPress={() => router.push(`/(tabs)/meals?dateISO=${encodeURIComponent(dateISO)}` as any)}
           style={styles.backRow}
         >
           <BackIcon width={20} height={20} />
-          <AppText style={styles.backText}>{TXT_VOLVER}</AppText>
+          <AppText style={[styles.backText, { color: '#FFFFFF' }]}>{TXT_VOLVER}</AppText>
         </Pressable>
 
         <View style={styles.headerTitleRow}>
-          <View style={styles.iconCircleHeader}>
+          <View style={[styles.iconCircleHeader, { backgroundColor:  colors?.iconbase2 ?? 'rgba(255,255,255,0.15)' }]}>
             {/* Render the icon for the meal type */}
             {(() => {
               const map: Record<string, React.ComponentType<any>> = {
@@ -146,66 +152,66 @@ export default function MealDetailScreen() {
             })()}
           </View>
           <View>
-            <AppText variant="ag3" style={styles.headerTitle}>{label}</AppText>
-            <AppText variant="ag9" style={styles.headerSubtitle}>{headerDateText}</AppText>
+            <AppText variant="ag3" style={[styles.headerTitle, { color:  '#FFFFFF' }]}>{label}</AppText>
+            <AppText variant="ag9" style={[styles.headerSubtitle, { color: '#FFFFFF' }]}>{headerDateText}</AppText>
           </View>
         </View>
       </LinearGradient>
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <View style={styles.summaryCard}>
-          <AppText style={styles.summaryLabel}>{TXT_TOTAL_CAL}</AppText>
-          <AppText variant="ag1" style={styles.summaryKcal}>{totals.kcal}</AppText>
-          <AppText style={styles.summaryKcalLabel}>{TXT_KCAL}</AppText>
+        <View style={[styles.summaryCard, { backgroundColor: colors?.mealsCard ?? '#FFFFFF' }]}>
+          <AppText style={[styles.summaryLabel, { color: colors?.subtext ?? '#4A5565' }]}>{TXT_TOTAL_CAL}</AppText>
+          <AppText variant="ag1" style={[styles.summaryKcal, { color: colors?.brandA ?? '#2FCCAC' }]}>{totals.kcal}</AppText>
+          <AppText style={[styles.summaryKcalLabel, { color: colors?.subtext ?? '#6A7282' }]}>{TXT_KCAL}</AppText>
 
           <View style={styles.macrosRowLarge}>
-            <View style={[styles.macroCardLarge, { backgroundColor: '#EFF6FF' }]}>
-              <AppText style={[styles.macroValueLarge, { color: '#2B7FFF' }]}>{`${totals.protein}g`}</AppText>
-              <AppText style={styles.macroLabelSmall}>{TXT_PROTEINAS}</AppText>
+            <View style={[styles.macroCardLarge, { backgroundColor: colors?.gainsToday?.proteinBg ?? '#EFF6FF' }]}>
+              <AppText style={[styles.macroValueLarge, { color:  '#2B7FFF' }]}>{`${totals.protein}g`}</AppText>
+              <AppText style={[styles.macroLabelSmall, { color: colors?.gainsToday?.protein ?? '#5175AF' }]}>{TXT_PROTEINAS}</AppText>
             </View>
-            <View style={[styles.macroCardLarge, { backgroundColor: '#FFF7ED' }]}>
+            <View style={[styles.macroCardLarge, { backgroundColor: colors?.gainsToday?.carbsBg ?? '#FFF7ED' }]}>
               <AppText style={[styles.macroValueLarge, { color: '#FF6900' }]}>{`${totals.carbs}g`}</AppText>
-              <AppText style={styles.macroLabelSmall}>{TXT_CARBOS}</AppText>
+              <AppText style={[styles.macroLabelSmall, { color: colors?.gainsToday?.carbs ?? '#FF6900' }]}>{TXT_CARBOS}</AppText>
             </View>
-            <View style={[styles.macroCardLarge, { backgroundColor: '#FEFCE8' }]}>
-              <AppText style={[styles.macroValueLarge, { color: '#F0B100' }]}>{`${totals.fats}g`}</AppText>
-              <AppText style={styles.macroLabelSmall}>{TXT_GRASAS}</AppText>
+            <View style={[styles.macroCardLarge, { backgroundColor: colors?.gainsToday?.fatsBg ?? '#FFFAEB' }]}>
+              <AppText style={[styles.macroValueLarge, { color: '#FFB800' }]}>{`${totals.fats}g`}</AppText>
+              <AppText style={[styles.macroLabelSmall, { color: colors?.gainsToday?.fats ?? '#FFB800' }]}>{TXT_GRASAS}</AppText>
             </View>
           </View>
         </View>
 
-  <AppText variant="ag7" style={styles.sectionTitle}>{TXT_ALIMENTOS}</AppText>
+  <AppText variant="ag7" style={[styles.sectionTitle, { color: colors?.text ?? '#364153' }]}>{TXT_ALIMENTOS}</AppText>
 
         {items.map((it) => (
-          <View key={it.id} style={styles.itemCard}>
+          <View key={it.id} style={[styles.itemCard, { backgroundColor: colors?.mealsCard ?? '#FFFFFF' }]}>
             <View style={styles.itemRowTop}>
               <View style={styles.itemLeft}>
-                <AppText style={styles.itemName}>{it.name}</AppText>
-                {it.qtyLabel && <AppText style={styles.itemQty}>{it.qtyLabel}</AppText>}
+                <AppText style={[styles.itemName, { color: colors?.text ?? '#1E2939' }]}>{it.name}</AppText>
+                {it.qtyLabel && <AppText style={[styles.itemQty, { color: colors?.subtext ?? '#6A7282' }]}>{it.qtyLabel}</AppText>}
               </View>
               <View style={styles.itemCenter}>
-                <AppText style={styles.itemTime}>{it.time}</AppText>
+                <AppText style={[styles.itemTime, { color: colors?.subtext ?? '#6A7282' }]}>{it.time}</AppText>
               </View>
               <View style={styles.itemRight}>
-                <AppText style={styles.itemKcal}>{it.kcal}</AppText>
-                <AppText style={styles.itemKcalLabel}>{TXT_KCAL}</AppText>
+                <AppText style={[styles.itemKcal, { color: colors?.brandA ?? '#2FCCAC' }]}>{it.kcal}</AppText>
+                <AppText style={[styles.itemKcalLabel, { color: colors?.subtext ?? '#6A7282' }]}>{TXT_KCAL}</AppText>
               </View>
             </View>
 
-            <View style={styles.divider} />
+            <View style={[styles.divider, { backgroundColor: colors?.border ?? '#F3F4F6' }]} />
 
             <View style={styles.itemMacrosRow}>
               <View style={styles.macroSmallCol}>
                 <AppText style={[styles.macroSmallValue, { color: '#2B7FFF' }]}>{`${it.protein}g`}</AppText>
-                <AppText style={styles.macroSmallLabel}>{TXT_PROTEINAS}</AppText>
+                <AppText style={[styles.macroSmallLabel, { color: colors?.subtext ?? '#6A7282' }]}>{TXT_PROTEINAS}</AppText>
               </View>
               <View style={styles.macroSmallCol}>
                 <AppText style={[styles.macroSmallValue, { color: '#FF6900' }]}>{`${it.carbs}g`}</AppText>
-                <AppText style={styles.macroSmallLabel}>{TXT_CARBOS}</AppText>
+                <AppText style={[styles.macroSmallLabel, { color: colors?.subtext ?? '#6A7282' }]}>{TXT_CARBOS}</AppText>
               </View>
               <View style={styles.macroSmallCol}>
                 <AppText style={[styles.macroSmallValue, { color: '#F0B100' }]}>{`${it.fats}g`}</AppText>
-                <AppText style={styles.macroSmallLabel}>{TXT_GRASAS}</AppText>
+                <AppText style={[styles.macroSmallLabel, { color: colors?.subtext ?? '#6A7282' }]}>{TXT_GRASAS}</AppText>
               </View>
             </View>
           </View>

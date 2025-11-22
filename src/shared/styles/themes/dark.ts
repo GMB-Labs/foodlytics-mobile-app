@@ -21,6 +21,7 @@ export const dark = {
   brandA: '#2FCCAC',
   brandB: '#24A88C',
   iconbase: '#0C3A31',
+  iconbase2: 'rgba(41, 105, 94, 0.3)',
 
   // Icon semantic tokens
   icons: {
@@ -41,7 +42,9 @@ export const dark = {
   // Borders / dividers
   border: '#111111',
   border2: '#282828',
+  border3: '#1b1b1bff',
   ringoutline: '#1F2228',
+  linea: '#2e2e2eff',
 
   noteBox: '#06201B',
 
@@ -59,6 +62,7 @@ export const dark = {
     breakfast: { bg: '#321D00', icon: '#FF791A' },
     lunch:     { bg: '#312D00', icon: '#EA9800' },
     dinner:    { bg: '#2B153C', icon: '#B760FF' },
+    snack:     { bg: '#4B112B', icon: '#F472B6' },
   },
 
   gradient: {
@@ -87,6 +91,22 @@ export const dark = {
       overweightIII: '#DC2626',
       obese: '#DC2626',
     },
+  },
+    // Quick actions colors used by QuickActionsSheet
+  quickActions: {
+    food: '#00604D',     // Registrar Comida (matches brandA)
+    weight: '#00398E',   // Registrar Peso
+    activity: '#AE4900', // Registrar Actividad
+    goal: '#6F12BB',     // Nueva Meta
+  },
+
+  gainsToday:{
+    protein: '#5175AF',
+    carbs: '#d06010ff',
+    fats: '#cd9609ff',
+    proteinBg: '#011D28',
+    carbsBg: '#3B1E00',
+    fatsBg: '#3B2B00',
   },
 
 } as const;
