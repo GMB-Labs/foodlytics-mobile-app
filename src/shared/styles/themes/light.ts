@@ -1,4 +1,3 @@
-import { dark } from "./dark";
 
 // Base light theme tokens
 export const light = {
@@ -16,7 +15,7 @@ export const light = {
   textinfo: '#5175AF',
   infoCardBg:'#EFF6FF',
   // Text
-  text: '#1A1A1A',  // negro en light y un blanquito suave para dark 
+  text: '#1A1A1A',          // negro en light y un blanquito suave para dark 
   subtext: '#4A5565',
   muted: '#6A7282',         // generic muted text (used by Home components)
   mutetext: '#6A7282',      // alias used in some profile tokens
@@ -27,6 +26,7 @@ export const light = {
   brandB: '#24A88C',
   iconbase: '#57D1B9',
   iconbase2: 'rgba(255,255,255,0.20)',
+  iconbase3: '#EBFAF7',
 
   // Icon semantic tokens
   icons: {
@@ -38,6 +38,7 @@ export const light = {
     dataIcon: '#D8D8D8',
     secureIcon: '#DCFCE7',
     shieldIcon: '#F3E8FF',
+    activity: '#2FCCAC',
 
   },
 
@@ -50,6 +51,7 @@ export const light = {
   border2: '#F3F4F6',
   border3: '#F3F4F6',
   ringoutline: '#EEF2F7',
+  dot2: '#D1D5DB',
   linea: '#E5E7EB',
 
   noteBox: '#EBF7FF',
@@ -62,6 +64,7 @@ export const light = {
   dotActive: '#FFFFFF',     // active pager dot
   mealRowBg: '#F8FAFC',     // background for meal rows
   addBtnBg: '#2FCCAC',      // add button bg
+  addBtnBgdisable: '#7AD3C1', 
   // Small UI helpers used across profile components
   chipBg: '#F8FAFC',        // input / chip background
   danger: '#EF4444',        // error / danger color
@@ -119,6 +122,19 @@ export const light = {
     carbsBg: '#FFF7ED',
     fatsBg: '#FFFAEB',
   },
+
+  activity: {
+    intensity: {
+      highBg: '#FFE5E5',
+      mediumBg: '#FFEBD1',
+      lowBg: '#DFF7EC',
+      highText: '#FF6B6B',
+      mediumText: '#FF9F1C',
+      lowText: '#2FCCAC',
+    },
+    // Heatmap color ramp used by activity month/streak widgets
+    heatmap: ['#F3F4F6', '#CFF6EE', '#9BEBDC', '#59DBC7', '#2FCCAC'],
+  },  
 
 } as const;
 

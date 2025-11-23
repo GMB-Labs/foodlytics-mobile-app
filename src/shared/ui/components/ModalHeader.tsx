@@ -2,6 +2,8 @@ import React from 'react';
 import { View, Text, Pressable, StyleSheet, Platform } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter, useLocalSearchParams } from 'expo-router';
+import AppText from '@/src/shared/ui/components/Typography';
+import { useTheme } from '@/src/shared/styles/useTheme';
 
 type Props = {
   title: string;
@@ -11,6 +13,8 @@ type Props = {
 export default function ModalHeader({ title, onClose }: Props) {
   const router = useRouter();
   const params = useLocalSearchParams() as any;
+  const { colors } = useTheme();
+  const theme = colors as any;
 
   const handleClose = () => {
     if (typeof onClose === 'function') return onClose();
@@ -20,7 +24,9 @@ export default function ModalHeader({ title, onClose }: Props) {
   };
 
   return (
-    <LinearGradient colors={['#2FCCAC', '#24A88C']} style={styles.header}>
+    <LinearGradient 
+    colors={[theme.gradient?.primaryFrom ?? '#2FCCAC', theme.gradient?.primaryTo ?? '#24A88C']}
+    style={styles.header}>
       <View style={styles.headerContent}>
         <Text style={styles.headerTitle}>{title}</Text>
         <Pressable onPress={handleClose} hitSlop={8}>
@@ -63,3 +69,4 @@ const styles = StyleSheet.create({
     marginTop: Platform.OS === 'ios' ? -4 : -10,
   },
 });
+

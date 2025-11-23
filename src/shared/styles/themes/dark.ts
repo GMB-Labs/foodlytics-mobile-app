@@ -1,3 +1,5 @@
+import { act } from "react";
+
 // Base dark theme tokens (values chosen to preserve contrast)
 export const dark = {
   // Surfaces
@@ -22,6 +24,9 @@ export const dark = {
   brandB: '#24A88C',
   iconbase: '#0C3A31',
   iconbase2: 'rgba(41, 105, 94, 0.3)',
+  iconbase3: 'rgba(41, 105, 94, 0.3)',
+
+
 
   // Icon semantic tokens
   icons: {
@@ -33,6 +38,7 @@ export const dark = {
     dataIcon: '#333333',
     secureIcon: '#053A18',
     shieldIcon: '#280547',
+    activity: '#11866E',
   },
 
   // Status
@@ -52,10 +58,13 @@ export const dark = {
   // fondo del botón de añadir (circular)
   mealsCard: '#181818',    // fondo de la lista de comidas
   dot: '#0B3E34',           // small pager dots
+  dot2: '#0B3E34',
   dotActive: '#181818',     // active pager dot
   chipBg: '#072C26',   
   mealRowBg: '#121212',     // fondo de las filas de comida
   addBtnBg: '#0B4B3E', 
+  addBtnBgdisable: '#34675D', 
+  
   
   // Per-meal chip colors (used by MealsList / Home) — darker variants for dark mode
   mealChips: {
@@ -108,6 +117,20 @@ export const dark = {
     carbsBg: '#3B1E00',
     fatsBg: '#3B2B00',
   },
+
+  activity: {
+    intensity: {
+      highBg: '#3A0F0F',
+      mediumBg: '#3A200F',
+      lowBg: '#0F2A1F',
+      highText: '#DC2626',
+      mediumText: '#FF9F1C',
+      lowText: '#2FCCAC',
+    },
+    // Heatmap color ramp used by activity month/streak widgets
+      heatmap: ['#282828', '#CFF6EE', '#9BEBDC', '#59DBC7', '#2FCCAC'],
+  },
+
 
 } as const;
 

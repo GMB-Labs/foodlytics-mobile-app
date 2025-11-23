@@ -1,12 +1,14 @@
 import React, { useState } from 'react';
-import { View, Text, Pressable, StyleSheet, ScrollView } from 'react-native';
+import { View, Pressable, StyleSheet, ScrollView,Dimensions } from 'react-native';
+import AppText from '@/src/shared/ui/components/Typography';
+import { useTheme } from '@/src/shared/styles/useTheme';
 import { useRouter } from 'expo-router';
 import ModalHeader from '@/src/shared/ui/components/ModalHeader';
 import RunIcon from '@/assets/icons/activity/sports/runIcon.svg';
 import BikeIcon from '@/assets/icons/activity/sports/bikeIcon.svg';
 import ClimbIcon from '@/assets/icons/activity/sports/climbIcon.svg';
 import TenisIcon from '@/assets/icons/activity/sports/tenisIcon.svg';
-import WalkIcon from '@/assets/icons/activity/sports/walkIcon.svg';
+
 
 type ActivityType = 'Correr' | 'Ciclismo' | 'Escalada' | 'Tenis' | 'Caminar' | 'Otro';
 
@@ -19,10 +21,17 @@ const activities: Array<{
   { type: 'Ciclismo', calPerMin: 8, Icon: BikeIcon },
   { type: 'Escalada', calPerMin: 12, Icon: ClimbIcon },
   { type: 'Tenis', calPerMin: 10, Icon: TenisIcon },
-  { type: 'Caminar', calPerMin: 4, Icon: WalkIcon },
 ];
 
 export default function SelectActivity() {
+  const { width } = Dimensions.get('window');
+  const designW = 430;
+  const scale = Math.min(1, width / designW);
+  const s = (n: number) => Math.round(n * scale);
+  const { colors } = useTheme();
+  const theme = colors as any;
+  const styles = createStyles(s, theme);
+  
   const router = useRouter();
   const [selected, setSelected] = useState<ActivityType | null>(null);
 
@@ -49,7 +58,7 @@ export default function SelectActivity() {
   const isContinueDisabled = !selected;
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: theme.bg ?? '#FFFFFF' }]}>
       <ModalHeader title="Registrar Actividad" />
 
       <ScrollView
@@ -57,8 +66,7 @@ export default function SelectActivity() {
         showsVerticalScrollIndicator={false}
       >
         {/* Card contenedora */}
-        <View style={styles.card}>
-          <Text style={styles.sectionTitle}>Tipo de actividad</Text>
+        <View style={[styles.card, { backgroundColor: theme.mealsCard ?? '#E9FBF6' }]}>
 
           <View style={styles.activitiesList}>
             {activities.map(activity => {
@@ -71,27 +79,29 @@ export default function SelectActivity() {
                   onPress={() => setSelected(activity.type)}
                 >
                   <View style={styles.activityLeft}>
-                    <Text
+                    <AppText
                       style={[
                         styles.activityName,
                         isSelected && styles.activityNameSelected,
+                        { color: isSelected ? (theme.cardTextOnAccent ?? '#FFFFFF') : (theme.text ?? '#1A1A1A') },
                       ]}
                     >
                       {activity.type}
-                    </Text>
-                    <Text
+                    </AppText>
+                    <AppText
                       style={[
                         styles.activityCal,
                         isSelected && styles.activityCalSelected,
+                        { color: isSelected ? (theme.cardTextOnAccent ?? '#FFFFFF') : (theme.subtext ?? '#6B7280') },
                       ]}
                     >
                       {activity.calPerMin} cal/min
-                    </Text>
+                    </AppText>
                   </View>
                   <Icon
                     width={40}
                     height={40}
-                    color={isSelected ? '#FFFFFF' : '#2FCCAC'}
+                    color={isSelected ? ('#FFFFFF') : (theme.icons.activity ?? '#2FCCAC')}
                   />
                 </Pressable>
               );
@@ -101,38 +111,40 @@ export default function SelectActivity() {
             <Pressable
               style={[
                 styles.activityCard,
-                styles.manualCard,
-                selected === 'Otro' && styles.activityCardSelected,
+                selected === 'Otro' && { backgroundColor: theme.addBtnBg ?? '#2FCCAC' },
               ]}
               onPress={() => setSelected('Otro')}
             >
               <View style={styles.activityLeft}>
-                <Text
+                <AppText
                   style={[
                     styles.activityName,
                     selected === 'Otro' && styles.activityNameSelected,
+                    { color: selected === 'Otro' ? (theme.cardTextOnAccent ?? '#FFFFFF') : (theme.text ?? '#1A1A1A') },
                   ]}
                 >
                   Otro
-                </Text>
-                <Text
+                </AppText>
+                <AppText
                   style={[
                     styles.activityCal,
                     selected === 'Otro' && styles.activityCalSelected,
+                    { color: selected === 'Otro' ? (theme.cardTextOnAccent ?? '#FFFFFF') : (theme.subtext ?? '#6B7280') },
                   ]}
                 >
                   Ingreso manual de datos
-                </Text>
+                </AppText>
               </View>
-              <View style={styles.manualBadge}>
-                <Text
+              <View style={[styles.manualBadge, { borderColor: (theme.brandA ?? '#2FCCAC') + '33', backgroundColor: theme.addBtnBg ?? '#FFFFFF' }]}>
+                <AppText
                   style={[
                     styles.manualBadgeText,
                     selected === 'Otro' && styles.manualBadgeTextSelected,
+                    { color: selected === 'Otro' ? ( '#FFFFFF') : (theme.white ?? '#2FCCAC') },
                   ]}
                 >
                   +
-                </Text>
+                </AppText>
               </View>
             </Pressable>
           </View>
@@ -140,7 +152,7 @@ export default function SelectActivity() {
       </ScrollView>
 
       {/* Footer con botón fijo */}
-      <View style={styles.footer}>
+      <View style={[styles.footer, { backgroundColor: theme.bg ?? '#FFFFFF', borderTopColor: theme.linea ?? '#E5E7EB' }]}>
         <Pressable
           style={[
             styles.continueButton,
@@ -149,20 +161,20 @@ export default function SelectActivity() {
           onPress={onContinue}
           disabled={isContinueDisabled}
         >
-          <Text style={styles.continueButtonText}>Continuar</Text>
+          <AppText style={styles.continueButtonText}>{'Continuar'}</AppText>
         </Pressable>
       </View>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (s: (n:number)=>number, theme: any) => StyleSheet.create({
   container: { flex: 1, backgroundColor: '#FFFFFF' },
 
   scrollContent: {
+    flexGrow: 1,
+    justifyContent: 'center',
     paddingHorizontal: 24,
-    paddingTop: 24,
-    paddingBottom: 16,
   },
 
   // Card grande tipo Figma
@@ -171,6 +183,7 @@ const styles = StyleSheet.create({
     borderRadius: 28,
     paddingHorizontal: 20,
     paddingVertical: 18,
+    shadowColor: '#000', shadowOpacity: 0.06, elevation: -12,
   },
 
   sectionTitle: {
@@ -186,7 +199,7 @@ const styles = StyleSheet.create({
   },
 
   activityCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: theme.mealRowBg??'#FFFFFF',
     borderRadius: 20,
     paddingVertical: 16,
     paddingHorizontal: 20,
@@ -195,9 +208,11 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   activityCardSelected: {
-    backgroundColor: '#2FCCAC',
+    backgroundColor: theme.addBtnBg ??'#2FCCAC',
   },
-  activityLeft: {},
+  activityLeft: {
+    
+  },
   activityName: {
     fontFamily: 'Poppins-Regular',
     fontSize: 16,
@@ -219,16 +234,12 @@ const styles = StyleSheet.create({
   },
 
   // Card "Otro"
-  manualCard: {
-    borderWidth: 1,
-    borderColor: '#2FCCAC33',
-  },
+
   manualBadge: {
     width: 36,
     height: 36,
     borderRadius: 18,
     borderWidth: 1,
-    borderColor: '#2FCCAC',
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#FFFFFF',
@@ -252,14 +263,14 @@ const styles = StyleSheet.create({
     paddingBottom: 28,
   },
   continueButton: {
-    backgroundColor: '#2FCCAC',
+    backgroundColor: theme.addBtnBg ?? '#2FCCAC',
     borderRadius: 20,
     height: 56,
     alignItems: 'center',
     justifyContent: 'center',
   },
   continueButtonDisabled: {
-    backgroundColor: '#7AD3C1',
+    backgroundColor: theme.addBtnBgdisable ??'#7AD3C1',
   },
   continueButtonText: {
     fontFamily: 'Poppins-Medium',

@@ -1,9 +1,10 @@
 import React, { useRef } from 'react';
-import { View, TouchableOpacity } from 'react-native';
+import { View, TouchableOpacity, StyleSheet } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import AppText from '@/src/shared/ui/components/Typography';
 import LottieView from 'lottie-react-native';
 import DeleteIcon from '@/assets/icons/profile/deleteIcon.svg';
+import { useTheme } from '@/src/shared/styles/useTheme';
 
 type Activity = {
   id: string;
@@ -13,7 +14,18 @@ type Activity = {
   calories: number;
 };
 
-function intensityColor(intensity: Activity['intensity']) {
+function intensityColor(intensity: Activity['intensity'], theme: any) {
+  if (theme?.activity?.intensity) {
+    switch (intensity) {
+      case 'Alta':
+        return theme.activity.intensity.highBg ?? '#FFD6D6';
+      case 'Moderada':
+        return theme.activity.intensity.mediumBg ?? '#FFEBD1';
+      case 'Baja':
+      default:
+        return theme.activity.intensity.lowBg ?? '#DFF7EC';
+    }
+  }
   switch (intensity) {
     case 'Alta':
       return '#FFD6D6';
@@ -25,7 +37,18 @@ function intensityColor(intensity: Activity['intensity']) {
   }
 }
 
-function intensityTextColor(intensity: Activity['intensity']) {
+function intensityTextColor(intensity: Activity['intensity'], theme: any) {
+  if (theme?.activity?.intensity) {
+    switch (intensity) {
+      case 'Alta':
+        return theme.activity.intensity.highText ?? '#FF6B6B';
+      case 'Moderada':
+        return theme.activity.intensity.mediumText ?? '#FF9F1C';
+      case 'Baja':
+      default:
+        return theme.activity.intensity.lowText ?? '#2FCCAC';
+    }
+  }
   switch (intensity) {
     case 'Alta':
       return '#FF6B6B';
@@ -45,6 +68,9 @@ export default function ActivityCard({
   onDelete: (id: string) => void;
 }) {
   const animationRef = useRef<any>(null);
+  const { colors } = useTheme();
+  const theme = colors as any;
+  const styles = createStyles(theme);
 
   useFocusEffect(
     React.useCallback(() => {
@@ -64,9 +90,9 @@ export default function ActivityCard({
   );
 
   return (
-    <View style={cardStyles.card}>
-      <View style={cardStyles.left}>
-        <View style={cardStyles.iconCircle}>
+    <View style={styles.card}>
+      <View style={styles.left}>
+        <View style={styles.iconCircle}>
           <LottieView
             ref={animationRef}
             source={require('@/assets/lottie/trending-up.json')}
@@ -78,31 +104,30 @@ export default function ActivityCard({
         </View>
       </View>
 
-      <View style={cardStyles.center}>
-        <AppText variant="ag7" color="#0F172A">{`${activity.name}`}</AppText>
+      <View style={styles.center}>
+        <AppText variant="ag7" color={theme.text ?? '#0F172A'}>{`${activity.name}`}</AppText>
         <View style={{ height: 6 }} />
-        <View style={cardStyles.rowDetails}>
-          <AppText variant="ag9" color="#6B7280">{`${activity.minutes} min`}</AppText>
-          <View style={cardStyles.dot} />
-          <View style={[cardStyles.badge, { backgroundColor: intensityColor(activity.intensity) }]}> 
-            <AppText variant="ag9" color={intensityTextColor(activity.intensity)}>{`${activity.intensity}`}</AppText>
+        <View style={styles.rowDetails}>
+          <AppText variant="ag9" color={theme.subtext ?? '#6B7280'}>{`${activity.minutes} min`}</AppText>
+          <View style={styles.dot} />
+          <View style={[styles.badge, { backgroundColor: intensityColor(activity.intensity, theme) }]}> 
+            <AppText variant="ag9" color={intensityTextColor(activity.intensity, theme)}>{`${activity.intensity}`}</AppText>
           </View>
-          <View style={cardStyles.dot} />
-          <AppText variant="ag9" color="#2FCCAC">{`${activity.calories} cal`}</AppText>
+          <View style={styles.dot} />
+          <AppText variant="ag9" color={theme.brandA ?? '#2FCCAC'}>{`${activity.calories} cal`}</AppText>
         </View>
       </View>
 
-      <TouchableOpacity style={cardStyles.deleteBtn} onPress={() => onDelete(activity.id)}>
-        <DeleteIcon width={18} height={18} color="#FF495C" />
+      <TouchableOpacity style={styles.deleteBtn} onPress={() => onDelete(activity.id)}>
+        <DeleteIcon width={18} height={18} color={theme.danger ?? '#FF495C'} />
       </TouchableOpacity>
     </View>
   );
 }
-
-const cardStyles = {
+const createStyles = (theme: any) => StyleSheet.create({
   card: {
     marginBottom: 12,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: theme.mealsCard ?? '#FFFFFF',
     borderRadius: 16,
     paddingVertical: 14,
     paddingHorizontal: 18,
@@ -113,12 +138,12 @@ const cardStyles = {
     shadowOpacity: 0.06,
     shadowRadius: 6,
     elevation: 2,
-  } as any,
-  left: { marginRight: 12 } as any,
-  iconCircle: { width: 48, height: 48, borderRadius: 20, backgroundColor: '#EBFAF7', alignItems: 'center', justifyContent: 'center' } as any,
-  center: { flex: 1 } as any,
-  rowDetails: { flexDirection: 'row', alignItems: 'center' } as any,
-  dot: { width: 6, height: 6, borderRadius: 6, backgroundColor: '#D1D5DB', marginHorizontal: 10 } as any,
-  badge: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 12 } as any,
-  deleteBtn: { marginLeft: 12, marginBottom: 40 } as any,
-};
+  },
+  left: { marginRight: 12 },
+  iconCircle: { width: 48, height: 48, borderRadius: 20, backgroundColor: theme.iconbase3 ?? '#EBFAF7', alignItems: 'center', justifyContent: 'center' },
+  center: { flex: 1 },
+  rowDetails: { flexDirection: 'row', alignItems: 'center' },
+  dot: { width: 6, height: 6, borderRadius: 6, backgroundColor: theme.dot2 ?? '#D1D5DB', marginHorizontal: 10 },
+  badge: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 12 },
+  deleteBtn: { marginLeft: 12, marginBottom: 40 },
+});

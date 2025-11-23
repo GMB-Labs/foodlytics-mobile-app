@@ -1,5 +1,9 @@
+/* eslint-disable react-native/no-raw-text */
 import React, { useState } from 'react';
-import { View, Text, Pressable, StyleSheet, TextInput } from 'react-native';
+import { View, Pressable, StyleSheet, TextInput , Dimensions} from 'react-native';
+import AppText from '@/src/shared/ui/components/Typography';
+import { useTheme } from '@/src/shared/styles/useTheme';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import ModalHeader from '@/src/shared/ui/components/ModalHeader';
@@ -15,23 +19,28 @@ const INTENSITY_FACTORS: Record<Intensity, number> = {
   Alta: 1.1,
 };
 
-const getIntensityColor = (level: Intensity) => {
-  switch (level) {
-    case 'Alta':
-      return '#FC434C';
-    case 'Moderada':
-      return '#FF6900';
-    case 'Baja':
-    default:
-      return '#00C950';
-  }
-};
+function hexToRgba(hex: string, alpha = 1) {
+  if (!hex) return `rgba(0,0,0,${alpha})`;
+  const cleaned = hex.replace('#', '');
+  const bigint = parseInt(cleaned.length === 3 ? cleaned.split('').map(c=>c+c).join('') : cleaned, 16);
+  const r = (bigint >> 16) & 255;
+  const g = (bigint >> 8) & 255;
+  const b = bigint & 255;
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
 
 export default function ActivityDetails() {
   const router = useRouter();
   const params = useLocalSearchParams() as any;
   const todayISO = useTodayISO();
   const toast = useToast();
+  const { width } = Dimensions.get('window');
+  const designW = 430;
+  const scale = Math.min(1, width / designW);
+  const s = (n: number) => Math.round(n * scale);
+  const { colors } = useTheme();
+  const theme = colors as any;
+  const styles = createStyles(s, theme);
 
   const activityTypeParam = (params?.type as string) || 'Correr';
   const isCustom = activityTypeParam === 'Otro' || params?.isCustom === 'true';
@@ -49,6 +58,27 @@ export default function ActivityDetails() {
 
   const incrementDuration = () => setDuration(d => Math.min(d + 5, 120));
   const decrementDuration = () => setDuration(d => Math.max(d - 5, 5));
+
+  const getIntensityColors = (level: Intensity) => {
+    switch (level) {
+      case 'Alta':
+        return {
+          bg: theme.activity?.intensity?.highBg ?? '#FFE5E5',
+          text: theme.activity?.intensity?.highText ?? '#FC434C',
+        };
+      case 'Moderada':
+        return {
+          bg: theme.activity?.intensity?.mediumBg ?? '#FFEBD1',
+          text: theme.activity?.intensity?.mediumText ?? '#FF6900',
+        };
+      case 'Baja':
+      default:
+        return {
+          bg: theme.activity?.intensity?.lowBg ?? '#DFF7EC',
+          text: theme.activity?.intensity?.lowText ?? '#00C950',
+        };
+    }
+  };
 
   const onSave = async () => {
     if (!intensity) {
@@ -69,11 +99,33 @@ export default function ActivityDetails() {
 
     setSaving(true);
 
-    setTimeout(() => {
+    setTimeout(async () => {
       const factor = INTENSITY_FACTORS[intensity] ?? 1;
       const caloriesBurned = Math.round(calPerMin * duration * factor);
 
       const finalType = isCustom ? customName.trim() : activityTypeParam;
+
+      // persist activity locally so summary can read last distance session
+      try {
+        const STORAGE_KEY = '@foodlytics:activities';
+        const raw = await AsyncStorage.getItem(STORAGE_KEY);
+        const existing = raw ? JSON.parse(raw) : [];
+        const now = new Date();
+        const entry = {
+          id: `local-${Date.now()}`,
+          type: finalType,
+          dateISO: todayISO,
+          duration: duration, // minutes
+          calories: caloriesBurned,
+          createdAt: now.toISOString(),
+          startTime: now.toISOString(), // hora exacta de inicio
+        };
+        existing.push(entry);
+        await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(existing));
+      } catch (e) {
+        // best-effort persistence, ignore errors
+        console.warn('save activity to AsyncStorage failed', e);
+      }
 
       setSaving(false);
       router.push({
@@ -96,28 +148,28 @@ export default function ActivityDetails() {
     saving || !intensity || (isCustom && !customName.trim());
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: theme.bg ?? '#FFFFFF' }]}>
       <ModalHeader title="Registrar Actividad" />
 
       <View style={styles.content}>
         <LinearGradient
-          colors={['rgba(47,204,172,0.10)', 'rgba(36,168,140,0.05)']}
+          colors={[hexToRgba(theme.brandA ?? '#2FCCAC', 0.1), hexToRgba(theme.brandB ?? '#24A88C', 0.05)]}
           start={{ x: 1, y: 0 }}
           end={{ x: 0, y: 1 }}
           style={styles.gradientCard}
         >
           {/* Activity type card */}
-          <View style={styles.activityCard}>
-            <Text style={styles.activityTitle}>
+          <View style={[styles.activityCard, { backgroundColor: theme.mealsCard ?? '#FFFFFF' }]}>
+            <AppText style={styles.activityTitle} color={theme.text ?? '#151522'}>
               {isCustom ? 'Actividad personalizada' : activityTypeParam}
-            </Text>
-            <Text style={styles.activitySubtitle}>
+            </AppText>
+            <AppText style={styles.activitySubtitle} color={theme.subtext ?? '#999999'}>
               Completa los detalles de tu actividad
-            </Text>
+            </AppText>
 
             {isCustom && (
               <View style={styles.customInputContainer}>
-                <Text style={styles.customInputLabel}>Nombre de la actividad</Text>
+                <AppText style={styles.customInputLabel} color={theme.text ?? '#4B5563'}>Nombre de la actividad</AppText>
                 <TextInput
                   value={customName}
                   onChangeText={setCustomName}
@@ -130,46 +182,47 @@ export default function ActivityDetails() {
           </View>
 
           {/* Duration selector */}
-          <Text style={styles.sectionLabel}>Duración (minutos)</Text>
+          <AppText style={styles.sectionLabel} color={theme.text ?? '#1A1A1A'}>Duración (minutos)</AppText>
           <View style={styles.durationSelector}>
-            <Pressable style={styles.durationButton} onPress={decrementDuration}>
-              <Text style={styles.durationButtonText}>−</Text>
+            <Pressable style={[styles.durationButton, { backgroundColor: theme.addBtnBg ?? '#2FCCAC' }]} onPress={decrementDuration}>
+              <AppText style={styles.durationButtonText}>{'−'}</AppText>
             </Pressable>
             <View style={styles.durationDisplay}>
-              <Text style={styles.durationNumber}>{duration}</Text>
-              <Text style={styles.durationLabel}>minutos</Text>
+              <AppText style={styles.durationNumber} color={theme.text ?? '#1A1A1A'}>{duration}</AppText>
+              <AppText style={styles.durationLabel} color={theme.subtext ?? '#6B7280'}>minutos</AppText>
             </View>
-            <Pressable style={styles.durationButton} onPress={incrementDuration}>
-              <Text style={styles.durationButtonText}>+</Text>
+            <Pressable style={[styles.durationButton, { backgroundColor: theme.addBtnBg ?? '#2FCCAC' }]} onPress={incrementDuration}>
+              <AppText style={styles.durationButtonText}>{'+'}</AppText>
             </Pressable>
           </View>
 
           {/* Intensity selector */}
-          <Text style={styles.sectionLabel}>Intensidad</Text>
+          <AppText style={styles.sectionLabel} color={theme.text ?? '#1A1A1A'}>Intensidad</AppText>
           <View style={styles.intensitySelector}>
             {INTENSITY_LEVELS.map(level => {
               const selected = intensity === level;
-              const color = getIntensityColor(level);
+              const colorsFor = getIntensityColors(level);
               return (
                 <Pressable
                   key={level}
                   style={[
                     styles.intensityButton,
                     selected && {
-                      backgroundColor: color,
-                      borderColor: color,
+                      backgroundColor: colorsFor.bg,
+                      borderColor: colorsFor.bg,
                     },
                   ]}
                   onPress={() => setIntensity(level)}
                 >
-                  <Text
+                  <AppText
                     style={[
                       styles.intensityButtonText,
                       selected && styles.intensityButtonTextSelected,
                     ]}
+                    color={selected ? (colorsFor.text ?? '#FFFFFF') : (colorsFor.text ?? '#1A1A1A')}
                   >
                     {level}
-                  </Text>
+                  </AppText>
                 </Pressable>
               );
             })}
@@ -179,23 +232,21 @@ export default function ActivityDetails() {
 
       <View style={styles.footer}>
         <Pressable
-          style={[styles.saveButton, isSaveDisabled && styles.saveButtonDisabled]}
+          style={[styles.saveButton, isSaveDisabled && styles.saveButtonDisabled, { backgroundColor: theme.addBtnBg ?? '#2FCCAC' }]}
           onPress={onSave}
           disabled={isSaveDisabled}
         >
-          <Text style={styles.saveButtonText}>
-            {saving ? 'Registrando...' : 'Registrar actividad'}
-          </Text>
+          <AppText style={styles.saveButtonText}>{saving ? 'Registrando...' : 'Registrar actividad'}</AppText>
         </Pressable>
         <Pressable onPress={onChangeType} style={styles.changeTypeButton}>
-          <Text style={styles.changeTypeText}>Cambiar tipo de actividad</Text>
+          <AppText style={styles.changeTypeText} color={theme.addBtnBg ?? '#2FCCAC'}>Cambiar tipo de actividad</AppText>
         </Pressable>
       </View>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (s: (n:number)=>number, theme: any) => StyleSheet.create({
   container: { flex: 1, backgroundColor: '#FFFFFF' },
   content: {
     flex: 1,
@@ -221,7 +272,6 @@ const styles = StyleSheet.create({
     fontFamily: 'Poppins-Regular',
     fontSize: 16,
     lineHeight: 24,
-    color: '#151522',
     marginBottom: 4,
   },
   activitySubtitle: {
@@ -244,26 +294,24 @@ const styles = StyleSheet.create({
     fontFamily: 'Poppins-Regular',
     fontSize: 13,
     lineHeight: 18,
-    color: '#4B5563',
     marginBottom: 6,
   },
   customInput: {
-    backgroundColor: '#F9FAFB',
+    backgroundColor: theme.mealRowBg ??'#F9FAFB',
     borderRadius: 16,
     paddingHorizontal: 14,
     paddingVertical: 10,
     fontFamily: 'Poppins-Regular',
     fontSize: 14,
     lineHeight: 20,
-    color: '#111827',
+    color:  theme.text ?? '#9CA3AF',
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: theme.border ?? '#9CA3AF',
   },
   sectionLabel: {
     fontFamily: 'Poppins-Regular',
     fontSize: 14,
     lineHeight: 20,
-    color: '#1A1A1A',
     marginBottom: 16,
   },
   durationSelector: {
@@ -277,13 +325,13 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: '#2FCCAC',
     alignItems: 'center',
     justifyContent: 'center',
   },
   durationButtonText: {
     fontFamily: 'Poppins-Medium',
     fontSize: 24,
+    marginTop: 7,
     color: '#FFFFFF',
   },
   durationDisplay: {
@@ -294,13 +342,11 @@ const styles = StyleSheet.create({
     fontFamily: 'Poppins-Medium',
     fontSize: 32,
     lineHeight: 40,
-    color: '#1A1A1A',
   },
   durationLabel: {
     fontFamily: 'Poppins-Regular',
     fontSize: 14,
     lineHeight: 20,
-    color: '#6B7280',
   },
 
   // Intensity buttons
@@ -315,14 +361,13 @@ const styles = StyleSheet.create({
   },
   intensityButton: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: theme.mealsCard ?? '#FFFFFF',
     borderRadius: 20,
     paddingVertical: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    shadowColor: '#000',
+    borderWidth: 0.2,
+    borderColor: theme.border ?? '#E5E7EB',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.06,
     shadowRadius: 3,
@@ -332,24 +377,21 @@ const styles = StyleSheet.create({
     fontFamily: 'Poppins-Regular',
     fontSize: 14,
     lineHeight: 20,
-    color: '#1A1A1A',
   },
   intensityButtonTextSelected: {
-    color: '#FFFFFF',
     fontWeight: '600',
   },
 
   footer: {
     paddingHorizontal: 24,
     paddingVertical: 16,
-    backgroundColor: '#FFFFFF',
     marginBottom: 20,
     borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
+    borderTopColor: theme.border2 ?? '#E5E7EB',
 
   },
   saveButton: {
-    backgroundColor: '#2FCCAC',
+    backgroundColor: theme.addBtnBg ?? '#2FCCAC',
     borderRadius: 20,
     height: 56,
     alignItems: 'center',
@@ -373,6 +415,5 @@ const styles = StyleSheet.create({
     fontFamily: 'Poppins-Regular',
     fontSize: 14,
     lineHeight: 20,
-    color: '#2FCCAC',
   },
 });

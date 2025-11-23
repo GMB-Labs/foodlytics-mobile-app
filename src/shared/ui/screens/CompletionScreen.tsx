@@ -9,6 +9,7 @@ import {
 } from "react-native";
 import AppText from "@/src/shared/ui/components/Typography";
 import { isLottieSafe } from "@/src/shared/utils/isLottieSafe";
+import { useTheme } from "@/src/shared/styles/useTheme";
 
 type CompletionScreenProps = {
   heading: string;
@@ -39,8 +40,10 @@ export function CompletionScreen({
       ? isLottieSafe(lottie) // Usar Lottie solo si es seguro
       : true;                // iOS siempre usa Lottie
 
+  const { colors } = useTheme();
+  const theme = colors as any;
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: theme.bg ?? '#FFFFFF' }]}>
       <View style={styles.content}>
         <View style={styles.iconContainer}>
           {shouldUseLottie ? (
@@ -55,11 +58,11 @@ export function CompletionScreen({
           )}
         </View>
 
-        <AppText variant="ag6" style={styles.heading}>
+        <AppText variant="ag6" style={[styles.heading]} color={theme.text ?? '#151522'}>
           {heading}
         </AppText>
 
-        <AppText variant="ag8" style={styles.message}>
+        <AppText variant="ag8" style={styles.message} color={theme.subtext ?? '#999999'}>
           {message}
         </AppText>
       </View>
@@ -89,12 +92,10 @@ const styles = StyleSheet.create({
   },
   heading: {
     textAlign: "center",
-    color: "#151522",
     marginBottom: 30,
   },
   message: {
     textAlign: "center",
-    color: "#999999",
     lineHeight: 24,
     marginHorizontal: 24,
   },
