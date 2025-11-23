@@ -1,8 +1,9 @@
 import React from 'react';
-import { View, StyleSheet, TouchableOpacity, Text } from 'react-native';
+import { View, StyleSheet, TouchableOpacity } from 'react-native';
 import { useRouter, usePathname } from 'expo-router';
 import AppText from '@/src/shared/ui/components/Typography';
 import GoalIcon from '@/assets/icons/activity/goalIcon.svg';
+import { useTheme } from '@/src/shared/styles/useTheme';
 
 type Goal = { label: string; value: string; color?: string };
 
@@ -17,6 +18,9 @@ export default function DailyGoals({ goals = defaultGoals }: { goals?: Goal[] })
   const router = useRouter();
   const pathname = usePathname();
 
+  const { colors } = useTheme();
+  const theme = colors as any;
+
   const onAdjust = () => {
     const safeFrom = (() => {
       if (!pathname || pathname === '/') return '/(tabs)';
@@ -26,21 +30,23 @@ export default function DailyGoals({ goals = defaultGoals }: { goals?: Goal[] })
     router.push({ pathname: '/modals/edit-goals', params: { from: safeFrom } } as any);
   };
 
+  const styles = createStyles(theme);
+
   return (
     <View style={styles.card}>
       <View style={styles.headerRow}>
-        <AppText variant="ag7" color="#1A1A1A"><Text>Metas Diarias</Text></AppText>
+        <AppText variant="ag7" color={theme.text ?? '#1A1A1A'}>Metas Diarias</AppText>
         <TouchableOpacity style={styles.adjustBtn} activeOpacity={0.85} onPress={onAdjust}>
-          <GoalIcon width={16} height={16} color={'#1A1A1A'} />
-          <AppText variant="ag9" color="#1A1A1A" style={{ marginLeft: 8 }}><Text>Ajustar</Text></AppText>
+          <GoalIcon width={16} height={16} color={theme.text ?? '#1A1A1A'} />
+          <AppText variant="ag9" color={theme.text ?? '#1A1A1A'} style={{ marginLeft: 8 }}>Ajustar</AppText>
         </TouchableOpacity>
       </View>
 
       <View style={styles.grid}>
         {goals.map((g, i) => (
-          <View key={i} style={styles.gridItem}>
-            <AppText variant="ag10" color="#4A5565">{g.label}</AppText>
-            <AppText variant="ag6" color={g.color ?? '#2FCCAC'} style={{ marginTop: 4 }}>
+          <View key={i} style={[styles.gridItem, { backgroundColor: theme.mealRowBg ?? '#F8FAFC' }]}>
+            <AppText variant="ag10" color={theme.subtext ?? '#4A5565'}>{g.label}</AppText>
+            <AppText variant="ag6" color={g.color ?? theme.brandB ?? '#2FCCAC'} style={{ marginTop: 4 }}>
               {g.value}
             </AppText>
           </View>
@@ -50,44 +56,46 @@ export default function DailyGoals({ goals = defaultGoals }: { goals?: Goal[] })
   );
 }
 
-const styles = StyleSheet.create({
-  card: { 
-    backgroundColor: '#FFFFFF', 
-    borderRadius: 16, 
-    padding: 20, 
-    marginTop: 12, 
-    shadowColor: '#000', 
-    shadowOffset: { width: 0, height: 1 }, 
-    shadowOpacity: 0.08, 
-    shadowRadius: 4, 
-    elevation: 2 
-  },
-  headerRow: { 
-    flexDirection: 'row', 
-    justifyContent: 'space-between', 
-    alignItems: 'center' 
-  },
-  adjustBtn: { 
-    backgroundColor: '#FFFFFF', 
-    borderWidth: 1, 
-    borderColor: '#E5E7EB', 
-    borderRadius: 20, 
-    paddingHorizontal: 12, 
-    paddingVertical: 6,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  grid: { 
-    marginTop: 16, 
-    flexDirection: 'row', 
-    flexWrap: 'wrap', 
-    gap: 12,
-  },
-  gridItem: { 
-    width: '48%', 
-    backgroundColor: '#F8FAFC', 
-    borderRadius: 20, 
-    paddingVertical: 12, 
-    paddingHorizontal: 12,
-  },
-});
+function createStyles(themeColors: any) {
+  return StyleSheet.create({
+    card: { 
+      backgroundColor: themeColors.mealsCard ?? '#FFFFFF', 
+      borderRadius: 16, 
+      padding: 20, 
+      marginTop: 12, 
+      shadowColor: '#000', 
+      shadowOffset: { width: 0, height: 1 }, 
+      shadowOpacity: 0.08, 
+      shadowRadius: 4, 
+      elevation: 2 
+    },
+    headerRow: { 
+      flexDirection: 'row', 
+      justifyContent: 'space-between', 
+      alignItems: 'center' 
+    },
+    adjustBtn: { 
+      backgroundColor: themeColors.card ?? '#FFFFFF', 
+      borderWidth: 1, 
+      borderColor: themeColors.border ?? '#E5E7EB', 
+      borderRadius: 20, 
+      paddingHorizontal: 12, 
+      paddingVertical: 6,
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    grid: { 
+      marginTop: 16, 
+      flexDirection: 'row', 
+      flexWrap: 'wrap', 
+      gap: 12,
+    },
+    gridItem: { 
+      width: '48%', 
+      backgroundColor: themeColors.surface ?? '#F8FAFC', 
+      borderRadius: 20, 
+      paddingVertical: 12, 
+      paddingHorizontal: 12,
+    },
+  });
+}

@@ -6,6 +6,8 @@ export const dark = {
   bg: '#121212',
   card: '#072C26',
 
+  celeste: '#0C3A31',
+
   white: '#2CC1A2',
   color: '#FFFFFF',
   backIcon: '#2CC0A1',
@@ -64,6 +66,7 @@ export const dark = {
   mealRowBg: '#121212',     // fondo de las filas de comida
   addBtnBg: '#0B4B3E', 
   addBtnBgdisable: '#34675D', 
+  btnbggreen: '#0B4B3E',
   
   
   // Per-meal chip colors (used by MealsList / Home) — darker variants for dark mode

@@ -6,7 +6,7 @@ export const light = {
   card: '#FFFFFF',
   //E5E7EB
 
-  
+  celeste: '#C9F3EB',
   // icono +
   white: '#FFFFFF',
   color: '#57D1B9',
@@ -68,6 +68,8 @@ export const light = {
   // Small UI helpers used across profile components
   chipBg: '#F8FAFC',        // input / chip background
   danger: '#EF4444',        // error / danger color
+
+  btnbggreen: '#FFFFFF',
 
   // Per-meal chip colors (used by MealsList / Home)
   mealChips: {

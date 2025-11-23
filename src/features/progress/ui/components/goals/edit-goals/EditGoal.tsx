@@ -1,3 +1,4 @@
+/* eslint-disable react-native/no-raw-text */
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -16,6 +17,8 @@ import useToast from '@/src/shared/hooks/useToast';
 import { useTodayISO } from '@/src/shared/hooks/useTodayISO';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import RowIcon from '@/assets/icons/rowIcon.svg';
+import AppText from '@/src/shared/ui/components/Typography';
+import { useTheme } from '@/src/shared/styles/useTheme';
 
 const ACTIVITY_LEVELS = ['Sedentario', 'Ligero', 'Moderado', 'Activo', 'Muy activo'] as const;
 
@@ -27,12 +30,26 @@ const ACTIVITY_FACTORS: Record<(typeof ACTIVITY_LEVELS)[number], number> = {
   'Muy activo': 1.9,
 };
 
+function hexToRgba(hex: string, alpha = 1) {
+  if (!hex) return `rgba(0,0,0,${alpha})`;
+  const cleaned = hex.replace('#', '');
+  const bigint = parseInt(cleaned.length === 3 ? cleaned.split('').map(c=>c+c).join('') : cleaned, 16);
+  const r = (bigint >> 16) & 255;
+  const g = (bigint >> 8) & 255;
+  const b = bigint & 255;
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+
 export default function EditGoal() {
   const toast = useToast();
   const router = useRouter();
   const params = useLocalSearchParams() as any;
   const todayISO = useTodayISO();
   const [saving, setSaving] = useState(false);
+
+  const { colors } = useTheme();
+  const theme = colors as any;
 
   // Simulador: peso actual (luego lo puedes traer del perfil)
   const currentWeightKg = 70;
@@ -96,6 +113,8 @@ export default function EditGoal() {
     }, 600);
   };
 
+  const styles = createStyles(theme);
+
   return (
     <View style={styles.container}>
       <ModalHeader title="Nueva meta" />
@@ -108,32 +127,32 @@ export default function EditGoal() {
           showsVerticalScrollIndicator={false}
         >
           <LinearGradient
-            colors={['rgba(47,204,172,0.10)', 'rgba(36,168,140,0.05)']}
+            colors={[hexToRgba(theme.brandA ?? '#2FCCAC', 0.1), hexToRgba(theme.brandB ?? '#24A88C', 0.05)]}
             start={{ x: 1, y: 0 }}
             end={{ x: 0, y: 1 }}
             style={styles.gradientCard}
           >
             {/* Objectives card */}
             <View style={styles.objectivesCard}>
-              <Text style={styles.cardTitle}>Objetivos nutricionales</Text>
-              <Text style={styles.cardSubtitle}>Ajusta tus metas diarias</Text>
+              <AppText variant="ag7" style={styles.cardTitle}>Objetivos nutricionales</AppText>
+              <AppText variant="ag7" style={styles.cardSubtitle}>Ajusta tus metas diarias</AppText>
             </View>
 
             {/* Weight input */}
             <View style={styles.inputContainer}>
-              <Text style={styles.inputLabel}>Peso Objetivo (kg)</Text>
+              <AppText variant="ag10" style={styles.inputLabel}>Peso Objetivo (kg)</AppText>
               <TextInput
                 value={targetWeight}
                 onChangeText={setTargetWeight}
                 keyboardType="numeric"
-                style={styles.input}
-                placeholderTextColor="#999999"
+                style={[styles.input, { color: theme.text ?? '#1A1A1A' }]}
+                placeholderTextColor={ '#9CA3AF'}
               />
             </View>
 
             {/* Activity level selector */}
             <View style={styles.inputContainer}>
-              <Text style={styles.inputLabel}>Nivel de Actividad</Text>
+              <AppText variant="ag10" style={styles.inputLabel}>Nivel de Actividad</AppText>
               <Pressable
                 style={styles.selectorButton}
                 onPress={() => {
@@ -141,30 +160,30 @@ export default function EditGoal() {
                   setShowActivityPicker(true);
                 }}
               >
-                <Text style={styles.selectorText}>{activity}</Text>
+                <AppText variant="ag10" style={styles.selectorText}>{activity}</AppText>
                 <RowIcon width={16} height={16} />
               </Pressable>
             </View>
 
             {/* Daily goals section */}
-            <Text style={styles.sectionTitle}>Metas Diarias</Text>
-            <View style={styles.goalsContainer}>
+            <AppText variant="ag10" style={styles.sectionTitle}>Metas Diarias</AppText>
+            <View style={[styles.goalsContainer, { backgroundColor: theme.celeste ?? '#C9F3EB' }] }>
               <View style={styles.goalsGrid}>
                 <View style={styles.goalBox}>
-                  <Text style={styles.goalLabel}>Calorías</Text>
-                  <Text style={[styles.goalValue, { color: '#2FCCAC' }]}>{calories}</Text>
+                  <AppText variant="ag10" style={styles.goalLabel}>Calorías</AppText>
+                  <AppText variant="ag6" style={[styles.goalValue, { color: theme.brandB ?? '#2FCCAC' }]}>{calories}</AppText>
                 </View>
                 <View style={styles.goalBox}>
-                  <Text style={styles.goalLabel}>Proteínas</Text>
-                  <Text style={[styles.goalValue, { color: '#2B7FFF' }]}>{proteins}</Text>
+                  <AppText variant="ag10" style={styles.goalLabel}>Proteínas</AppText>
+                  <AppText variant="ag6" style={[styles.goalValue, { color: theme.brandA ?? '#2B7FFF' }]}>{proteins}</AppText>
                 </View>
                 <View style={styles.goalBox}>
-                  <Text style={styles.goalLabel}>Carbohidratos</Text>
-                  <Text style={[styles.goalValue, { color: '#FF6900' }]}>{carbs}</Text>
+                  <AppText variant="ag10" style={styles.goalLabel}>Carbohidratos</AppText>
+                  <AppText variant="ag6" style={[styles.goalValue, { color: theme.danger ?? '#FF6900' }]}>{carbs}</AppText>
                 </View>
                 <View style={styles.goalBox}>
-                  <Text style={styles.goalLabel}>Grasas</Text>
-                  <Text style={[styles.goalValue, { color: '#F0B100' }]}>{fats}</Text>
+                  <AppText variant="ag10" style={styles.goalLabel}>Grasas</AppText>
+                  <AppText variant="ag6" style={[styles.goalValue, { color: theme.warning ?? '#F0B100' }]}>{fats}</AppText>
                 </View>
               </View>
             </View>
@@ -172,15 +191,15 @@ export default function EditGoal() {
         <View style={{ height: 20 }} />
 
         {/* Footer with save button */}
-        <View style={styles.footer}>
+        <View style={[styles.footer, { borderTopColor: theme.border2 ?? '#E5E7EB', backgroundColor: theme.bg ?? '#FFFFFF' }]}>
           <Pressable
-            style={[styles.saveButton, saving && styles.saveButtonDisabled]}
+            style={[styles.saveButton, saving && styles.saveButtonDisabled, { backgroundColor: saving ? (theme.disabled ?? '#94A3B8') : (theme.addBtnBg ?? '#2FCCAC') }]}
             onPress={onSave}
             disabled={saving}
           >
-            <Text style={styles.saveButtonText}>
+            <AppText variant="ag9" style={styles.saveButtonText}>
               {saving ? 'Guardando...' : 'Guardar metas'}
-            </Text>
+            </AppText>
           </Pressable>
         </View>
 
@@ -197,11 +216,11 @@ export default function EditGoal() {
         onRequestClose={() => setShowActivityPicker(false)}
       >
         <Pressable style={styles.modalOverlay} onPress={() => setShowActivityPicker(false)}>
-          <View style={styles.pickerContainer}>
-            <View style={styles.pickerHeader}>
-              <Text style={styles.pickerTitle}>Nivel de Actividad</Text>
+          <View style={[styles.pickerContainer, { backgroundColor: theme.mealsCard ?? '#FFFFFF' }]}>
+            <View style={[styles.pickerHeader, { borderBottomColor: theme.border2 ?? '#E5E7EB' }]}>
+              <AppText variant="ag9" style={styles.pickerTitle}>Nivel de Actividad</AppText>
               <Pressable onPress={() => setShowActivityPicker(false)}>
-                <Text style={styles.pickerClose}>✕</Text>
+                <AppText variant="ag9" style={styles.pickerClose}>✕</AppText>
               </Pressable>
             </View>
             {ACTIVITY_LEVELS.map(level => (
@@ -213,14 +232,16 @@ export default function EditGoal() {
                   setShowActivityPicker(false);
                 }}
               >
-                <Text
+                <AppText
+                  variant="ag10"
                   style={[
                     styles.pickerItemText,
                     activity === level && styles.pickerItemTextSelected,
+                    { color: activity === level ? ( '#FFFFFF') : (theme.text ?? '#1A1A1A') },
                   ]}
                 >
                   {level}
-                </Text>
+                </AppText>
               </Pressable>
             ))}
           </View>
@@ -230,195 +251,195 @@ export default function EditGoal() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#FFFFFF' },
+function createStyles(themeColors: any) {
+  return StyleSheet.create({
+    container: { flex: 1, backgroundColor: themeColors.bg ?? '#FFFFFF' },
 
-  content: {
-    paddingHorizontal: 10,
-    paddingTop: 26,
-    borderRadius: 16,
-  },
-  gradientCard: {
-    padding: 18,
-    borderRadius: 20,
-    paddingBottom: 1 ,
-  },
+    content: {
+      paddingHorizontal: 11,
+      paddingTop: 26,
+      borderRadius: 16,
+    },
+    gradientCard: {
+      padding: 18,
+      borderRadius: 20,
+      paddingBottom: 1,
+    },
 
-  // Objectives card
-  objectivesCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 10,
-    padding: 24,
-    marginBottom: 20,
-    shadowColor: '#323247',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  cardTitle: {
-    fontFamily: 'Poppins-Regular',
-    fontSize: 16,
-    lineHeight: 24,
-    color: '#151522',
-    marginBottom: 4,
-  },
-  cardSubtitle: {
-    fontFamily: 'Poppins-Regular',
-    fontSize: 16,
-    lineHeight: 24,
-    color: '#999999',
-  },
+    // Objectives card
+    objectivesCard: {
+      backgroundColor: themeColors.mealRowBg ?? '#FFFFFF',
+      borderRadius: 10,
+      padding: 24,
+      marginBottom: 20,
+      shadowColor: '#323247',
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.08,
+      shadowRadius: 8,
+      elevation: 4,
+    },
 
-  // Input fields
-  inputContainer: { marginBottom: 16 },
-  inputLabel: {
-    fontFamily: 'Poppins-Regular',
-    fontSize: 14,
-    lineHeight: 20,
-    color: '#4A5565',
-    marginBottom: 2,
-  },
-  input: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    paddingHorizontal: 12,
-    paddingVertical: 14,
-    fontFamily: 'Poppins-Regular',
-    fontSize: 14,
-    lineHeight: 20,
-    color: '#1A1A1A',
-  },
+    cardTitle: {
+      fontFamily: 'Poppins-Regular',
+      fontSize: 16,
+      lineHeight: 24,
+      color: themeColors.text ?? '#151522',
+      marginBottom: 4,
+    },
+    cardSubtitle: {
+      fontFamily: 'Poppins-Regular',
+      fontSize: 16,
+      lineHeight: 24,
+      color: themeColors.subtext ?? '#999999',
+    },
 
-  // Activity selector
-  selectorButton: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    paddingHorizontal: 12,
-    paddingVertical: 14,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  selectorText: {
-    fontFamily: 'Poppins-Regular',
-    fontSize: 14,
-    lineHeight: 20,
-    color: '#1A1A1A',
-  },
+    // Input fields
+    inputContainer: { marginBottom: 16 },
+    inputLabel: {
+      fontFamily: 'Poppins-Regular',
+      fontSize: 14,
+      lineHeight: 20,
+      color: themeColors.subtext ?? '#4A5565',
+      marginBottom: 2,
+    },
+    input: {
+      backgroundColor: themeColors.mealsCard ?? '#FFFFFF',
+      borderRadius: 20,
+      paddingHorizontal: 12,
+      paddingVertical: 14,
+      fontFamily: 'Poppins-Regular',
+      fontSize: 14,
+      lineHeight: 20,
+      color: themeColors.text ?? '#1A1A1A',
+    },
 
-  // Daily goals section
-  sectionTitle: {
-    fontFamily: 'Poppins-Regular',
-    fontSize: 16,
-    lineHeight: 24,
-    color: '#4A5565',
-    marginTop: 12,
-    marginBottom: 16,
-  },
-  goalsContainer: {
-    backgroundColor: '#C9F3EB',
-    borderRadius: 27,
-    padding: 16,
-    marginBottom: 20,
-  },
-  goalsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-  },
-  goalBox: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    padding: 12,
-    width: '48%',
-  },
-  goalLabel: {
-    fontFamily: 'Poppins-Regular',
-    fontSize: 12,
-    lineHeight: 16,
-    color: '#4A5565',
-    marginBottom: 4,
-  },
-  goalValue: {
-    fontFamily: 'Poppins-Regular',
-    fontSize: 18,
-    lineHeight: 28,
-  },
+    // Activity selector
+    selectorButton: {
+      backgroundColor: themeColors.mealsCard ?? '#FFFFFF',
+      borderRadius: 20,
+      paddingHorizontal: 12,
+      paddingVertical: 14,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+    },
+    selectorText: {
+      fontFamily: 'Poppins-Regular',
+      fontSize: 14,
+      lineHeight: 20,
+      color: themeColors.text ?? '#1A1A1A',
+    },
 
-  // Footer
-  footer: {
-    paddingTop: 20,
-    paddingHorizontal: 22,
-    paddingVertical: 16,
-    backgroundColor: '#FFFFFF',
-    borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
-    
-  },
-  saveButton: {
-    backgroundColor: '#2FCCAC',
-    borderRadius: 20,
-    height: 56,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  saveButtonDisabled: {
-    backgroundColor: '#94A3B8',
-  },
-  saveButtonText: {
-    fontFamily: 'Poppins-Medium',
-    fontSize: 14,
-    lineHeight: 20,
-    color: '#FFFFFF',
-  },
+    // Daily goals section
+    sectionTitle: {
+      fontFamily: 'Poppins-Regular',
+      fontSize: 16,
+      lineHeight: 24,
+      color: themeColors.subtext ?? '#4A5565',
+      marginTop: 12,
+      marginBottom: 16,
+    },
+    goalsContainer: {
+      borderRadius: 27,
+      padding: 16,
+      marginBottom: 20,
+    },
+    goalsGrid: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 12,
+    },
+    goalBox: {
+      backgroundColor: themeColors.mealsCard ?? '#FFFFFF',
+      borderRadius: 20,
+      padding: 12,
+      width: '48%',
+    },
+    goalLabel: {
+      fontFamily: 'Poppins-Regular',
+      fontSize: 12,
+      lineHeight: 16,
+      color: themeColors.subtext ?? '#4A5565',
+      marginBottom: 4,
+    },
+    goalValue: {
+      fontFamily: 'Poppins-Regular',
+      fontSize: 18,
+      lineHeight: 28,
+    },
 
-  // Activity picker modal
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-end',
-  },
-  pickerContainer: {
-    backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    paddingBottom: 34,
-  },
-  pickerHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 24,
-    paddingVertical: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
-  },
-  pickerTitle: {
-    fontFamily: 'Poppins-Medium',
-    fontSize: 18,
-    color: '#1A1A1A',
-  },
-  pickerClose: {
-    fontSize: 24,
-    color: '#6B7280',
-  },
-  pickerItem: {
-    paddingHorizontal: 24,
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
-  },
-  pickerItemSelected: {
-    backgroundColor: '#ECFDF7',
-  },
-  pickerItemText: {
-    fontFamily: 'Poppins-Regular',
-    fontSize: 16,
-    color: '#1A1A1A',
-  },
-  pickerItemTextSelected: {
-    color: '#2FCCAC',
-    fontWeight: '600',
-  },
-});
+    // Footer
+    footer: {
+      paddingTop: 20,
+      paddingHorizontal: 22,
+      paddingVertical: 16,
+      backgroundColor: themeColors.card ?? '#FFFFFF',
+      borderTopWidth: 1,
+      borderTopColor: themeColors.border ?? '#E5E7EB',
+    },
+    saveButton: {
+      borderRadius: 20,
+      height: 56,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    saveButtonDisabled: {
+      opacity: 0.7,
+    },
+    saveButtonText: {
+      fontFamily: 'Poppins-Medium',
+      fontSize: 14,
+      lineHeight: 20,
+      color: themeColors.onBrand ?? '#FFFFFF',
+    },
+
+    // Activity picker modal
+    modalOverlay: {
+      flex: 1,
+      backgroundColor: 'rgba(0, 0, 0, 0.5)',
+      justifyContent: 'flex-end',
+    },
+    pickerContainer: {
+      borderTopLeftRadius: 24,
+      borderTopRightRadius: 24,
+      paddingBottom: 34,
+    },
+    pickerHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingHorizontal: 24,
+      paddingVertical: 20,
+      borderBottomWidth: 1,
+    },
+    pickerTitle: {
+      fontFamily: 'Poppins-Medium',
+      fontSize: 18,
+      color: themeColors.text ?? '#1A1A1A',
+    },
+    pickerClose: {
+      fontSize: 24,
+      color: themeColors.subtext ?? '#6B7280',
+    },
+    pickerItem: {
+      paddingHorizontal: 24,
+      paddingVertical: 16,
+      borderBottomWidth: 1,
+      borderBottomColor: themeColors.border2 ?? '#F3F4F6',
+    },
+    pickerItemSelected: {
+      backgroundColor: themeColors.addBtnBg ?? '#ECFDF7',
+    },
+    pickerItemText: {
+      fontFamily: 'Poppins-Regular',
+      fontSize: 16,
+      color: themeColors.text ?? '#1A1A1A',
+    },
+    pickerItemTextSelected: {
+      color: '#FFFFFF',
+      fontWeight: '600',
+    },
+  });
+}
+
+

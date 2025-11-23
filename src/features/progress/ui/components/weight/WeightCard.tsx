@@ -1,6 +1,8 @@
+/* eslint-disable react-native/no-raw-text */
 import React from 'react';
 import { View, StyleSheet, TouchableOpacity } from 'react-native';
 import AppText from '@/src/shared/ui/components/Typography';
+import { useTheme } from '@/src/shared/styles/useTheme';
 
 import WeightIcon from '@/assets/icons/activity/weightIcon.svg';
 import DownIcon from '@/assets/icons/activity/downIcon.svg';
@@ -22,21 +24,23 @@ export default function WeightCard({
   progressToGoal = '',
   onRegisterPress,
 }: Props) {
+  const { colors } = useTheme();
+  const theme = colors as any;
   return (
-    <View style={styles.card}>
+    <View style={[styles.card, { backgroundColor: theme.mealsCard ?? '#FFFFFF' }]}>
       {/* Header */}
       <View style={styles.headerRow}>
-        <AppText variant="ag7" color="#1A1A1A">
+        <AppText variant="ag7" color={theme.text ?? '#1A1A1A'}>
           Peso y progreso
         </AppText>
 
         <TouchableOpacity
-          style={styles.registerBtn}
+          style={[styles.registerBtn, { borderColor: theme.border ?? '#E5E7EB', backgroundColor: theme.card ?? '#FFFFFF' }]}
           activeOpacity={0.85}
           onPress={onRegisterPress}
         >
-          <AddIcon width={16} height={16} color={'#1A1A1A'} />
-          <AppText variant="ag9" color="#1A1A1A" style={styles.registerLabel}>
+          <AddIcon width={16} height={16} color={theme.text ?? '#1A1A1A'} />
+          <AppText variant="ag9" color={theme.text ?? '#1A1A1A'} style={styles.registerLabel}>
             Registrar
           </AppText>
         </TouchableOpacity>
@@ -45,10 +49,10 @@ export default function WeightCard({
       {/* Grid 2 columnas */}
       <View style={styles.gridRow}>
         {/* Card izquierda: Peso */}
-        <View style={[styles.innerCard, styles.leftInner]}>
+        <View style={[styles.innerCard, styles.leftInner, { backgroundColor: theme.imc?.bubbleBg ?? '#ECFDF7' }]}>
           <View style={styles.innerHeader}>
-            <WeightIcon width={20} height={20} color={'#2FCCAC'} />
-            <AppText variant="ag9" color="#4A5565" style={styles.innerHeaderLabel}>
+            <WeightIcon width={20} height={20} color={theme.brandA ?? '#2FCCAC'} />
+            <AppText variant="ag9" color={theme.subtext ?? '#4A5565'} style={styles.innerHeaderLabel}>
               Peso
             </AppText>
           </View>
@@ -60,7 +64,7 @@ export default function WeightCard({
               <View style={styles.firstLineRowLeft}>
                 <AppText
                   variant="ag2"
-                  color="#2FCCAC"
+                  color={theme.brandA ?? '#2FCCAC'}
                   style={styles.largeNumber}
                 >
                   {String(weight)}
@@ -68,7 +72,7 @@ export default function WeightCard({
                 {!!unit && (
                   <AppText
                     variant="ag9"
-                    color="#6A7282"
+                    color={theme.subtext ?? '#6A7282'}
                     style={styles.unitText}
                   >
                     {unit}
@@ -79,10 +83,10 @@ export default function WeightCard({
               {/* Segunda línea: 1.0 kg */}
               {!!delta && (
                 <View style={styles.secondLineRowLeft}>
-                  <DownIcon width={16} height={16} color={'#00C950'} />
+                  <DownIcon width={16} height={16} color={theme.activity?.intensity?.lowText ?? '#00C950'} />
                   <AppText
                     variant="ag9"
-                    color="#00C950"
+                    color={theme.activity?.intensity?.lowText ?? '#00C950'}
                     style={styles.deltaText}
                   >
                     {delta}
@@ -94,12 +98,12 @@ export default function WeightCard({
         </View>
 
         {/* Card derecha: Progreso a meta */}
-        <View style={[styles.innerCard, styles.rightInner]}>
+        <View style={[styles.innerCard, styles.rightInner, { backgroundColor: theme.infoCardBg ?? '#F1F5FF' }]}>
           <View style={styles.innerHeader}>
-            <GoalIcon width={16} height={16} color={'#2B7FFF'} />
+            <GoalIcon width={16} height={16} color={theme.quickActions?.weight ?? '#2B7FFF'} />
             <AppText
               variant="ag9"
-              color="#4A5565"
+              color={theme.subtext ?? '#4A5565'}
               style={styles.innerHeaderLabel}
             >
               Progreso a meta
@@ -113,7 +117,7 @@ export default function WeightCard({
               <View style={styles.firstLineRowRight}>
                 <AppText
                   variant="ag2"
-                  color="#2B7FFF"
+                  color={theme.quickActions?.weight ?? '#2B7FFF'}
                   style={styles.largeNumberCenter}
                 >
                   {String(progressToGoal)}
@@ -124,7 +128,7 @@ export default function WeightCard({
               <View style={styles.secondLineRowRight}>
                 <AppText
                   variant="ag9"
-                  color="#6A7282"
+                  color={theme.subtext ?? '#6A7282'}
                   style={styles.remainingLabel}
                 >
                   kg restantes
