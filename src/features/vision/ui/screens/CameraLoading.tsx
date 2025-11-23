@@ -1,10 +1,11 @@
 import React, { useEffect } from "react";
-import { View, StyleSheet, Pressable,Platform } from "react-native";
+import { View, StyleSheet, Pressable, Platform } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import AppText from "@/src/shared/ui/components/Typography";
+import AppText from '@/src/shared/ui/components/Typography';
 import LottieView from "lottie-react-native";
 import BackIcon from "@/assets/icons/meals/backIcon.svg";
 import { detectFoodFromImage } from "@/src/features/vision/application/detectFoodFromImage";
+import { useTheme } from '@/src/shared/styles/useTheme';
 
 /**
  * LoadingScreen (UI first)
@@ -19,6 +20,9 @@ import { detectFoodFromImage } from "@/src/features/vision/application/detectFoo
 export default function LoadingScreen() {
   const router = useRouter();
   const { photoUri, dateISO, mealType } = useLocalSearchParams() as any;
+  const { colors } = useTheme();
+  const theme = colors as any;
+  const styles = createStyles(theme);
 
   useEffect(() => {
     // Real: llamar al caso de uso que envía la imagen al backend y obtiene detección
@@ -74,17 +78,16 @@ export default function LoadingScreen() {
   return (
     <View style={styles.container}>
 
-       <Pressable
-          onPress={() => router.back()}
-          style={styles.closeBtn}
-          hitSlop={10}
-          accessibilityLabel="Volver atrás/cancelar"
-       >
-          <BackIcon width={40} height={40} />
-    </Pressable>
+      <Pressable
+        onPress={() => router.back()}
+        style={styles.closeBtn}
+        hitSlop={10}
+        accessibilityLabel="Volver atrás/cancelar"
+      >
+        <BackIcon width={40} height={40} />
+      </Pressable>
 
-    <View style={styles.iconContainer}>
-          {/*<View style={styles.iconCircle}>*/}
+      <View style={styles.iconContainer}>
         <LottieView
           // Asegúrate que el JSON exista en esta ruta
           source={require("@/assets/lottie/analisis.json")}
@@ -94,8 +97,7 @@ export default function LoadingScreen() {
           enableMergePathsAndroidForKitKatAndAbove
           style={styles.lottie}
         />
-          {/*</View>*/}
-    </View>
+      </View>
 
       {/* Título */}
       <AppText style={styles.title}>Analizando tu comida</AppText>
@@ -108,64 +110,73 @@ export default function LoadingScreen() {
     </View>
   );
 }
+function hexToRgba(hex: string, alpha = 1) {
+  if (!hex) return `rgba(0,0,0,${alpha})`;
+  const cleaned = hex.replace('#', '');
+  const normalized = cleaned.length === 3 ? cleaned.split('').map(c => c + c).join('') : cleaned;
+  const bigint = parseInt(normalized, 16);
+  const r = (bigint >> 16) & 255;
+  const g = (bigint >> 8) & 255;
+  const b = bigint & 255;
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
 
-const styles = StyleSheet.create({
-
-  closeBtn: {
-      position: "absolute", top: Platform.OS === "ios" ? 65 : 65, left: 30, zIndex: 10, color: "#151522"
-  },
-  container: {
-    flex: 1,
-    backgroundColor: "#F9FAFB",
-    alignItems: "center",
-  },
- 
-  iconContainer: {
-    marginTop: 244,
-    alignItems: "center",
-    marginBottom: 38,
-  },
-  iconCircle: {
-    width: 114,
-    height: 114,
-    borderRadius: 48,
-    backgroundColor: "rgba(0,196,140,0.1)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  lottie: {
-    width: 230,
-    height: 230,
-  },
-
-  title: {
-    marginTop: 30, 
-    fontSize: 18,
-    lineHeight: 24,
-    fontWeight: "600",
-    color: "#151522",
-  },
-
-  subtitle: {
-    marginTop: 24,
-    width: 357,
-    maxWidth: 357,
-    textAlign: "center",
-    fontSize: 16,
-    lineHeight: 24,
-    color: "#999999",
-  },
-  // Botón cancelar minimal
-  cancelBtn: {
-    marginTop: 28,
-    paddingHorizontal: 2,
-    paddingVertical: 10,
-    borderRadius: 10,
-    backgroundColor: "rgba(0,0,0,0.06)",
-  },
-  cancelText: {
-    color: "#0B1220",
-    fontWeight: "600",
-  },
-});
+function createStyles(themeColors: any) {
+  return StyleSheet.create({
+    closeBtn: {
+      position: 'absolute',
+      top: Platform.OS === 'ios' ? 65 : 65,
+      left: 30,
+      zIndex: 10,
+    },
+    container: {
+      flex: 1,
+      backgroundColor: themeColors.bg ?? '#F9FAFB',
+      alignItems: 'center',
+    },
+    iconContainer: {
+      marginTop: 244,
+      alignItems: 'center',
+      marginBottom: 38,
+    },
+    iconCircle: {
+      width: 114,
+      height: 114,
+      borderRadius: 48,
+      backgroundColor: themeColors.brandB ? hexToRgba(themeColors.brandB, 0.1) : 'rgba(0,196,140,0.1)',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    lottie: {
+      width: 230,
+      height: 230,
+    },
+    title: {
+      marginTop: 30,
+      fontSize: 18,
+      lineHeight: 24,
+      fontWeight: '600',
+      color: themeColors.text ?? '#151522',
+    },
+    subtitle: {
+      marginTop: 24,
+      width: 357,
+      maxWidth: 357,
+      textAlign: 'center',
+      fontSize: 16,
+      lineHeight: 24,
+      color: themeColors.subtext ?? '#999999',
+    },
+    cancelBtn: {
+      marginTop: 28,
+      paddingHorizontal: 2,
+      paddingVertical: 10,
+      borderRadius: 10,
+      backgroundColor: themeColors.surfaceOverlay ?? 'rgba(0,0,0,0.06)',
+    },
+    cancelText: {
+      color: themeColors.text ?? '#0B1220',
+      fontWeight: '600',
+    },
+  });
+}

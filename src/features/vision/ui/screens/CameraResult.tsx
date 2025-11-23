@@ -5,6 +5,7 @@ import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { getDetection } from "@/src/features/vision/infrastructure/detectCache";
 import { LinearGradient } from "expo-linear-gradient";
 import AppText from "@/src/shared/ui/components/Typography";
+import { useTheme } from '@/src/shared/styles/useTheme';
 import { useTodayISO } from "@/src/shared/hooks/useTodayISO";
 import ChekIcon from "@/assets/icons/meals/chekIcon.svg";
 import RedDeleteIcon from "@/assets/icons/meals/deleteIcon.svg"
@@ -46,6 +47,10 @@ export default function CameraResult() {
   const params = useLocalSearchParams() as any;
   const router = useRouter();
   const todayISO = useTodayISO();
+
+  const { colors } = useTheme();
+  const theme = colors as any;
+  const styles = createStyles(theme);
 
   const dateISO = (params?.dateISO as string | undefined) ?? todayISO;
   const mealType = params?.mealType as string | undefined; // reservado para futuros flujos
@@ -253,7 +258,7 @@ export default function CameraResult() {
       <Stack.Screen options={{ headerShown: false }} />
 
       {/* Header con gradiente */}
-      <LinearGradient colors={["#2FCCAC", "#24A88C"]} style={styles.header}>
+      <LinearGradient colors={[theme.gradient?.primaryFrom ?? '#2FCCAC', theme.gradient?.primaryTo ?? '#24A88C']} style={styles.header}>
         <View style={styles.headerContent}>
           <AppText variant="ag3" style={styles.headerTitle}>
             Alimentos Detectados
@@ -277,7 +282,7 @@ export default function CameraResult() {
               <AppText variant="ag10" style={styles.summaryLabel}>
                 Calorías
               </AppText>
-              <AppText variant="ag5" style={[styles.summaryValue, { color: "#2FCCAC" }]}> 
+              <AppText variant="ag5" style={[styles.summaryValue, { color: '#2FCCAC' }]}> 
                 {totals.kcal}
               </AppText>
             </View>
@@ -285,7 +290,7 @@ export default function CameraResult() {
               <AppText variant="ag10" style={styles.summaryLabel}>
                 Proteínas
               </AppText>
-              <AppText variant="ag5" style={[styles.summaryValue, { color: "#2B7FFF" }]}> 
+              <AppText variant="ag5" style={[styles.summaryValue, { color:  '#2B7FFF' }]}> 
                 {`${totals.proteinG}g`}
               </AppText>
             </View>
@@ -293,7 +298,7 @@ export default function CameraResult() {
               <AppText variant="ag10" style={styles.summaryLabel}>
                 Carbohidratos
               </AppText>
-              <AppText variant="ag5" style={[styles.summaryValue, { color: "#FF6900" }]}> 
+              <AppText variant="ag5" style={[styles.summaryValue, { color:  '#FF6900' }]}> 
                 {`${totals.carbsG}g`}
               </AppText>
             </View>
@@ -301,7 +306,7 @@ export default function CameraResult() {
               <AppText variant="ag10" style={styles.summaryLabel}>
                 Grasas
               </AppText>
-              <AppText variant="ag5" style={[styles.summaryValue, { color: "#F0B100" }]}> 
+              <AppText variant="ag5" style={[styles.summaryValue, { color: '#F0B100' }]}> 
                 {`${totals.fatG}g`}
               </AppText>
             </View>
@@ -309,7 +314,7 @@ export default function CameraResult() {
         </View>
       ) : (
         <View style={styles.summaryContainer}>
-          <AppText variant="ag9" style={{ color: "#667085" }}>
+          <AppText variant="ag9" style={{ color: theme.subtext ?? '#667085' }}>
             Aún no hay datos de IA para mostrar. Puedes confirmar o regresar.
           </AppText>
         </View>
@@ -362,7 +367,7 @@ export default function CameraResult() {
                 ))
         ) : (
           <View style={{ marginTop: 16, paddingHorizontal: 41 }}>
-            <AppText variant="ag9" style={{ color: "#667085" }}>
+            <AppText variant="ag9" style={{ color: theme.subtext ?? '#667085' }}>
               No se han detectado alimentos.
             </AppText>
           </View>
@@ -370,14 +375,14 @@ export default function CameraResult() {
       {/* Meal type selector for quick-actions flow (if no mealType param provided) */}
       {!mealType ? (
         <View style={styles.mealTypeSelectorContainer}>
-          <AppText variant="ag9" style={{ marginBottom: 8, color: '#374151' }}>Selecciona el tipo de comida</AppText>
+          <AppText variant="ag9" style={{ marginBottom: 8, color: theme.text ?? '#374151' }}>Selecciona el tipo de comida</AppText>
           <View style={styles.mealTypeButtonsRow}>
             <Pressable
               style={[styles.mealBtn, selectedMealType === 'breakfast' && styles.mealBtnSelected]}
               onPress={() => setSelectedMealType('breakfast')}
               accessibilityLabel="Desayuno"
             >
-              <BreakfastIcon width={24} height={24} color={selectedMealType === 'breakfast' ? '#FFFFFF' : '#111827'} />
+              <BreakfastIcon width={24} height={24} color={selectedMealType === 'breakfast' ? (theme.onBrand ?? '#FFFFFF') : (theme.text ?? '#111827')} />
             </Pressable>
 
             <Pressable
@@ -385,7 +390,7 @@ export default function CameraResult() {
               onPress={() => setSelectedMealType('lunch')}
               accessibilityLabel="Almuerzo"
             >
-              <LunchIcon width={24} height={24} color={selectedMealType === 'lunch' ? '#FFFFFF' : '#111827'} />
+              <LunchIcon width={24} height={24} color={selectedMealType === 'lunch' ? (theme.onBrand ?? '#FFFFFF') : (theme.text ?? '#111827')} />
             </Pressable>
 
             <Pressable
@@ -393,7 +398,7 @@ export default function CameraResult() {
               onPress={() => setSelectedMealType('dinner')}
               accessibilityLabel="Cena"
             >
-              <DinnerIcon width={24} height={24} color={selectedMealType === 'dinner' ? '#FFFFFF' : '#111827'} />
+              <DinnerIcon width={24} height={24} color={selectedMealType === 'dinner' ? (theme.onBrand ?? '#FFFFFF') : (theme.text ?? '#111827')} />
             </Pressable>
 
             <Pressable
@@ -401,7 +406,7 @@ export default function CameraResult() {
               onPress={() => setSelectedMealType('snack')}
               accessibilityLabel="Aperitivo"
             >
-              <AperitiveIcon width={24} height={24} color={selectedMealType === 'snack' ? '#FFFFFF' : '#111827'} />
+              <AperitiveIcon width={24} height={24} color={selectedMealType === 'snack' ? (theme.onBrand ?? '#FFFFFF') : (theme.text ?? '#111827')} />
             </Pressable>
           </View>
         </View>
@@ -435,197 +440,210 @@ export default function CameraResult() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#FFFFFF"},
-  header: { paddingTop: 64,paddingBottom: 16, paddingHorizontal: 24,},
-  headerContent: { flexDirection: "row", alignItems: "center", justifyContent: "space-between",},
-  headerTitle: { color: "#FFFFFF", fontFamily: "Poppins-Regular", },
-  closeButton: { width: 24,height: 24,alignItems: "center",justifyContent: "center",},
-  closeIcon: {color: "#FFFFFF",fontSize: 20,fontWeight: "400",},
-  summaryContainer: {
-    padding: 20,
-    borderRadius: 16,
-    backgroundColor: "#EFFAF8",
-    marginHorizontal: 20,
-    marginTop: 15,
-    marginBottom: 4,
-  },
-  summaryTitle: {
-    color: "#1A1A1A",
-    marginBottom: 12,
-  },
-  summaryGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 12,
-  },
-  summaryCard: {
-    width: "47%",
-    backgroundColor: "#FFFFFF",
-    borderRadius: 20,
-    paddingTop: 12,
-    paddingHorizontal: 12,
-    paddingBottom: 12,
-    borderWidth: 1,
-    borderColor: "#FFFFFF",
-  },
-  summaryLabel: {
-    color: "#4A5565",
-    marginBottom: 4,
-  },
-  summaryValue: {
-    fontFamily: "Poppins-Regular",
-  },
-  scrollContainer: {
-    flex: 1,
-    paddingHorizontal: 41,
-  },
-  scrollContent: {
-    marginHorizontal: -20,
-    paddingTop: 21,
-    paddingBottom: 20,
-    gap: 12,
-  },
-  foodItem: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
-    padding: 17,
-    gap: 12,
-  },
-  foodHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
-  },
-  foodInfo: {
-    flex: 1,
-    gap: 4,
-  },
-  foodName: {
-    color: "#1A1A1A",
-  },
-  foodMacros: {
-    color: "#4A5565",
-  },
-  deleteButton: {
-    padding: 4,
-  },
-  quantityControl: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-  },
-  quantityButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "#F3F4F6",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  quantityButtonText: {
-    fontSize: 20,
-    color: "#1A1A1A",
-    fontFamily: "Poppins-Regular",
-  },
-  quantityInput: {
-    flex: 1,
-    gap: 4,
-  },
-  input: {
-    height: 40,
-    backgroundColor: "#F9FAFB",
-    borderRadius: 14,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 14,
-    fontFamily: "Poppins-Regular",
-    color: "#1A1A1A",
-    textAlign: "center",
-  },
-  unitText: {
-    color: "#6A7282",
-    textAlign: "center",
-  },
-  footerContainer: {
-    paddingTop: 12,
-    paddingBottom: Platform.OS === "ios" ? 32 : 30,
-    gap: 12,
-    backgroundColor: "#FFFFFF",
-    borderTopWidth: 1,
-    borderTopColor: "#E5E7EB",
-    paddingHorizontal: 41,
-    paddingVertical: 17,
-  },
-  confirmButton: {
-    backgroundColor: "#2FCCAC",
-    borderRadius: 20,
-    height: 56,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  confirmButtonText: {
-    color: "#FFFFFF",
-    fontFamily: "Poppins-Medium",
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.4)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 24,
-  },
-  modalCard: {
-    width: '100%',
-    maxWidth: 420,
-    backgroundColor: 'white',
-    borderRadius: 12,
-    padding: 16,
-    shadowColor: '#000',
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 6,
-  },
-  modalButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-  },
-  mealTypeSelectorContainer: {
-    paddingHorizontal: 20,
-    marginTop: 12,
-    marginBottom: 6,
-  },
-  mealTypeButtonsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: 12,
-  },
-  mealBtn: {
-    flex: 1,
-    paddingVertical: 10,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#FFFFFF',
-  },
-  mealBtnSelected: {
-    backgroundColor: '#2FCCAC',
-    borderColor: '#2FCCAC',
-  },
-  mealBtnText: {
-    color: '#111827',
-    fontFamily: 'Poppins-Regular',
-  },
-  mealBtnTextSelected: {
-    color: '#FFFFFF',
-    fontFamily: 'Poppins-Medium',
-  },
-  confirmButtonDisabled: {
-    backgroundColor: '#CBD5E1',
-  },
-});
+function hexToRgba(hex: string, alpha = 1) {
+  if (!hex) return `rgba(0,0,0,${alpha})`;
+  const cleaned = hex.replace('#', '');
+  const normalized = cleaned.length === 3 ? cleaned.split('').map(c => c + c).join('') : cleaned;
+  const bigint = parseInt(normalized, 16);
+  const r = (bigint >> 16) & 255;
+  const g = (bigint >> 8) & 255;
+  const b = bigint & 255;
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+function createStyles(themeColors: any) {
+  return StyleSheet.create({
+    container: { flex: 1, backgroundColor: themeColors.bg ?? '#FFFFFF'},
+    header: { paddingTop: 64,paddingBottom: 16, paddingHorizontal: 24,},
+    headerContent: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',},
+    headerTitle: { color: themeColors.onPrimary ?? '#FFFFFF', fontFamily: 'Poppins-Regular' },
+    closeButton: { width: 24,height: 24,alignItems: 'center',justifyContent: 'center'},
+    closeIcon: {color: themeColors.onPrimary ?? '#FFFFFF',fontSize: 20,fontWeight: '400'},
+    summaryContainer: {
+      padding: 20,
+      borderRadius: 16,
+      backgroundColor: themeColors.celeste ?? '#EFFAF8',
+      marginHorizontal: 20,
+      marginTop: 15,
+      marginBottom: 4,
+    },
+    summaryTitle: {
+      color: themeColors.text ?? '#1A1A1A',
+      marginBottom: 12,
+    },
+    summaryGrid: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 12,
+    },
+    summaryCard: {
+      width: '47%',
+      backgroundColor: themeColors.mealsCard ?? '#FFFFFF',
+      borderRadius: 20,
+      paddingTop: 12,
+      paddingHorizontal: 12,
+      paddingBottom: 12,
+      borderWidth: 1,
+      borderColor: themeColors.card ?? '#FFFFFF',
+    },
+    summaryLabel: {
+      color: themeColors.subtext ?? '#4A5565',
+      marginBottom: 4,
+    },
+    summaryValue: {
+      fontFamily: 'Poppins-Regular',
+    },
+    scrollContainer: {
+      flex: 1,
+      paddingHorizontal: 41,
+    },
+    scrollContent: {
+      marginHorizontal: -20,
+      paddingTop: 21,
+      paddingBottom: 20,
+      gap: 12,
+    },
+    foodItem: {
+      backgroundColor: themeColors.mealsCard ?? '#FFFFFF',
+      borderRadius: 16,
+      borderWidth: 1,
+      borderColor: themeColors.border ?? '#E5E7EB',
+      padding: 17,
+      gap: 12,
+    },
+    foodHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'flex-start',
+    },
+    foodInfo: {
+      flex: 1,
+      gap: 4,
+    },
+    foodName: {
+      color: themeColors.text ?? '#1A1A1A',
+    },
+    foodMacros: {
+      color: themeColors.subtext ?? '#4A5565',
+    },
+    deleteButton: {
+      padding: 4,
+    },
+    quantityControl: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+    },
+    quantityButton: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      backgroundColor: themeColors.addvtnVision ?? '#F3F4F6',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    quantityButtonText: {
+      fontSize: 20,
+      color: themeColors.text ?? '#1A1A1A',
+      fontFamily: 'Poppins-Regular',
+    },
+    quantityInput: {
+      flex: 1,
+      gap: 4,
+    },
+    input: {
+      height: 40,
+      backgroundColor: themeColors.addvtnVision2 ?? '#F9FAFB',
+      borderRadius: 14,
+      paddingHorizontal: 12,
+      paddingVertical: 10,
+      fontSize: 14,
+      fontFamily: 'Poppins-Regular',
+      color: themeColors.text ?? '#1A1A1A',
+      textAlign: 'center',
+    },
+    unitText: {
+      color: themeColors.subtext ?? '#6A7282',
+      textAlign: 'center',
+    },
+    footerContainer: {
+      paddingTop: 12,
+      paddingBottom: Platform.OS === 'ios' ? 32 : 30,
+      gap: 12,
+      backgroundColor: themeColors.bg ?? '#FFFFFF',
+      borderTopWidth: 1,
+      borderTopColor: themeColors.border ?? '#E5E7EB',
+      paddingHorizontal: 41,
+      paddingVertical: 17,
+    },
+    confirmButton: {
+      backgroundColor: themeColors.addBtnBg ?? '#2FCCAC',
+      borderRadius: 20,
+      height: 56,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    confirmButtonText: {
+      color: themeColors.onBrand ?? '#FFFFFF',
+      fontFamily: 'Poppins-Medium',
+    },
+    modalOverlay: {
+      flex: 1,
+      backgroundColor: 'rgba(0,0,0,0.4)',
+      justifyContent: 'center',
+      alignItems: 'center',
+      padding: 24,
+    },
+    modalCard: {
+      width: '100%',
+      maxWidth: 420,
+      backgroundColor: themeColors.card ?? 'white',
+      borderRadius: 12,
+      padding: 16,
+      shadowColor: '#000',
+      shadowOpacity: 0.08,
+      shadowRadius: 12,
+      elevation: 6,
+    },
+    modalButton: {
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+    },
+    mealTypeSelectorContainer: {
+      paddingHorizontal: 20,
+      marginTop: 12,
+      marginBottom: 6,
+    },
+    mealTypeButtonsRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      gap: 12,
+    },
+    mealBtn: {
+      flex: 1,
+      paddingVertical: 10,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: themeColors.border ?? '#E5E7EB',
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: themeColors.mealsCard ?? '#FFFFFF',
+    },
+    mealBtnSelected: {
+      backgroundColor: themeColors.addBtnBg ?? '#2FCCAC',
+      borderColor: themeColors.addBtnBg ?? '#2FCCAC',
+    },
+    mealBtnText: {
+      color: themeColors.backIcon ?? '#111827',
+      fontFamily: 'Poppins-Regular',
+    },
+    mealBtnTextSelected: {
+      color:  '#FFFFFF',
+      fontFamily: 'Poppins-Medium',
+    },
+    confirmButtonDisabled: {
+      backgroundColor: themeColors.addBtnBgdisable ?? '#CBD5E1',
+    },
+  });
+}

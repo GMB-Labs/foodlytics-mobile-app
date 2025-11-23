@@ -28,8 +28,6 @@ export const dark = {
   iconbase2: 'rgba(41, 105, 94, 0.3)',
   iconbase3: 'rgba(41, 105, 94, 0.3)',
 
-
-
   // Icon semantic tokens
   icons: {
     active: '#41D3B6',
@@ -68,7 +66,9 @@ export const dark = {
   addBtnBgdisable: '#34675D', 
   btnbggreen: '#0B4B3E',
   
-  
+  addvtnVision: '#121212',
+  addvtnVision2: '#333333',
+
   // Per-meal chip colors (used by MealsList / Home) — darker variants for dark mode
   mealChips: {
     breakfast: { bg: '#321D00', icon: '#FF791A' },
@@ -134,6 +134,7 @@ export const dark = {
       heatmap: ['#282828', '#CFF6EE', '#9BEBDC', '#59DBC7', '#2FCCAC'],
   },
 
+  surfaceOverlay: 'rgba(0,0,0,0.80)',
 
 } as const;
 

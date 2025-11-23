@@ -138,6 +138,10 @@ export const light = {
     heatmap: ['#F3F4F6', '#CFF6EE', '#9BEBDC', '#59DBC7', '#2FCCAC'],
   },  
 
+  addvtnVision: '#F3F4F6',
+  addvtnVision2: '#F9FAFB',
+
+  surfaceOverlay: 'rgba(0,0,0,0.5)',
 } as const;
 
 export type LightTheme = typeof light;
