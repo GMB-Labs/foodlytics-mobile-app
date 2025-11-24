@@ -9,6 +9,8 @@ import MealCard from '../components/MealCard';
 import { getAllMeals } from '@/src/features/meals/infrastructure/mealsApi';
 import NativeDatePicker from '../components/NativeDatePicker';
 import { Platform } from 'react-native';
+import { useTheme } from '@/src/shared/styles/useTheme';
+
 
 // SVG Icons
 import BreakfastIcon from '@/assets/icons/BreakfastIcon.svg';
@@ -29,14 +31,6 @@ function ChevronRight({ color = "#4A5565" }) {
   return (
     <Svg width="20" height="20" viewBox="0 0 20 20" fill="none">
       <Path d="M7.5 15L12.5 10L7.5 5" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-    </Svg>
-  );
-}
-
-function ChevronDown({ color = "#FFFFFF" }) {
-  return (
-    <Svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-      <Path d="M3 4.5L6 7.5L9 4.5" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
     </Svg>
   );
 }
@@ -113,6 +107,7 @@ const MEAL_TYPES = [
 const NAV_BTN_MARGIN = Platform.OS === 'ios' ? -16 : -4; 
 
 export default function MealsScreen() {
+  const { colors } = useTheme();
   const router = useRouter();
   const todayISO = useTodayISO();
   const params = useLocalSearchParams();
@@ -128,8 +123,6 @@ export default function MealsScreen() {
   // navigates between weeks with the arrows; it only updates when the user
   // explicitly selects a day or picks a date.
   const [displayDateISO, setDisplayDateISO] = useState<string>(incomingDateISO ?? todayISO);
-  const [showMonthModal, setShowMonthModal] = useState(false);
-  const [showNativePicker, setShowNativePicker] = useState(false);
 
   // Determine the active date used to show meals: prefer an explicitly
   // selected date, otherwise fall back to the displayDate (header/picker).
@@ -252,28 +245,42 @@ export default function MealsScreen() {
       setDisplayDateISO(incomingDateISO);
     }
   }, [incomingFrom, incomingDateISO]);
+  
+  const [showNativePicker, setShowNativePicker] = useState(false);
+
+  const handlePickerChange = (date: Date) => {
+  const iso = isoFromDate(date);
+  setSelectedDate(iso);
+  setWeekCenterISO(iso);
+  setDisplayDateISO(iso);
+};
+
+
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: (colors as any)?.bg }]}> 
       <Stack.Screen options={{ headerShown: false }} />
 
       {/* Gradient Header */}
-      <LinearGradient colors={['#2FCCAC', '#24A88C']} style={styles.header}>
+      <LinearGradient
+        colors={[(colors as any)?.gradient?.primaryFrom ?? '#2FCCAC', (colors as any)?.gradient?.primaryTo ?? '#24A88C']}
+        style={styles.header}
+      >
         {/* White card container for calendar */}
-        <View style={styles.calendarCard}>
+        <View style={[styles.calendarCard] }>
           {/* Full date text + chevron */}
           <Pressable onPress={() => setShowNativePicker(true)} style={styles.fullDateRow}>
-            <AppText style={styles.fullDateText}>{prettyDate(displayDateObj)}</AppText>
+            <AppText style={[styles.fullDateText, { color: '#fff' }]}>{prettyDate(displayDateObj)}</AppText>
             <View style={styles.chevronIconSmall}>
-              <ChevronRight color="#fff" />
+              <ChevronRight color={ '#fff'} />
             </View>
           </Pressable>
 
           {/* Week strip with prev/next navigation */}
           <View style={styles.weekContainer}>
             {/* Prev button */}
-            <Pressable onPress={prevWeek} style={styles.navButton}>
-              <ChevronLeft color="#4A5565" />
+            <Pressable onPress={prevWeek} style={[styles.navButton, { backgroundColor: (colors as any)?.icons?.idleBg ?? (colors as any)?.border }]}>
+              <ChevronLeft color={(colors as any)?.icons?.idle ?? '#4A5565'} />
             </Pressable>
 
             {/* 7-day week selector */}
@@ -286,19 +293,20 @@ export default function MealsScreen() {
                   style={[
                     styles.dayButton,
                     { width: dayWidth }, // All days have the same width - no layout shift
-                    day.isSelected && styles.dayButtonSelected,
+                    { backgroundColor: (colors as any)?.border3 },
+                    day.isSelected && { backgroundColor: (colors as any)?.gradient?.primaryFrom ?? '#2FCCAC' },
                     day.isFuture && styles.dayButtonDisabled,
                   ]}
                 >
-                  <AppText style={[styles.dayInitial, day.isSelected && styles.dayInitialSelected]}>{day.initial}</AppText>
-                  <AppText style={[styles.dayNumber, day.isSelected && styles.dayNumberSelected]}>{day.dayNum}</AppText>
+                  <AppText style={[styles.dayInitial, { color: (colors as any)?.subtext }, day.isSelected && { color: '#fff' }]}>{day.initial}</AppText>
+                  <AppText style={[styles.dayNumber, { color: (colors as any)?.subtext }, day.isSelected && { color: '#fff' }]}>{day.dayNum}</AppText>
                 </Pressable>
               ))}
             </View>
 
             {/* Next button */}
-            <Pressable onPress={nextWeek} disabled={!canGoNext} style={[styles.navButton, !canGoNext && styles.navButtonDisabled]}>
-              <ChevronRight color={canGoNext ? '#4A5565' : '#D1D5DB'} />
+            <Pressable onPress={nextWeek} disabled={!canGoNext} style={[styles.navButton, !canGoNext && styles.navButtonDisabled, { backgroundColor: (colors as any)?.icons?.idleBg ?? (colors as any)?.border }]}>
+              <ChevronRight color={canGoNext ? ((colors as any)?.icons?.idle ?? '#4A5565') : ((colors as any)?.border ?? '#D1D5DB')} />
             </Pressable>
           </View>
         </View>
@@ -308,15 +316,10 @@ export default function MealsScreen() {
       <NativeDatePicker
         visible={showNativePicker}
         value={displayDateObj}
-        maximumDate={today}
         onClose={() => setShowNativePicker(false)}
-        onChange={(d) => {
-          const iso = isoFromDate(d);
-          setSelectedDate(iso);
-          setWeekCenterISO(iso);
-          setDisplayDateISO(iso);
-        }}
+        onChange={handlePickerChange}
       />
+
 
       {/* Meals List */}
       <ScrollView
@@ -326,13 +329,14 @@ export default function MealsScreen() {
       >
         {MEAL_TYPES.map((meal) => {
           const hasItems = (mealsForDate[meal.id] || []).length > 0;
+          const bgColor = (colors as any)?.mealChips?.[meal.id as any]?.bg ?? meal.bg;
 
           return (
             <MealCard
               key={meal.id}
               label={meal.label}
               icon={meal.icon}
-              backgroundColor={meal.bg}
+              backgroundColor={bgColor}
               hasItems={hasItems}
               items={mealsForDate[meal.id]}
               isSelectedToday={isSelectedToday}
@@ -421,7 +425,7 @@ const styles = StyleSheet.create({
   dayButton: {
     height: 64,
     borderRadius: 20,
-    backgroundColor: '#F9FAFB',
+    // background color applied from theme at runtime
     flexDirection: 'column',
     alignItems: 'center',
     justifyContent: 'center',
@@ -439,7 +443,7 @@ const styles = StyleSheet.create({
     fontFamily: 'Poppins-Regular',
     fontSize: 12,
     lineHeight: 16,
-    color: '#4A5565',
+    // color applied from theme at runtime
   },
   dayInitialSelected: {
     fontSize: 16,
@@ -449,7 +453,7 @@ const styles = StyleSheet.create({
     fontFamily: 'Poppins-Regular',
     fontSize: 18,
     lineHeight: 28,
-    color: '#4A5565',
+    // color applied from theme at runtime
   },
   dayNumberSelected: {
     color: '#FFFFFF',

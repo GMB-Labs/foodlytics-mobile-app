@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
 import AppText from '@/src/shared/ui/components/Typography';
+import { useTheme } from '@/src/shared/styles/useTheme';
 
 type Activity = {
   id: string;
@@ -25,39 +26,43 @@ export default function ActivitiesStatsCard({ activities }: Props) {
   });
   const favorite = Object.keys(freq).length ? Object.entries(freq).sort(([, a], [, b]) => b - a)[0][0] : '-';
 
+  const { colors } = useTheme();
+  const theme = colors as any;
+  const styles = createStyles(theme);
+
   return (
     <View style={styles.card}>
-      <AppText variant="ag7" color="#0F172A">Estadísticas de actividad</AppText>
+      <AppText variant="ag7" color={theme.text ?? '#0F172A'}>Estadísticas de actividad</AppText>
 
       <View style={{ height: 12 }} />
 
       <View style={styles.row}>
-        <AppText variant="ag9" color="#9CA3AF">Total actividades</AppText>
-        <AppText variant="ag8" color="#0F172A">{`${totalActivities}`}</AppText>
+        <AppText variant="ag9" color={theme.subtext ?? '#9CA3AF'}>Total actividades</AppText>
+        <AppText variant="ag8" color={theme.text ?? '#0F172A'}>{`${totalActivities}`}</AppText>
       </View>
 
       <View style={styles.row}>
-        <AppText variant="ag9" color="#9CA3AF">Calorías quemadas (total)</AppText>
-        <AppText variant="ag8" color="#0F172A">{`${totalCalories} kcal`}</AppText>
+        <AppText variant="ag9" color={theme.subtext ?? '#9CA3AF'}>Calorías quemadas (total)</AppText>
+        <AppText variant="ag8" color={theme.text ?? '#0F172A'}>{`${totalCalories} kcal`}</AppText>
       </View>
 
       <View style={styles.row}>
-        <AppText variant="ag9" color="#9CA3AF">Promedio por sesión</AppText>
-        <AppText variant="ag8" color="#0F172A">{`${avgPerSession} kcal`}</AppText>
+        <AppText variant="ag9" color={theme.subtext ?? '#9CA3AF'}>Promedio por sesión</AppText>
+        <AppText variant="ag8" color={theme.text ?? '#0F172A'}>{`${avgPerSession} kcal`}</AppText>
       </View>
 
       <View style={styles.row}>
-        <AppText variant="ag9" color="#9CA3AF">Actividad favorita</AppText>
-        <AppText variant="ag8" color="#0F172A">{`${favorite}`}</AppText>
+        <AppText variant="ag9" color={theme.subtext ?? '#9CA3AF'}>Actividad favorita</AppText>
+        <AppText variant="ag8" color={theme.text ?? '#0F172A'}>{`${favorite}`}</AppText>
       </View>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: any) => StyleSheet.create({
   card: {
     marginTop: 12,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: theme.mealsCard ?? '#FFFFFF',
     borderRadius: 16,
     padding: 18,
     shadowColor: '#000',

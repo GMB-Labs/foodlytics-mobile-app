@@ -18,9 +18,11 @@ export default function useSteps(opts?: { uploadIntervalMs?: number; baseUrl?: s
   const todayISO = useTodayISO();
   const [available, setAvailable] = useState<boolean | null>(null);
   const [steps, setSteps] = useState<number>(0);
+  const [lastStepISO, setLastStepISO] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const lastUploadedRef = useRef<number>(0);
   const pendingRef = useRef<number>(0);
+  const lastKnownRef = useRef<number>(0);
   const subRef = useRef<any>(null);
 
   const uploadIntervalMs = opts?.uploadIntervalMs ?? 60_000; // send every minute by default
@@ -48,6 +50,15 @@ export default function useSteps(opts?: { uploadIntervalMs?: number; baseUrl?: s
 
       const total = typeof res?.steps === 'number' ? res.steps : (typeof res === 'number' ? res : 0);
       setSteps(total);
+      // update last-step timestamp when we detect an increase compared to last known
+      try {
+        if (typeof lastKnownRef.current === 'number' && total > lastKnownRef.current) {
+          lastKnownRef.current = total;
+          setLastStepISO(new Date().toISOString());
+        } else if (typeof lastKnownRef.current !== 'number') {
+          lastKnownRef.current = total;
+        }
+      } catch (e) {}
       return total;
     } catch (e) {
       console.warn('useSteps: getStepCountAsync failed', e);
@@ -68,6 +79,8 @@ export default function useSteps(opts?: { uploadIntervalMs?: number; baseUrl?: s
     try {
       // watchStepCount usually provides a callback with an object { steps }
       subRef.current = (Pedometer as any).watchStepCount((res: any) => {
+        // mark last step time immediately when watch notifies (best-effort)
+        try { setLastStepISO(new Date().toISOString()); } catch (e) {}
         // re-query to get accurate daily total
         queryToday().then((t) => {
           const delta = Math.max(0, t - lastUploadedRef.current);
@@ -107,5 +120,5 @@ export default function useSteps(opts?: { uploadIntervalMs?: number; baseUrl?: s
     return () => clearInterval(id);
   }, [uploadIntervalMs, opts?.baseUrl, opts?.token, todayISO]);
 
-  return { available, steps, uploading, pending: pendingRef.current };
+  return { available, steps, uploading, pending: pendingRef.current, lastStepISO };
 }

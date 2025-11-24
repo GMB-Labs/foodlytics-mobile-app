@@ -1,5 +1,4 @@
 import React from 'react';
-import { Platform } from 'react-native';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { CompletionScreen } from '@/src/shared/ui/screens/CompletionScreen';
 import { useTodayISO } from '@/src/shared/hooks/useTodayISO';

@@ -2,12 +2,12 @@ import React from 'react';
 import { View, TouchableOpacity, StyleSheet, Dimensions } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import AppText from '@/src/shared/ui/components/Typography';
+import { useTheme } from '@/src/shared/styles/useTheme';
 import { useRouter, useSegments } from 'expo-router';
 import ActivityIcon from '@/assets/icons/activity-icon.svg';
 import ProgressIcon from '@/assets/icons/activity/progressIcon.svg';
 import FireIcon from '@/assets/icons/activity/fireIcon.svg';
 import TimeIcon from '@/assets/icons/activity/timeIcon.svg';
-import GoalIcon from '@/assets/icons/activity/goalIcon.svg';
 import StrikeIcon from '@/assets/icons/activity/strikeIcon.svg';
 import AdherenceIcon from '@/assets/icons/activity/adherenceIcon.svg';
 
@@ -33,15 +33,19 @@ export default function ActivityHeader({
   const designW = 430;
   const scale = Math.min(1, width / designW);
   const s = (n: number) => Math.round(n * scale);
+  const { colors } = useTheme();
+  const theme = colors as any;
+  const styles = createStyles(s, theme);
+
 
   const goTo = (path: string) => router.replace(path as any);
 
   return (
     <LinearGradient
-      colors={['#2FCCAC', '#24A88C']}
+      colors={[theme.gradient?.primaryFrom ?? '#2FCCAC', theme.gradient?.primaryTo ?? '#24A88C']}
       style={[styles.header, { paddingTop: s(56), paddingHorizontal: s(24) }]}
     >
-      <View style={styles.segmentWrapper}>
+      <View style={[styles.segmentWrapper,{backgroundColor: theme.iconbase2 ?? 'rgba(255,255,255,0.2)'}]}>
         <View style={styles.segmentRow}>
         {/* Actividad tab */}
         <TouchableOpacity
@@ -56,9 +60,9 @@ export default function ActivityHeader({
           <ActivityIcon
             width={s(20)}
             height={s(20)}
-            color={activeSegment === 'activity' ? '#2FCCAC' : '#FFFFFF'}
+            color={activeSegment === 'activity' ? (theme.brandA ?? '#2FCCAC') : (theme.headerOnPrimary ?? '#FFFFFF')}
           />
-          <AppText variant="ag7" color={activeSegment === 'activity' ? '#2FCCAC' : '#FFFFFF'} style={{ marginLeft: 8 }}>
+          <AppText variant="ag7" color={activeSegment === 'activity' ? (theme.brandA ?? '#2FCCAC') : (theme.headerOnPrimary ?? '#FFFFFF')} style={{ marginLeft: 8 }}>
             Actividad
           </AppText>
         </TouchableOpacity>
@@ -76,9 +80,9 @@ export default function ActivityHeader({
           <ProgressIcon
             width={s(20)}
             height={s(20)}
-            color={activeSegment === 'progress' ? '#2FCCAC' : '#FFFFFF'}
+            color={activeSegment === 'progress' ? (theme.brandA ?? '#2FCCAC') : (theme.headerOnPrimary ?? '#FFFFFF')}
           />
-          <AppText variant="ag7" color={activeSegment === 'progress' ? '#2FCCAC' : '#FFFFFF'} style={{ marginLeft: 8 }}>
+          <AppText variant="ag7" color={activeSegment === 'progress' ? (theme.brandA ?? '#2FCCAC') : (theme.headerOnPrimary ?? '#FFFFFF')} style={{ marginLeft: 8 }}>
             Progreso
           </AppText>
         </TouchableOpacity>
@@ -89,31 +93,31 @@ export default function ActivityHeader({
         {/* Show different stat cards depending on active tab */}
         {activeSegment === 'activity' ? (
           <>
-            <View style={styles.statCard}>
+            <View style={[styles.statCard, { backgroundColor: theme.iconbase2 ?? 'rgba(255,255,255,0.2)' }] }>
               <View style={styles.statTitleRow}>
-                <FireIcon width={s(20)} height={s(20)} color="#FFFFFF" />
-                <AppText variant="ag10" color="rgba(255,255,255,0.9)" style={{ marginLeft: 8 }}>
+                <FireIcon width={s(20)} height={s(20)} color={theme.headerOnPrimary ?? '#FFFFFF'} />
+                <AppText variant="ag10" color={theme.headerOnPrimary90 ?? 'rgba(255,255,255,0.9)'} style={{ marginLeft: 8 }}>
                   Calorías
                 </AppText>
               </View>
-              <AppText variant="ag3" color="#FFFFFF" style={{ marginTop: 6 }}>{String(calories)}</AppText>
-              <AppText variant="ag10" color="rgba(255,255,255,0.7)" style={{ marginTop: 6 }}>quemadas</AppText>
+              <AppText variant="ag3" color={theme.headerOnPrimary ?? '#FFFFFF'} style={{ marginTop: 6 }}>{String(calories)}</AppText>
+              <AppText variant="ag10" color={theme.headerOnPrimary70 ?? 'rgba(255,255,255,0.7)'} style={{ marginTop: 6 }}>quemadas</AppText>
             </View>
 
-            <View style={[styles.statCard, { marginLeft: s(12) }]}>
+            <View style={[styles.statCard, { marginLeft: s(12), backgroundColor: theme.iconbase2 ?? 'rgba(255,255,255,0.2)' }]}>
               <View style={styles.statTitleRow}>
-                <TimeIcon width={s(20)} height={s(20)} color="#FFFFFF" />
-                <AppText variant="ag10" color="rgba(255,255,255,0.9)" style={{ marginLeft: 8 }}>
+                <TimeIcon width={s(20)} height={s(20)} color={theme.headerOnPrimary ?? '#FFFFFF'} />
+                <AppText variant="ag10" color={theme.headerOnPrimary90 ?? 'rgba(255,255,255,0.9)'} style={{ marginLeft: 8 }}>
                   Tiempo
                 </AppText>
               </View>
-              <AppText variant="ag3" color="#FFFFFF" style={{ marginTop: 6 }}>{String(minutes)}</AppText>
-              <AppText variant="ag10" color="rgba(255,255,255,0.7)" style={{ marginTop: 6 }}>minutos</AppText>
+              <AppText variant="ag3" color={theme.headerOnPrimary ?? '#FFFFFF'} style={{ marginTop: 6 }}>{String(minutes)}</AppText>
+              <AppText variant="ag10" color={theme.headerOnPrimary70 ?? 'rgba(255,255,255,0.7)'} style={{ marginTop: 6 }}>minutos</AppText>
             </View>
           </>
         ) : (
           <>
-            <View style={styles.statCard}>
+            <View style={[styles.statCard, { backgroundColor: theme.iconbase2 ?? 'rgba(255,255,255,0.2)' }]}>
               <View style={styles.statTitleRow}>
                 <AdherenceIcon width={s(20)} height={s(20)} color="#FFFFFF" />
                 <AppText variant="ag10" color="rgba(255,255,255,0.9)" style={{ marginLeft: 8 }}>
@@ -125,7 +129,7 @@ export default function ActivityHeader({
               <AppText variant="ag10" color="rgba(255,255,255,0.7)" style={{ marginTop: 6 }}>Últimos 7 días</AppText>
             </View>
 
-            <View style={[styles.statCard, { marginLeft: s(12) }]}>
+            <View style={[styles.statCard, { marginLeft: s(12), backgroundColor: theme.iconbase2 ?? 'rgba(255,255,255,0.2)' }]}>
               <View style={styles.statTitleRow}>
                 <StrikeIcon width={s(20)} height={s(20)} color="#FFFFFF" />
                 <AppText variant="ag10" color="rgba(255,255,255,0.9)" style={{ marginLeft: 8 }}>
@@ -142,7 +146,8 @@ export default function ActivityHeader({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (s: (n:number)=>number, theme: any) => StyleSheet.create({
+
   header: {
     borderBottomLeftRadius: 32,
     borderBottomRightRadius: 32,
@@ -162,7 +167,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   segmentBtnActive: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: theme.card??'#FFFFFF',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.1,

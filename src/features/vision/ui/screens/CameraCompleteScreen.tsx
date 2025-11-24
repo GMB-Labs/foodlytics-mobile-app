@@ -3,17 +3,18 @@ import React from "react";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { CompletionScreen } from "@/src/shared/ui/screens/CompletionScreen";
 import { useTodayISO } from "@/src/shared/hooks/useTodayISO";
+import { useTheme } from '@/src/shared/styles/useTheme';
 
 export default function CameraCompleteScreen() {
   const router = useRouter();
   const params = useLocalSearchParams() as any;
   const todayISO = useTodayISO();
+  const { colors } = useTheme();
+  const theme = colors as any;
 
   const dateISO = (params?.dateISO as string | undefined) ?? todayISO;
   const det = params?.det as string | undefined;
-
-  let message =
-    "Se ha agregado Plátano y Aguacate a tu registro diario";
+  let message = "Tu comida ha sido registrada con éxito";
 
   if (det) {
     try {
@@ -42,6 +43,7 @@ export default function CameraCompleteScreen() {
         heading="¡Comida registrada!"
         message={message}
         icon={require("@/assets/lottie/verify.json")}
+        lottie={require("@/assets/lottie/verify.json")}
         autoRedirectMs={4000}
         onAutoRedirect={goToMeals}
       />
