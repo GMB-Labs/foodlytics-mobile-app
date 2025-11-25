@@ -1,8 +1,6 @@
 import type { OnboardingState } from './store';
-import { computeInitialGoals } from '@/src/features/goals/application/computeInitialGoals';
 import { submitProfileToServer } from '@/src/features/onboarding/infrastructure/profileApi';
 import { calculateTargetsFromProfile } from '@/src/features/goals/application/calorieTargetService';
-import { calcBMI } from '@/src/shared/utils/bmi';
 
 /**
  * Mapea ActivityLevel del frontend al formato del backend

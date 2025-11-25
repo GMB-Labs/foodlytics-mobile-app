@@ -12,7 +12,7 @@ import { getAllMeals, DetectedItem } from '@/src/features/meals/infrastructure/m
 import { PrimaryGradient } from '@/src/shared/ui/components/Gradients';
 import { PixelRatio } from 'react-native';
 import { useTheme } from '@/src/shared/styles/useTheme';
-import { useProfile } from '@/src/features/profile/application/useProfile';
+import useProfile from '@/src/features/profile/application/useProfile';
 
 // local icons still used by Home header
 import Profile from '@/assets/icons/profile-icon.svg';

@@ -4,7 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import AppText from '@/src/shared/ui/components/Typography';
 import { useTheme } from '@/src/shared/styles/useTheme';
 import useSteps from '@/src/shared/hooks/useSteps';
-import { useProfile } from '@/src/features/profile/application/useProfile';
+import useProfile from '@/src/features/profile/application/useProfile';
 import ShoeIcon from '@/assets/icons/activity/shoeIcon.svg';
 import LandPlotIcon from '@/assets/icons/activity/landPlotIcon.svg';
 

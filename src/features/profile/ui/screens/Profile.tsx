@@ -2,9 +2,12 @@ import React, { useState } from "react";
 import { View, StyleSheet, ScrollView } from "react-native";
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS, s } from "../tokens";
-import { useProfile } from "../../application/useProfile";
+import useProfile from "../../application/useProfile";
 import { useTheme } from '@/src/shared/styles/useTheme';
 import { useSession } from '@/src/shared/hooks/useSession';
+import { getJSON } from '@/src/shared/utils/api';
+import { API_BASE_URL } from '@/src/shared/constants/api';
+import { Pressable, Text } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 
 // Sections
@@ -23,7 +26,28 @@ export default function Profile() {
   const { colors } = useTheme();
   const [editing, setEditing] = useState<null | 'personal' | 'goals'>(null);
   const insets = useSafeAreaInsets();
-  const [, sessionActions] = useSession();
+  const [sess, sessionActions] = useSession();
+
+  async function debugFetchProfile() {
+    try {
+      if (!sess || !sess.isAuthenticated) {
+        console.log('[Profile Debug] session not authenticated', sess);
+        return;
+      }
+      const sub = sess.sub;
+      const token = sess.accessToken ?? undefined;
+      if (!sub) {
+        console.log('[Profile Debug] no sub in session', sess);
+        return;
+      }
+      const url = `${API_BASE_URL}/api/v1/profiles/${sub}`;
+      console.log('[Profile Debug] GET', url);
+      const data = await getJSON(url, { baseUrl: '', token });
+      console.log('[Profile Debug] result:', data);
+    } catch (e) {
+      console.error('[Profile Debug] error fetching profile', e);
+    }
+  }
   
   async function handleSignOut() {
     try {
@@ -65,6 +89,9 @@ export default function Profile() {
   return (
     <View style={[styles.container, { backgroundColor: (colors as any)?.bg }]}> 
   <Header name={profile.name} email={profile.email} imageUri={profile.avatar} onPick={pickImage} />
+  <Pressable onPress={debugFetchProfile} style={{ padding: 8, alignItems: 'center' }}>
+    <Text style={{ color: (colors as any)?.primary ?? '#007AFF' }}>DEBUG: fetch profile</Text>
+  </Pressable>
   <ScrollView 
   showsVerticalScrollIndicator={false}
   style={{ flex: 1 }} 

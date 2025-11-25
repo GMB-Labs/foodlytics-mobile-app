@@ -4,6 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
 import * as AuthSession from 'expo-auth-session';
 import * as WebBrowser from 'expo-web-browser';
+import { DevSettings } from 'react-native';
 import { decode as base64Decode } from 'base-64';
 import Constants, { ExecutionEnvironment } from 'expo-constants';
 import { API_BASE_URL } from '../constants/api';
@@ -466,6 +467,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
         extraParams: {
           audience: AUTH0.audience,
           ...(opts?.screenHint ? { screen_hint: opts.screenHint } : {}),
+          ...(opts?.screenHint === 'signup' ? { prompt: 'login' } : {}),
         },
       });
 
@@ -830,11 +832,15 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       
       console.log('Cerrando sesión en Auth0...', { logoutUrl, returnTo });
       
-      // Abrir el navegador con openAuthSessionAsync para que pueda volver a la app
-      // Auth0 procesará el logout y redirigirá a returnTo, que abrirá la app
-      await WebBrowser.openAuthSessionAsync(logoutUrl, returnTo);
-      
-      console.log('Sesión cerrada en Auth0');
+      // Abrir el navegador para que el usuario cierre sesión en Auth0.
+      // Usamos openBrowserAsync (no esperamos el redirect) para evitar que
+      // el app reciba inmediatamente un deep-link callback que pudiera
+      // provocar restauraciones de sesión inesperadas.
+      // Es un comportamiento aceptable para logout (no necesitamos capturar la URL).
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      WebBrowser.openBrowserAsync(logoutUrl);
+
+      console.log('Logout request opened in browser (no redirect capture)');
     } catch (error) {
       // No es crítico si falla el logout de Auth0, continuamos con el logout local
       console.warn('Error al cerrar sesión en Auth0 (continuando con logout local):', error);
@@ -852,11 +858,38 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   const signOut = useCallback(async () => {
     console.log('Cerrando sesión completamente...');
     
-    // 1. Primero cerrar sesión en Auth0 (cierra la sesión del navegador)
-    await logoutFromAuth0();
-    
-    // 2. Borrar completamente SecureStore (incluyendo refresh_token) y AsyncStorage
+    // 1. Limpiar persistencia local inmediatamente antes de abrir el logout externo,
+    // para evitar que un redirect desde Auth0 reestablezca estado en la app.
     await clearPersistedSession();
+
+    // 2. Resetear estado a no autenticado lo antes posible
+    setState({ ...initialState, loading: false });
+
+    // 3. Reset in-memory profile state (if available) to avoid stale UI while reloading
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const g: any = global as any;
+      if (g && typeof g.__resetProfile === 'function') {
+        try { g.__resetProfile(); } catch (e) { /* ignore */ }
+      }
+    } catch (e) {
+      // ignore
+    }
+
+    // 4. Marcar que hay un logout en curso y abrir logout en Auth0 en navegador
+    // (no esperar el redirect que vuelve a la app). Esto evita que el deep-link
+    // del logout vuelva a disparar la restauración de sesión.
+    try {
+      try {
+        await AsyncStorage.setItem('@foodlytics:logout_in_progress', '1');
+      } catch (e) {
+        // ignore storage errors
+      }
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      logoutFromAuth0();
+    } catch (e) {
+      // ignore
+    }
     
     if (bypassAuth) {
       // Dev bypass: mantener sesión fake pero asegurar que tokens guardados estén borrados
@@ -864,11 +897,36 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       setState(fake);
       return;
     }
-    
-    // 3. Resetear estado a no autenticado
-    setState({ ...initialState, loading: false });
-    
+
     console.log('Sesión cerrada completamente');
+
+    // Reload app to ensure there's no stale cached state lingering.
+    // Prefer expo-updates reload; fallback to DevSettings.reload().
+    try {
+      if (!bypassAuth) {
+        // Try to dynamically import expo-updates (may not be available in some environments)
+        try {
+          // eslint-disable-next-line global-require, import/no-extraneous-dependencies
+          const UpdatesModule = await import('expo-updates');
+          if (UpdatesModule && typeof UpdatesModule.reloadAsync === 'function') {
+            console.log('Reloading app via expo-updates reloadAsync()');
+            await UpdatesModule.reloadAsync();
+            return;
+          }
+        } catch (e) {
+          // expo-updates not available or failed to import — fallback to DevSettings
+        }
+
+        if (DevSettings && typeof DevSettings.reload === 'function') {
+          console.log('Reloading app via DevSettings.reload()');
+          DevSettings.reload();
+        } else {
+          console.log('No reload API available');
+        }
+      }
+    } catch (err) {
+      console.warn('Error reloading app after signOut', err);
+    }
   }, [bypassAuth, buildFakeSession, clearPersistedSession, logoutFromAuth0]);
 
   const setUserProfile = useCallback(
