@@ -33,7 +33,7 @@ import OnboardingFooter from '@/src/features/onboarding/ui/OnboardingFooter';
 
         <View className="flex-1">
           <View className="h-28 px-8 pt-16">
-            <ProgressBar step={2} total={8} containerStyle={{ paddingHorizontal: 32 }} />
+            <ProgressBar step={3} total={9} containerStyle={{ paddingHorizontal: 32 }} />
           </View>
 
           <OnboardingCard paddingHorizontal={32} paddingTop={24}>

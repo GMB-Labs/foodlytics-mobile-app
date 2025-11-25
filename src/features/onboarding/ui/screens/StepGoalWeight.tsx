@@ -47,7 +47,7 @@ export default function StepGoalWeight() {
 
       <View className="flex-1">
         <View className="h-28 px-8 pt-16">
-          <ProgressBar step={5} total={8} containerStyle={{ paddingHorizontal: 32 }} />
+          <ProgressBar step={6} total={9} containerStyle={{ paddingHorizontal: 32 }} />
         </View>
 
         <OnboardingCard paddingHorizontal={32} paddingTop={24} style={{ paddingBottom: 16 }}>

@@ -33,11 +33,13 @@ export default function OnboardingFooter({
           containerStyle,
         ]}
       >
-        <View style={styles.row}>
+      <View style={styles.row}>
+        {onBack && (
           <TouchableOpacity onPress={onBack} style={styles.backBtn} activeOpacity={0.7}>
             <Text style={styles.backIcon}>‹</Text>
           </TouchableOpacity>
-          <TouchableOpacity
+        )}
+        <TouchableOpacity
             onPress={onContinue}
             disabled={disabledContinue}
             activeOpacity={disabledContinue ? 1 : 0.5}
@@ -56,9 +58,11 @@ export default function OnboardingFooter({
   return (
     <SafeAreaView edges={['bottom']} style={[{ paddingHorizontal: horizontalPadding }, containerStyle]}>
       <View style={[styles.row, { paddingTop: 8, paddingBottom: 8 }]}>
-        <TouchableOpacity onPress={onBack} style={styles.backBtn} activeOpacity={0.7}>
-          <Text style={styles.backIcon}>‹</Text>
-        </TouchableOpacity>
+        {onBack && (
+          <TouchableOpacity onPress={onBack} style={styles.backBtn} activeOpacity={0.7}>
+            <Text style={styles.backIcon}>‹</Text>
+          </TouchableOpacity>
+        )}
         <TouchableOpacity
           onPress={onContinue}
           disabled={disabledContinue}

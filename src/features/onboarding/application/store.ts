@@ -2,6 +2,8 @@ export type Gender = 'male' | 'female' | 'other';
 export type ActivityLevel = 'sedentary' | 'light' | 'moderate' | 'active' | 'veryActive';
 
 export interface OnboardingState {
+  firstName?: string;
+  lastName?: string;
   birthDate?: string; // YYYY-MM-DD
   gender?: Gender;
   heightCm?: number;
@@ -15,6 +17,8 @@ export interface OnboardingState {
 }
 
 export interface OnboardingActions {
+  setFirstName: (name: string) => void;
+  setLastName: (name: string) => void;
   setBirthDate: (iso: string) => void;
   setGender: (g: Gender) => void;
   setHeightCm: (cm: number) => void;

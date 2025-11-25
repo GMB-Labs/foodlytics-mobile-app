@@ -91,7 +91,7 @@ export default function StepDob() {
       <View className="flex-1">
         {/* Progress Bar (component) */}
         <View className="h-28 px-8 pt-16">
-          <ProgressBar step={1} total={8} containerStyle={{ paddingHorizontal: 32 }} />
+          <ProgressBar step={2} total={9} containerStyle={{ paddingHorizontal: 32 }} />
         </View>
 
         {/* Content Card */}
