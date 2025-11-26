@@ -1,10 +1,11 @@
 import React from 'react';
 import { View } from 'react-native';
 import AppText from '@/src/shared/ui/components/Typography';
+import { Text } from 'react-native';
 import { styles } from './styles';
 import { useTheme } from '@/src/shared/styles/useTheme';
 
-export default function ImcCard({ value, label, compact = false }: { value?: number | null; label?: string | null; compact?: boolean; }) {
+export default function ImcCard({ value, label, compact = false, heightCm, weightKg }: { value?: number | null; label?: string | null; compact?: boolean; heightCm?: number | null; weightKg?: number | null }) {
   const { colors } = useTheme();
   // The IMC value comes from backend. Use it to derive a label/status key.
   const displayValue: number | null = value == null ? null : Number(value);
@@ -45,13 +46,15 @@ export default function ImcCard({ value, label, compact = false }: { value?: num
  
   return (
     <>
-      <AppText variant="ag8" style={{ color: colors.subtext }}>IMC Actual</AppText>
+      <AppText variant="ag8" style={{ color: colors.subtext }}><Text>IMC Actual</Text></AppText>
       <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: compact ? 12 : 16 }}>
           <View style={[styles.imcBubble, { width: compact ? 68 : 80, height: compact ? 68 : 80, backgroundColor: bubbleBg }]}>
-          <AppText variant="ag2" style={{ color: pillTextColor }}>{displayValue != null ? String(displayValue) : '—'}</AppText>
+          <AppText variant="ag3" style={{ color: pillTextColor }}>
+            <Text>{displayValue != null ? String(displayValue) : '—'}</Text>
+          </AppText>
         </View>
         <View style={{ marginLeft: 16, flex: 1 }}>
-          <AppText variant="ag9" style={{ color:colors.subtext }}>Índice de Masa Corporal</AppText>
+          <AppText variant="ag9" style={{ color:colors.subtext }}><Text>Índice de Masa Corporal</Text></AppText>
           <View style={{ marginTop: 4 }}>
             <AppText
               variant="ag10"
@@ -65,19 +68,23 @@ export default function ImcCard({ value, label, compact = false }: { value?: num
           </View>
         </View>
       </View>
-      <View style={[styles.imcGrid, 
+        <View style={[styles.imcGrid, 
       { 
         borderTopColor: colors.border,
         marginTop: compact ? 12 : 16, paddingTop: compact ? 12 : 16 
       }
       ]}>
         <View style={styles.imcCell}>
-          <AppText variant="ag10" style={styles.muted}>Peso</AppText>
-          <AppText variant="ag6" style={{ color: colors.subtext }}>70 kg</AppText>
+          <AppText variant="ag10" style={styles.muted}><Text>Peso</Text></AppText>
+          <AppText variant="ag6" style={{ color: colors.subtext }}>
+            <Text>{weightKg != null ? `${weightKg} kg` : '—'}</Text>
+          </AppText>
         </View>
         <View style={styles.imcCell}>
-          <AppText variant="ag10" style={styles.muted}>Altura</AppText>
-          <AppText variant="ag6" style={{ color: colors.subtext }}>170 cm</AppText>
+          <AppText variant="ag10" style={styles.muted}><Text>Altura</Text></AppText>
+          <AppText variant="ag6" style={{ color: colors.subtext }}>
+            <Text>{heightCm != null ? `${heightCm} cm` : '—'}</Text>
+          </AppText>
         </View>
       </View>
     </>

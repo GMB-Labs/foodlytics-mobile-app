@@ -2,7 +2,7 @@
 import React, { useMemo, useState } from 'react';
 import {
   View, StyleSheet, Pressable, FlatList,
-  NativeSyntheticEvent, NativeScrollEvent, useWindowDimensions
+  NativeSyntheticEvent, NativeScrollEvent, useWindowDimensions, Image as RNImage, Text
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -16,6 +16,7 @@ import useProfile from '@/src/features/profile/application/useProfile';
 
 // local icons still used by Home header
 import Profile from '@/assets/icons/profile-icon.svg';
+// alias RN Image imported above as RNImage
 
 // split widgets 
 import CaloriesCard from '../components/CaloriesCard';
@@ -194,14 +195,26 @@ export default function Home() {
                  {
                    backgroundColor: colors.iconbase,
                    width: AVATAR, 
-                   height: AVATAR
+                   height: AVATAR,
+                   borderRadius: AVATAR / 2,
+                   overflow: 'hidden',
+                   alignItems: 'center',
+                   justifyContent: 'center',
                    }
                  ]}
                  >
-                  <Profile width={s(28)} height={s(28)}color={colors.white} strokeWidth={2} />
+                  {profile?.avatar ? (
+                    <RNImage
+                      source={{ uri: profile.avatar }}
+                      style={{ width: AVATAR, height: AVATAR, borderRadius: AVATAR / 2 }}
+                      resizeMode="cover"
+                    />
+                  ) : (
+                    <Profile width={s(28)} height={s(28)} color={colors.white} strokeWidth={2} />
+                  )}
                 </Pressable>
                 <View style={{ marginLeft: s(10) }}>
-                  <AppText variant="ag5" style={{ color: '#FFFFFF' }}>Hola, Liliana</AppText>
+                  <AppText variant="ag5" style={{ color: '#FFFFFF' }}><Text>{`Hola, ${profile?.name ?? 'Usuario'}`}</Text></AppText>
                 </View>
               </View>
             </View>
@@ -238,6 +251,8 @@ export default function Home() {
                   {item === 'imc' && (
                     <ImcCard
                       value={profile?.bmi ?? data.imc.value}
+                      heightCm={profile?.heightCm}
+                      weightKg={profile?.weightKg}
                       compact={COMPACT}
                     />
                   )}
