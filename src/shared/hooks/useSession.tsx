@@ -8,7 +8,8 @@ import { DevSettings } from 'react-native';
 import { decode as base64Decode } from 'base-64';
 import Constants, { ExecutionEnvironment } from 'expo-constants';
 import { API_BASE_URL } from '../constants/api';
-import { postJSON, getJSON } from '../utils/api';
+import { postJSON } from '../utils/api';
+import { fetchProfileCached } from '../api/profileGateway';
 
 // Ensure the browser is closed correctly on web/Android after redirect
 WebBrowser.maybeCompleteAuthSession();
@@ -129,10 +130,11 @@ async function syncUserAndGetProfile(
 
     // 2. GET profile usando el sub como user_id (authId)
     if (sub) {
-      profileData = await getJSON(
-        `${API_BASE_URL}/api/v1/profiles/${sub}`,
-        { baseUrl: '', token: accessToken }
-      );
+      profileData = await fetchProfileCached({
+        userId: sub,
+        token: accessToken,
+        force: true,
+      });
       userProfileCompleted = profileData?.user_profile_completed === true;
       console.log('Perfil obtenido:', { userProfileCompleted, profileData });
     }
@@ -954,10 +956,11 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       // Si tenemos token y sub, obtener el perfil actualizado del backend
       if (accessToken && sub && completed) {
         try {
-          profileData = await getJSON(
-            `${API_BASE_URL}/api/v1/profiles/${sub}`,
-            { baseUrl: '', token: accessToken }
-          );
+          profileData = await fetchProfileCached({
+            userId: sub,
+            token: accessToken,
+            force: true,
+          });
           console.log('[refreshProfileAndUpdateCompletion] Perfil actualizado obtenido:', profileData);
         } catch (err) {
           console.error('[refreshProfileAndUpdateCompletion] Error al obtener perfil:', err);

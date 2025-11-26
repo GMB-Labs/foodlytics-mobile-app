@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { View, StyleSheet, Pressable, TextInput } from "react-native";
+import { View, StyleSheet, Pressable, TextInput, Text } from "react-native";
 import AppText from "@/src/shared/ui/components/Typography";
 import SectionCard from "../components/SectionCard";
 import KeyValueBox from "../components/KeyValueBox";
@@ -9,12 +9,13 @@ import { s } from "../tokens";
 import { useTheme } from '@/src/shared/styles/useTheme';
 
 export default React.memo(function PersonalData({
-  age, gender, heightCm, weightKg, bmi, bmiLabel, onEdit, isEditing, onSave, onCancel,
+  age, gender, heightCm, weightKg, bmi, bmiLabel, onEdit, isEditing, onSave, onCancel, isSaving,
 }: {
   age: number; gender: string; heightCm: number; weightKg: number;
   bmi: number; bmiLabel?: string; onEdit: () => void; isEditing?: boolean;
   onSave?: (data: { age?: number; gender?: string; heightCm?: number; weightKg?: number }) => void;
   onCancel?: () => void;
+  isSaving?: boolean;
 }) {
   const [form, setForm] = useState({ age: String(age || ''), gender: gender || '', heightCm: String(heightCm || ''), weightKg: String(weightKg || '') });
   const { colors } = useTheme();
@@ -36,7 +37,7 @@ export default React.memo(function PersonalData({
         right={<Pressable onPress={onCancel}><AppText variant="ag9" color={(colors as any)?.brandA}>Cancelar</AppText></Pressable>}
       >
         <View style={{ gap: s(12) }}>
-              <AppText variant="ag10" color={(colors as any)?.text} >Altura (cm)</AppText>
+              <AppText variant="ag10" color={(colors as any)?.text} ><Text>Altura (cm)</Text></AppText>
                <TextInput 
                style={[styles.input,
                 { backgroundColor: (colors as any)?.mealRowBg , color: (colors as any)?.text  }
@@ -47,7 +48,7 @@ export default React.memo(function PersonalData({
                 placeholderTextColor={(colors as any)?.mutedText ?? '#999'} 
                 />
       
-              <AppText variant="ag10" color={(colors as any)?.text}>Peso (kg)</AppText>
+              <AppText variant="ag10" color={(colors as any)?.text}><Text>Peso (kg)</Text></AppText>
               <TextInput
                 style={[
                   styles.input,
@@ -60,7 +61,7 @@ export default React.memo(function PersonalData({
               />
               <View>
             </View>
-          <Pressable onPress={save} style={[styles.saveBtn, { backgroundColor: (colors as any)?.addBtnBg }]}><AppText variant="ag9" color={(colors as any)?.white}>Guardar Cambios</AppText></Pressable>
+          <Pressable disabled={isSaving} onPress={save} style={[styles.saveBtn, { backgroundColor: (colors as any)?.addBtnBg, opacity: isSaving ? 0.6 : 1 }]}><AppText variant="ag9" color={(colors as any)?.white}><Text>Guardar Cambios</Text></AppText></Pressable>
         </View>
       </SectionCard>
     );
@@ -73,7 +74,9 @@ export default React.memo(function PersonalData({
     >
       <View style={styles.grid}>
         <KeyValueBox label="Edad" value={`${age} años`} />
-        <KeyValueBox label="Género" value={gender} />
+        <KeyValueBox label="Género" value={
+          gender === 'male' ? 'Masculino' : gender === 'female' ? 'Femenino' : gender === 'other' ? 'Otro' : (gender || 'Sin definir')
+        } />
         <KeyValueBox label="Altura" value={`${heightCm} cm`} />
         <KeyValueBox label="Peso Actual" value={`${weightKg} kg`} />
       </View>

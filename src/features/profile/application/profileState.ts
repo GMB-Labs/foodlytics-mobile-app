@@ -10,6 +10,15 @@ export type Profile = {
   goalWeight: number;
   activity: string;
   dailyCalories: number;
+  // Calorie target breakdown from /api/v1/calorie-targets
+  calories: number;
+  proteinGrams: number;
+  carbGrams: number;
+  fatGrams: number;
+  calorieTargetsUpdatedAt?: string | null;
+  goalType: string;
+  nutritionistId: string | null;
+  hasProfilePicture: boolean;
 };
 
 export const EMPTY_PROFILE: Profile = {
@@ -24,6 +33,14 @@ export const EMPTY_PROFILE: Profile = {
   goalWeight: 0,
   activity: '',
   dailyCalories: 0,
+  calories: 0,
+  proteinGrams: 0,
+  carbGrams: 0,
+  fatGrams: 0,
+  calorieTargetsUpdatedAt: null,
+  goalType: '',
+  nutritionistId: null,
+  hasProfilePicture: false,
 };
 
 let currentProfile: Profile = EMPTY_PROFILE;

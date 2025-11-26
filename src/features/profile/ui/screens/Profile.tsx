@@ -14,6 +14,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import Header from "../sections/Header";
 import PersonalData from "../sections/PersonalData";
 import Goals from "../sections/Goals";
+import NutritionistInvite from "../sections/NutritionistInvite";
 import Preferences from "../sections/Preferences";
 import Account from "../sections/Account";
 import Logout from "../sections/Logout";
@@ -22,7 +23,7 @@ export default function Profile() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const langUpdated = (params as any)?.langUpdated as string | undefined;
-  const { profile, updateProfile, pickImage } = useProfile();
+  const { profile, updateProfile, pickImage, redeemNutritionistCode, isRedeemingCode, isSavingProfile } = useProfile();
   const { colors } = useTheme();
   const [editing, setEditing] = useState<null | 'personal' | 'goals'>(null);
   const insets = useSafeAreaInsets();
@@ -76,27 +77,32 @@ export default function Profile() {
     setEditing(section);
   }
 
-  function onSavePersonal(data: { age?: number; gender?: string; heightCm?: number; weightKg?: number }){
-    updateProfile(data);
+  async function onSavePersonal(data: { age?: number; gender?: string; heightCm?: number; weightKg?: number }){
+    try {
+      await updateProfile(data as any);
+    } catch (e) {
+      console.error('[Profile] error saving personal', e);
+    }
     setEditing(null);
   }
 
-  function onSaveGoals(data: { goalWeight?: number; activity?: string; dailyCalories?: number }){
-    updateProfile(data);
+  async function onSaveGoals(data: { goalWeight?: number; activity?: string; dailyCalories?: number; goalType?: string }){
+    try {
+      await updateProfile(data as any);
+    } catch (e) {
+      console.error('[Profile] error saving goals', e);
+    }
     setEditing(null);
   }
 
   return (
     <View style={[styles.container, { backgroundColor: (colors as any)?.bg }]}> 
   <Header name={profile.name} email={profile.email} imageUri={profile.avatar} onPick={pickImage} />
-  <Pressable onPress={debugFetchProfile} style={{ padding: 8, alignItems: 'center' }}>
-    <Text style={{ color: (colors as any)?.primary ?? '#007AFF' }}>DEBUG: fetch profile</Text>
-  </Pressable>
-  <ScrollView 
-  showsVerticalScrollIndicator={false}
-  style={{ flex: 1 }} 
-  contentContainerStyle={[styles.scrollContent, { paddingBottom: s(100) + insets.bottom }] }
-  >
+    <ScrollView 
+    showsVerticalScrollIndicator={false}
+    style={{ flex: 1 }} 
+    contentContainerStyle={[styles.scrollContent, { paddingBottom: s(100) + insets.bottom }] }
+    >
         <PersonalData
           age={profile.age}
           gender={profile.gender}
@@ -107,15 +113,23 @@ export default function Profile() {
           isEditing={editing === 'personal'}
           onCancel={() => setEditing(null)}
           onSave={onSavePersonal}
+          isSaving={isSavingProfile}
         />
         <Goals
           goalWeight={profile.goalWeight}
           activity={profile.activity}
+          goalType={profile.goalType}
           dailyCalories={profile.dailyCalories}
           onEdit={() => openEdit('goals')}
           isEditing={editing === 'goals'}
           onCancel={() => setEditing(null)}
           onSave={onSaveGoals}
+          isSaving={isSavingProfile}
+        />
+        <NutritionistInvite
+          nutritionistId={profile.nutritionistId}
+          onRedeem={redeemNutritionistCode}
+          isLoading={isRedeemingCode}
         />
         <Preferences
           key={langUpdated || 'prefs'}
