@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { View, TouchableOpacity, ActivityIndicator } from "react-native";
 import { Stack, useRouter } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
@@ -11,14 +11,14 @@ import useSession from "@/src/shared/hooks/useSession";
 export default function LoginScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const [, sessionActions] = useSession();
+  const [session, sessionActions] = useSession();
   const [loading, setLoading] = useState(false);
 
   const runAuth = async (screenHint?: 'signup' | 'login') => {
     setLoading(true);
     try {
       await sessionActions.login({ screenHint });
-      router.replace("/(tabs)");
+      // After login we wait for session state to update (see effect below)
     } catch (err: any) {
       // handled inside the session hook
     } finally {
@@ -26,6 +26,24 @@ export default function LoginScreen() {
     }
   };
 
+  // When session updates after login, perform conditional navigation
+  useEffect(() => {
+    // Only react when authentication finished restoring
+    if (session.loading) return;
+
+    if (!session.isAuthenticated) return;
+
+    // If backend indicates profile incomplete -> onboarding
+    const profileCompleted = session.user?.user_profile_completed;
+    // eslint-disable-next-line no-console
+    console.log('[Login] session updated after auth', { profileCompleted, user: session.user });
+
+    if (profileCompleted === false) {
+      router.replace('/onboarding/step-dob');
+    } else {
+      router.replace('/(tabs)');
+    }
+  }, [session, router]);
   return (
     <View style={{ flex: 1 }}>
       <StatusBar style="light" translucent backgroundColor="transparent" />

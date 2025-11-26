@@ -21,6 +21,16 @@ export default function Index() {
     );
   }
 
-  // Redirigir según estado de autenticación
-  return <Redirect href={session.isAuthenticated ? "/(tabs)" : "/(auth)/login"} />;
+  // Redirigir según estado de autenticación y perfil completado
+  if (!session.isAuthenticated) {
+    return <Redirect href="/(auth)/login" />;
+  }
+
+  // Si está autenticado pero no ha completado el perfil, redirigir a onboarding (primera pantalla)
+  if (session.userProfileCompleted === false) {
+    return <Redirect href="/onboarding/step-name" />;
+  }
+
+  // Si está autenticado y tiene perfil completado, ir a tabs
+  return <Redirect href="/(tabs)" />;
 }

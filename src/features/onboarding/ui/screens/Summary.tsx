@@ -9,6 +9,8 @@ import OnboardingFooter from '@/src/features/onboarding/ui/OnboardingFooter';
 import { useOnboarding } from '@/src/features/onboarding/application/OnboardingProvider';
 import { submitOnboarding } from '@/src/features/onboarding/application/submitOnboarding';
 import { computeInitialGoals } from '@/src/features/goals/application/computeInitialGoals';
+import useSession from '@/src/shared/hooks/useSession';
+import { API_BASE_URL } from '@/src/shared/constants/api';
 
 /**
  * Feature-level Summary screen — follows project conventions (ui/ -> features)
@@ -18,43 +20,49 @@ import { computeInitialGoals } from '@/src/features/goals/application/computeIni
 export default function SummaryScreen() {
   const router = useRouter();
   const [state, actions] = useOnboarding();
+  const [session, sessionActions] = useSession();
   const [sending, setSending] = useState(false);
 
   const onBack = () => router.back();
 
   const onComplete = async () => {
+    if (!session.isAuthenticated || !session.accessToken || !session.sub) {
+      Alert.alert('Error', 'No hay sesión activa. Por favor, inicia sesión nuevamente.');
+      router.replace('/(auth)/login');
+      return;
+    }
+
     setSending(true);
     try {
-      // Call application use-case. If you need to pass baseUrl / token, provide
-      // them here (e.g. from useSession() or env).
-      // compute local goals and pass through app use-case (which also computes
-      // to ensure backend and client use same numbers)
-      const goals = computeInitialGoals({
-        birthDateIso: state.birthDate,
-        gender: state.gender as any,
-        heightCm: state.heightCm,
-        weightKg: state.weightKg,
-        activityLevel: state.activityLevel as any,
+      // Call application use-case with token and userId (sub/authId)
+      await submitOnboarding(state, {
+        baseUrl: API_BASE_URL,
+        token: session.accessToken,
+        userId: session.sub,
       });
 
-      // attach goals into state before sending (submitOnboarding will recompute
-      // as well but we include computed values so the UI shows them immediately)
-      await submitOnboarding(state /*, { baseUrl: 'https://api.example.com', token: '...' } */);
+      // Actualizar el estado de la sesión para marcar el perfil como completado
+      // Esto refresca el perfil desde el backend y actualiza userProfileCompleted
+      await sessionActions.refreshProfileAndUpdateCompletion(
+        true,
+        session.accessToken,
+        session.sub
+      );
 
       // After successful submission you might want to mark onboarding complete
       // and reset local state. Here we call reset() for a clean local state.
-  actions.reset();
+      actions.reset();
 
-  Alert.alert('Listo', 'Onboarding completado.');
-  // Navigate into the tabs layout (Home). Use the explicit group path
-  // to avoid app-level redirects (e.g. app/index.tsx -> /login).
-  router.replace('/(tabs)');
+      Alert.alert('Listo', 'Onboarding completado.');
+      // Navigate into the tabs layout (Home). Use the explicit group path
+      // to avoid app-level redirects (e.g. app/index.tsx -> /login).
+      router.replace('/(tabs)');
     } catch (err: any) {
       console.error('submitOnboarding failed', err);
       Alert.alert('Error', err?.message || 'No se pudo enviar la información.');
-  // Por ahora se envia a home (tabs). Use explicit tabs path to avoid
-  // app/index.tsx redirect to /login.
-  router.replace('/(tabs)');
+      // Por ahora se envia a home (tabs). Use explicit tabs path to avoid
+      // app/index.tsx redirect to /login.
+      router.replace('/(tabs)');
     } finally {
       setSending(false);
     }
@@ -65,7 +73,7 @@ export default function SummaryScreen() {
       <PrimaryGradient pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0 }} height={200} />
 
       <View style={{ height: 112, paddingHorizontal: 32, paddingTop: 64 }}>
-        <ProgressBar step={8} total={8} containerStyle={{ paddingHorizontal: 32 }} />
+        <ProgressBar step={9} total={9} containerStyle={{ paddingHorizontal: 32 }} />
       </View>
 
       <OnboardingCard paddingHorizontal={32} paddingTop={24}>

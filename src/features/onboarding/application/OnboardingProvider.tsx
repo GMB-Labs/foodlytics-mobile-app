@@ -7,6 +7,8 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
   const [state, setState] = useState<OnboardingState>({});
 
   const actions: OnboardingActions = useMemo(() => ({
+    setFirstName: (name: string) => setState((s) => ({ ...s, firstName: name.trim() })),
+    setLastName: (name: string) => setState((s) => ({ ...s, lastName: name.trim() })),
     setBirthDate: (iso: string) => setState((s) => ({ ...s, birthDate: iso })),
     setGender: (g: Gender) => setState((s) => ({ ...s, gender: g })),
     setHeightCm: (cm: number) => setState((s) => ({ ...s, heightCm: isFinite(cm) ? cm : undefined })),

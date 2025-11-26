@@ -226,7 +226,7 @@ export default function StepNotifications() {
       <View style={{ flex: 1 }}>
         {/* Match spacing used in StepActivityLevel: fixed header height and paddingTop (no extra safe-area offset here) */}
         <View style={{ height: 112, paddingHorizontal: 32, paddingTop: 64 }}>
-          <ProgressBar step={7} total={8} containerStyle={{ paddingHorizontal: 32 }} />
+          <ProgressBar step={8} total={9} containerStyle={{ paddingHorizontal: 32 }} />
         </View>
 
         <OnboardingCard paddingHorizontal={32} paddingTop={24}>
