@@ -61,6 +61,8 @@ const pictureCache = new Map<string, CacheEntry<string | null>>();
 const pictureInFlight = new Map<string, Promise<string | null>>();
 const calorieCache = new Map<string, CacheEntry<any>>();
 const calorieInFlight = new Map<string, Promise<any>>();
+const dailySummaryCache = new Map<string, CacheEntry<any>>();
+const dailySummaryInFlight = new Map<string, Promise<any>>();
 
 function buildUrl(path: string, baseUrl?: string) {
   const base = (baseUrl || API_BASE_URL).replace(/\/$/, '');
@@ -202,6 +204,33 @@ export async function fetchCalorieTargetsCached(opts: { patientId: string; token
   });
 
   calorieInFlight.set(patientId, promise);
+  return promise;
+}
+
+export async function fetchDailySummaryCached(opts: { patientId: string; day?: string; token?: string; baseUrl?: string; force?: boolean }) {
+  const { patientId, day, force } = opts;
+  const key = `${patientId}::${day ?? 'default'}`;
+  const cacheEntry = dailySummaryCache.get(key);
+  const now = Date.now();
+
+  if (!force && cacheEntry && now - cacheEntry.fetchedAt < PROFILE_CACHE_TTL_MS) {
+    return cacheEntry.value;
+  }
+
+  const existingPromise = dailySummaryInFlight.get(key);
+  if (!force && existingPromise) return existingPromise;
+
+  const promise = (async () => {
+    const base = opts.baseUrl ?? undefined;
+    const url = buildUrl(`/api/v1/calorie-targets/${patientId}/daily-summary${day ? `?day=${encodeURIComponent(day)}` : ''}`, base);
+    const data = await getJSON(url, { baseUrl: '', token: opts.token });
+    dailySummaryCache.set(key, { value: data, fetchedAt: Date.now() });
+    return data;
+  })().finally(() => {
+    dailySummaryInFlight.delete(key);
+  });
+
+  dailySummaryInFlight.set(key, promise);
   return promise;
 }
 
