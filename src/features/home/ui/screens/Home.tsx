@@ -13,6 +13,8 @@ import { PrimaryGradient } from '@/src/shared/ui/components/Gradients';
 import { PixelRatio } from 'react-native';
 import { useTheme } from '@/src/shared/styles/useTheme';
 import useProfile from '@/src/features/profile/application/useProfile';
+import { useSession } from '@/src/shared/hooks/useSession';
+import { fetchDailySummaryCached } from '@/src/shared/api/profileGateway';
 
 // local icons still used by Home header
 import Profile from '@/assets/icons/profile-icon.svg';
@@ -140,9 +142,46 @@ export default function Home() {
   }, [allMeals, todayISO]);
 
   const { profile } = useProfile();
+  const [session] = useSession();
 
-  const remaining = Math.max(0, data.calories.goal - consumed);
-  const progress = Math.max(0, Math.min(1, consumed / data.calories.goal)); // 0..1
+  const [dailySummary, setDailySummary] = React.useState<any | null>(null);
+  const [dailySummaryLoading, setDailySummaryLoading] = React.useState(false);
+  const [dailySummaryError, setDailySummaryError] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    let mounted = true;
+    if (!session?.isAuthenticated || !session?.sub) {
+      setDailySummary(null);
+      return () => { mounted = false; };
+    }
+
+    setDailySummaryLoading(true);
+    setDailySummaryError(null);
+    fetchDailySummaryCached({ patientId: session.sub, token: session.accessToken ?? undefined, day: todayISO })
+      .then((res) => { if (!mounted) return; try { console.log('[Home] dailySummary', res); } catch (e) {} setDailySummary(res); })
+      .catch((err) => { if (!mounted) return; setDailySummaryError(String(err ?? 'Error fetching daily summary')); setDailySummary(null); })
+      .finally(() => { if (mounted) setDailySummaryLoading(false); });
+
+    return () => { mounted = false; };
+  }, [session?.isAuthenticated, session?.sub, session?.accessToken, todayISO]);
+
+  // If dailySummary is available, use it; otherwise fall back to demo `data` values
+  const caloriesSource = dailySummary?.target && dailySummary?.consumed ? {
+    consumed: Number(dailySummary.consumed?.calories ?? 0),
+    burned: Number(dailySummary.activity_burned ?? 0),
+    goal: Number(dailySummary.target?.calories ?? 0),
+  } : data.calories;
+
+  const macrosSource = dailySummary?.target && dailySummary?.consumed ? {
+    protein: { done: Number(dailySummary.consumed?.protein ?? 0), goal: Number(dailySummary.target?.protein ?? 0), color: '#2B7FFF', label: 'Proteínas' },
+    carbs:   { done: Number(dailySummary.consumed?.carbs ?? 0),   goal: Number(dailySummary.target?.carbs ?? 0),   color: '#FF6900', label: 'Carbohidratos' },
+    fats:    { done: Number(dailySummary.consumed?.fats ?? 0),    goal: Number(dailySummary.target?.fats ?? 0),    color: '#F0B100', label: 'Grasas' },
+  } : data.macros;
+
+  // Use calorie values from API when available for progress calculations
+  const caloriesConsumedForProgress = typeof caloriesSource.consumed === 'number' ? caloriesSource.consumed : consumed;
+  const remaining = Math.max(0, (caloriesSource.goal ?? 0) - (caloriesConsumedForProgress ?? 0));
+  const progress = Math.max(0, Math.min(1, (caloriesConsumedForProgress ?? 0) / (caloriesSource.goal ?? 1))); // 0..1
 
   // Build meals array for MealsList using the fetched data when available
   const mealsForList = React.useMemo(() => {
@@ -238,16 +277,16 @@ export default function Home() {
                 <View style={{ padding: s(18) }}>
                   {item === 'calories' && (
                     <CaloriesCard
-                      consumed={data.calories.consumed}
-                      burned={data.calories.burned}
-                      goal={data.calories.goal}
+                      consumed={caloriesSource.consumed}
+                      burned={caloriesSource.burned}
+                      goal={caloriesSource.goal}
                       remaining={remaining}
                       progress={progress}
                       ringSize={RING_SIZE}
                       ringThickness={RING_THICK}
                     />
                   )}
-                  {item === 'macros' && <MacrosCard macros={data.macros} compact={COMPACT} />}
+                  {item === 'macros' && <MacrosCard macros={macrosSource} compact={COMPACT} />}
                   {item === 'imc' && (
                     <ImcCard
                       value={profile?.bmi ?? data.imc.value}
