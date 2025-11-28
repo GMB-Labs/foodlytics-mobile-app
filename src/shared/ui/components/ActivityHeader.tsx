@@ -1,8 +1,10 @@
-import React from 'react';
-import { View, TouchableOpacity, StyleSheet, Dimensions } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, TouchableOpacity, StyleSheet, Dimensions, ActivityIndicator } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import AppText from '@/src/shared/ui/components/Typography';
 import { useTheme } from '@/src/shared/styles/useTheme';
+import useSession from '@/src/shared/hooks/useSession';
+import { fetchDailySummaryCached } from '@/src/shared/api/profileGateway';
 import { useRouter, useSegments } from 'expo-router';
 import ActivityIcon from '@/assets/icons/activity-icon.svg';
 import ProgressIcon from '@/assets/icons/activity/progressIcon.svg';
@@ -36,6 +38,98 @@ export default function ActivityHeader({
   const { colors } = useTheme();
   const theme = colors as any;
   const styles = createStyles(s, theme);
+
+  // session (for patient id / token)
+  const [sessionState] = useSession();
+  const token = sessionState?.accessToken;
+  const patientId = sessionState?.sub;
+
+  const [computedAdherence, setComputedAdherence] = useState<number | null>(null);
+  const [adherenceLoading, setAdherenceLoading] = useState(false);
+  const [computedStreak, setComputedStreak] = useState<number | null>(null);
+  const [streakLoading, setStreakLoading] = useState(false);
+
+  useEffect(() => {
+    let mounted = true;
+    async function computeAdherence() {
+      if (activeSegment !== 'progress') return;
+      if (!patientId) return;
+      setAdherenceLoading(true);
+      try {
+        const days: string[] = [];
+        for (let i = 0; i < 7; i++) {
+          const d = new Date();
+          d.setDate(d.getDate() - i);
+          days.push(d.toISOString().slice(0, 10));
+        }
+
+        const promises = days.map((day) =>
+          fetchDailySummaryCached({ patientId: String(patientId), day, token: token ?? undefined }).catch((e) => {
+            // treat errors as not within target
+            return null;
+          })
+        );
+
+        const results = await Promise.all(promises);
+        let within = 0;
+        for (const r of results) {
+          if (r && r.status === 'within_target') within += 1;
+        }
+
+        const pct = Math.round((within / 7) * 100);
+        if (mounted) setComputedAdherence(pct);
+      } catch (e) {
+        // ignore — keep computedAdherence as-is
+      } finally {
+        if (mounted) setAdherenceLoading(false);
+      }
+    }
+
+    computeAdherence();
+    return () => {
+      mounted = false;
+    };
+  }, [activeSegment, patientId, token]);
+
+  useEffect(() => {
+    let mounted = true;
+    async function computeStreak() {
+      if (activeSegment !== 'progress') return;
+      if (!patientId) return;
+      setStreakLoading(true);
+      try {
+        let streakCount = 0;
+        // look back up to 30 days (stop early if a non-within_target day is found)
+        for (let i = 0; i < 30; i++) {
+          const d = new Date();
+          d.setDate(d.getDate() - i);
+          const day = d.toISOString().slice(0, 10);
+          try {
+            const res = await fetchDailySummaryCached({ patientId: String(patientId), day, token: token ?? undefined });
+            if (!res || res.status !== 'within_target') {
+              // if today (i===0) is not within_target, streak is 0
+              break;
+            }
+            streakCount += 1;
+          } catch (e) {
+            // on error, stop counting (treat as not within target)
+            break;
+          }
+        }
+
+        if (mounted) setComputedStreak(streakCount);
+      } catch (e) {
+        // ignore
+      } finally {
+        if (mounted) setStreakLoading(false);
+      }
+    }
+
+    computeStreak();
+    return () => {
+      mounted = false;
+    };
+  }, [activeSegment, patientId, token]);
 
 
   const goTo = (path: string) => router.replace(path as any);
@@ -124,8 +218,14 @@ export default function ActivityHeader({
                   Adherencia
                 </AppText>
               </View>
-              {/* adherence % for last 7 days (prop) */}
-              <AppText variant="ag3" color="#FFFFFF" style={{ marginTop: 6 }}>{String(adherence)}%</AppText>
+                {/* adherence % for last 7 days (computed) */}
+                <View style={{ marginTop: 6 }}>
+                  {adherenceLoading ? (
+                    <ActivityIndicator color="#FFFFFF" />
+                  ) : (
+                    <AppText variant="ag3" color="#FFFFFF">{String(computedAdherence !== null ? computedAdherence : adherence)}%</AppText>
+                  )}
+                </View>
               <AppText variant="ag10" color="rgba(255,255,255,0.7)" style={{ marginTop: 6 }}>Últimos 7 días</AppText>
             </View>
 

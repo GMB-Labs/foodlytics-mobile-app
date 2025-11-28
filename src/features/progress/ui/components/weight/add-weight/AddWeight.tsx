@@ -5,7 +5,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import useTodayISO from '@/src/shared/hooks/useTodayISO';
 import useSession from '@/src/shared/hooks/useSession';
-import { putJSON } from '@/src/shared/utils/api';
+// putJSON removed: replaced by PATCH request to profiles/{userId}/weight
 import { API_BASE_URL } from '@/src/shared/constants/api';
 import useToast from '@/src/shared/hooks/useToast';
 import CalendarIcon from '@/assets/icons/activity/calendarIcon.svg'
@@ -66,8 +66,29 @@ export default function AddWeight() {
 
       if (userId && token) {
         try {
-          await putJSON(`/api/v1/calorie-targets/${userId}/weight-history`, { day: todayISO, weight_kg: valueKg }, { baseUrl: API_BASE_URL, token });
-          console.log('[AddWeight] PUT weight-history ok', { userId, day: todayISO, weightKg: valueKg });
+          // New API: PATCH /api/v1/profiles/{user_id}/weight with { weight_kg }
+          const base = API_BASE_URL ? API_BASE_URL.replace(/\/$/, '') : '';
+          const url = `${base}/api/v1/profiles/${userId}/weight`;
+          const res = await fetch(url, {
+            method: 'PATCH',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({ weight_kg: valueKg }),
+          });
+
+          if (!res.ok) {
+            const text = await res.text().catch(() => '');
+            console.warn('[AddWeight] PATCH profile weight failed', res.status, text);
+          } else {
+            try {
+              const data = await res.json().catch(() => null);
+              console.log('[AddWeight] PATCH profile weight ok', { userId, weightKg: valueKg, data });
+            } catch (e) {
+              console.log('[AddWeight] PATCH profile weight ok (no json body)');
+            }
+          }
         } catch (err: any) {
           console.warn('[AddWeight] PUT weight-history failed', err?.message || err);
         }
@@ -78,8 +99,6 @@ export default function AddWeight() {
       if (typeof sessionActions?.setUserProfile === 'function') {
         await sessionActions.setUserProfile({ weightKg: valueKg });
       }
-
-      toast.show({ type: 'success', text: 'Peso enviado correctamente' });
       // On success navigate to simple completion screen (no params required)
       router.replace('/modals/add-weight/complete');
     } catch (err: any) {
