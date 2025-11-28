@@ -27,33 +27,7 @@ export async function getAllMeals(): Promise<AllMealsResponse> {
   const yesterdayIso = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
 
   const payload: AllMealsResponse = {
-    // today's meals
-    [todayIso]: {
-      breakfast: [
-        { id: 'b1', name: 'Tostada integral con aguacate', protein: 6, carbs: 22, fats: 12, kcal: 210, time: '07:30' },
-      ],
-      lunch: [
-        { id: 'l1', name: 'Pechuga de pollo', protein: 30, carbs: 0, fats: 3, kcal: 165, time: '13:00' },
-      ],
-      dinner: [],
-      snack: [],
-    },
 
-    // yesterday's meals (different content so date switch is visible)
-    [yesterdayIso]: {
-      breakfast: [ { id: 'yb1', name: 'Avena con frutas', protein: 8, carbs: 45, fats: 6, kcal: 280, time: '08:15' } ],
-      lunch: [],
-      dinner: [ { id: 'yd1', name: 'Salmón y quinoa', protein: 28, carbs: 30, fats: 14, kcal: 360, time: '20:00' } ],
-      snack: [],
-    },
-
-    // a couple of additional example dates
-    '2025-11-06': {
-      breakfast: [],
-      lunch: [ { id: 'l20', name: 'Ensalada grande', protein: 5, carbs: 10, fats: 8, kcal: 140, time: '12:30' } ],
-      dinner: [],
-      snack: [],
-    },
   };
 
   // simulate a small delay to mimic network
@@ -72,4 +46,54 @@ export async function getMealDetails(mealId: string, dateISO: string) {
   const items = (all[dateISO] && all[dateISO][mealId]) ? all[dateISO][mealId] : [];
   const totals = items.reduce((acc, it) => ({ protein: acc.protein + it.protein, carbs: acc.carbs + it.carbs, fats: acc.fats + it.fats, kcal: acc.kcal + it.kcal }), { protein: 0, carbs: 0, fats: 0, kcal: 0 });
   return { mealId, dateISO, items, totals };
+}
+
+// New: fetch meals from backend API for a specific day and user
+import { getJSON } from '@/src/shared/utils/api';
+import { API_BASE_URL } from '@/src/shared/constants/api';
+
+export type RawMealItem = {
+  id: string;
+  name: string;
+  patient_id: string;
+  meal_t: string; // e.g. 'Desayuno', 'Almuerzo', 'Cena'
+  kcal: number;
+  protein: number;
+  carbs: number;
+  fats: number;
+  uploaded_at?: string;
+};
+
+export async function getMealsForDayFromServer(dayISO: string, userId?: string, token?: string): Promise<RawMealItem[]> {
+  try {
+    const qs = `?day=${encodeURIComponent(dayISO)}${userId ? `&user_id=${encodeURIComponent(userId)}` : ''}`;
+    const url = `${API_BASE_URL}/api/v1/meals${qs}`;
+    const data = await getJSON(url, { token });
+    // Expecting an array or fallback to empty
+    if (Array.isArray(data)) return data as RawMealItem[];
+    return [];
+  } catch (err) {
+    // On error, return empty so caller can fallback to stubbed data
+    console.error('[mealsApi] getMealsForDayFromServer error', err);
+    return [];
+  }
+}
+
+// Lightweight pub/sub so UI can react to meal additions without reloading entire screens.
+type MealsChangedPayload = { patientId?: string; day?: string };
+const mealsChangedSubscribers = new Set<(p: MealsChangedPayload) => void>();
+
+export function subscribeMealsChanged(cb: (p: MealsChangedPayload) => void) {
+  mealsChangedSubscribers.add(cb);
+  return () => { mealsChangedSubscribers.delete(cb); };
+}
+
+export function notifyMealsChanged(payload: MealsChangedPayload = {}) {
+  try {
+    mealsChangedSubscribers.forEach((cb) => {
+      try { cb(payload); } catch (e) { /* ignore subscriber errors */ }
+    });
+  } catch (e) {
+    // ignore
+  }
 }

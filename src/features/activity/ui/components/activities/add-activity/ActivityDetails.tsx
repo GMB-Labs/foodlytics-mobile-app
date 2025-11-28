@@ -9,6 +9,9 @@ import { LinearGradient } from 'expo-linear-gradient';
 import ModalHeader from '@/src/shared/ui/components/ModalHeader';
 import { useTodayISO } from '@/src/shared/hooks/useTodayISO';
 import useToast from '@/src/shared/hooks/useToast';
+import { useSession } from '@/src/shared/hooks/useSession';
+import { postJSON } from '@/src/shared/utils/api';
+import { API_BASE_URL } from '@/src/shared/constants/api';
 
 type Intensity = 'Baja' | 'Moderada' | 'Alta';
 const INTENSITY_LEVELS: Intensity[] = ['Baja', 'Moderada', 'Alta'];
@@ -55,6 +58,7 @@ export default function ActivityDetails() {
   const [intensity, setIntensity] = useState<Intensity | null>(null);
   const [saving, setSaving] = useState(false);
   const [customName, setCustomName] = useState('');
+  const [session] = useSession();
 
   const incrementDuration = () => setDuration(d => Math.min(d + 5, 120));
   const decrementDuration = () => setDuration(d => Math.max(d - 5, 5));
@@ -101,25 +105,111 @@ export default function ActivityDetails() {
 
     setTimeout(async () => {
       const factor = INTENSITY_FACTORS[intensity] ?? 1;
-      const caloriesBurned = Math.round(calPerMin * duration * factor);
+      const localCalories = Math.round(calPerMin * duration * factor);
 
       const finalType = isCustom ? customName.trim() : activityTypeParam;
 
       // persist activity locally so summary can read last distance session
+      // declare server response variable here so it's visible after the try/catch
+      let serverAiBurnResp: any = null;
       try {
+        // Try to notify backend AI burn endpoint (best-effort). If it fails,
+        // we still persist locally so the UX continues to work offline.
+        try {
+          const payload = {
+            user_id: session?.sub,
+            activity_type: finalType,
+            duration_minutes: duration,
+            intensity: intensity,
+          };
+          console.log('[ActivityDetails] ai-burn payload', payload);
+          // Debugging: use fetch directly to capture raw response, headers and status
+          try {
+            const fullUrl = `${API_BASE_URL.replace(/\/$/, '')}/api/v1/physical-activity/ai-burn`;
+            const headers: Record<string,string> = { 'Content-Type': 'application/json' };
+            if (session?.accessToken) headers['Authorization'] = `Bearer ${session.accessToken}`;
+            const bodyStr = JSON.stringify(payload);
+            console.log('[ActivityDetails] ai-burn fetch start', { fullUrl, headers, body: payload });
+
+            const res = await fetch(fullUrl, { method: 'POST', headers, body: bodyStr });
+            const rawText = await res.text();
+            console.log('[ActivityDetails] ai-burn raw response', { status: res.status, ok: res.ok, text: rawText });
+
+            let parsed: any = null;
+            try { parsed = rawText ? JSON.parse(rawText) : null; } catch (e) { parsed = rawText; }
+
+            if (!res.ok) {
+              const err: any = new Error(res.statusText || 'Request failed');
+              err.status = res.status;
+              err.body = parsed;
+              throw err;
+            }
+
+            serverAiBurnResp = parsed;
+            // backend accepted — show lightweight feedback
+            toast.show({ type: 'success', text: 'Actividad registrada en servidor' });
+            // log full server response for debugging (calories_burned etc.)
+            console.log('[ActivityDetails] ai-burn response parsed', JSON.stringify(serverAiBurnResp, null, 2));
+          } catch (fetchErr) {
+            // If debug fetch failed, fallback to existing postJSON for consistency
+            try {
+              console.warn('[ActivityDetails] debug fetch failed, falling back to postJSON', fetchErr);
+              serverAiBurnResp = await postJSON('/api/v1/physical-activity/ai-burn', payload, { baseUrl: API_BASE_URL, token: session?.accessToken ?? undefined });
+              toast.show({ type: 'success', text: 'Actividad registrada en servidor' });
+              console.log('[ActivityDetails] ai-burn response (postJSON)', JSON.stringify(serverAiBurnResp, null, 2));
+            } catch (postErr2) {
+              const errAny: any = postErr2;
+              console.warn('[ActivityDetails] ai-burn failed, will persist locally', {
+                message: errAny?.message ?? String(errAny),
+                status: errAny?.status,
+                body: errAny?.body,
+              });
+              toast.show({ type: 'info', text: 'Actividad guardada localmente (sin conexión)' });
+            }
+          }
+        } catch (postErr) {
+          // Log detailed error info to help debug why we fall back to local storage
+          try {
+            const errAny: any = postErr;
+            console.warn('[ActivityDetails] ai-burn failed, will persist locally', {
+              message: errAny?.message ?? String(errAny),
+              status: errAny?.status,
+              body: errAny?.body,
+            });
+          } catch (logErr) {
+            console.warn('[ActivityDetails] ai-burn failed, (error logging failed)', postErr);
+          }
+          toast.show({ type: 'info', text: 'Actividad guardada localmente (sin conexión)' });
+        }
+
         const STORAGE_KEY = '@foodlytics:activities';
         const raw = await AsyncStorage.getItem(STORAGE_KEY);
         const existing = raw ? JSON.parse(raw) : [];
         const now = new Date();
-        const entry = {
+
+        // Prefer server-provided calories_burned when available
+        const finalCalories = serverAiBurnResp && (serverAiBurnResp.calories_burned ?? serverAiBurnResp.calories) ? (serverAiBurnResp.calories_burned ?? serverAiBurnResp.calories) : localCalories;
+        console.log('[ActivityDetails] using calories value', { fromServer: !!(serverAiBurnResp && serverAiBurnResp.calories_burned !== undefined), finalCalories, localCalories, serverResp: serverAiBurnResp });
+
+        const entry: any = {
           id: `local-${Date.now()}`,
           type: finalType,
           dateISO: todayISO,
           duration: duration, // minutes
-          calories: caloriesBurned,
+          calories: finalCalories,
           createdAt: now.toISOString(),
           startTime: now.toISOString(), // hora exacta de inicio
         };
+
+        // If the server returned an id or other metadata, keep it to aid later sync
+        if (serverAiBurnResp && serverAiBurnResp.id) {
+          entry.serverId = serverAiBurnResp.id;
+          entry.synced = true;
+        } else if (serverAiBurnResp && serverAiBurnResp.activity_type) {
+          // server responded but didn't provide id — mark synced true as best-effort
+          entry.synced = true;
+        }
+
         existing.push(entry);
         await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(existing));
       } catch (e) {
@@ -128,11 +218,15 @@ export default function ActivityDetails() {
       }
 
       setSaving(false);
+      const serverCalories = serverAiBurnResp && (serverAiBurnResp.calories_burned ?? serverAiBurnResp.calories) ? String(serverAiBurnResp.calories_burned ?? serverAiBurnResp.calories) : undefined;
+      const caloriesToShow = serverCalories ?? String(localCalories);
+
       router.push({
         pathname: '/modals/add-activity/complete',
         params: {
           dateISO: todayISO,
-          calories: String(caloriesBurned),
+          // when server provided calories, send calories_burned; otherwise send local estimate
+          ...(serverCalories ? { calories_burned: serverCalories } : { calories: String(localCalories) }),
           duration: String(duration),
           type: finalType,
         },

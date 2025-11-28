@@ -8,7 +8,8 @@ export default function ActivityCompleteScreen() {
     const params = useLocalSearchParams() as any;
     const todayISO = useTodayISO();
     const dateISO = (params?.dateISO as string | undefined) ?? todayISO;
-    const calories = params?.calories as string | undefined;
+    // prefer server-provided `calories_burned` if available, otherwise fallback to local `calories`
+    const calories = (params?.calories_burned ?? params?.calories) as string | undefined;
     const duration = params?.duration as string | undefined;
     
     let message = `Se registró tu actividad el ${dateISO}`;
@@ -19,7 +20,7 @@ export default function ActivityCompleteScreen() {
         message += ` · ${duration} min`;
     }
     const goToActivity = () => {
-        router.push(`/(tabs)/activity/progress` as any);
+        router.push(`/(tabs)/activity` as any);
     };
 
     return (

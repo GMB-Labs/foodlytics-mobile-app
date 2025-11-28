@@ -6,7 +6,8 @@ import Svg, { Path } from 'react-native-svg';
 import AppText from '@/src/shared/ui/components/Typography';
 import { useTodayISO } from '@/src/shared/hooks/useTodayISO';
 import MealCard from '../components/MealCard';
-import { getAllMeals } from '@/src/features/meals/infrastructure/mealsApi';
+import { getAllMeals, getMealsForDayFromServer, RawMealItem } from '@/src/features/meals/infrastructure/mealsApi';
+import { useSession } from '@/src/shared/hooks/useSession';
 import NativeDatePicker from '../components/NativeDatePicker';
 import { Platform } from 'react-native';
 import { useTheme } from '@/src/shared/styles/useTheme';
@@ -134,6 +135,11 @@ export default function MealsScreen() {
   const [allMeals, setAllMeals] = useState<Record<string, Record<string, any[]>> | null>(null);
   const [allMealsLoading, setAllMealsLoading] = useState(false);
   const [allMealsError, setAllMealsError] = useState<string | null>(null);
+  // Server-fetched meals for the active date (grouped by internal keys: breakfast,lunch,dinner,snack)
+  const [apiMealsByKey, setApiMealsByKey] = useState<Record<string, any[]> | null>(null);
+  const [apiMealsLoading, setApiMealsLoading] = useState(false);
+  const [apiMealsError, setApiMealsError] = useState<string | null>(null);
+  const [session] = useSession();
 
   useEffect(() => {
     let mounted = true;
@@ -146,6 +152,58 @@ export default function MealsScreen() {
     return () => { mounted = false; };
   }, []);
 
+  // Fetch meals for the currently active date from backend when it changes
+  useEffect(() => {
+    let mounted = true;
+    async function load() {
+      setApiMealsLoading(true);
+      setApiMealsError(null);
+      setApiMealsByKey(null);
+      try {
+        const raw: RawMealItem[] = await getMealsForDayFromServer(activeDateISO, session?.sub, session?.accessToken ?? undefined);
+        if (!mounted) return;
+        // Map backend meal_t values to our keys: breakfast/lunch/dinner/snack
+        const mapKey = (meal_t?: string) => {
+          if (!meal_t) return 'snack';
+          const t = meal_t.toLowerCase();
+          if (t.includes('desay')) return 'breakfast';
+          if (t.includes('almuer') || t.includes('comida')) return 'lunch';
+          if (t.includes('cena')) return 'dinner';
+          if (t.includes('aper') || t.includes('snack')) return 'snack';
+          return 'snack';
+        };
+
+        const byKey: Record<string, any[]> = { breakfast: [], lunch: [], dinner: [], snack: [] };
+        raw.forEach((r) => {
+          const k = mapKey(r.meal_t);
+          const time = r.uploaded_at ? (() => {
+            try { const d = new Date(r.uploaded_at); return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;} catch { return undefined; }
+          })() : undefined;
+          byKey[k].push({
+            id: r.id,
+            name: r.name,
+            protein: r.protein ?? 0,
+            carbs: r.carbs ?? 0,
+            fats: r.fats ?? 0,
+            kcal: r.kcal ?? 0,
+            time,
+            raw: r,
+          });
+        });
+
+        setApiMealsByKey(byKey);
+      } catch (err) {
+        console.error('[Meals] load meals error', err);
+        if (mounted) setApiMealsError(String(err ?? 'Error fetching meals from server'));
+      } finally {
+        if (mounted) setApiMealsLoading(false);
+      }
+    }
+
+    load();
+    return () => { mounted = false; };
+  }, [activeDateISO, session?.sub, session?.accessToken]);
+
   const mealsForDate = useMemo(() => {
     const mockDB: Record<string, Record<string, any[]>> = {
       [todayISO]: {
@@ -157,7 +215,7 @@ export default function MealsScreen() {
     };
 
     if (allMeals && allMeals[activeDateISO]) return allMeals[activeDateISO];
-    return mockDB[activeDateISO] ?? { breakfast: [], lunch: [], dinner: [], snack: [] };
+    return { breakfast: [], lunch: [], dinner: [], snack: [] };
   }, [activeDateISO, allMeals, todayISO]);
 
   // The Date object used to render the header and the native picker value.
@@ -328,7 +386,10 @@ export default function MealsScreen() {
         showsVerticalScrollIndicator={false}
       >
         {MEAL_TYPES.map((meal) => {
-          const hasItems = (mealsForDate[meal.id] || []).length > 0;
+          // Prefer API results for the active date, fallback to stubbed `mealsForDate`.
+          const source = apiMealsByKey ?? (mealsForDate as any);
+          const items = (source && source[meal.id]) ? source[meal.id] : (mealsForDate[meal.id] ?? []);
+          const hasItems = (items || []).length > 0;
           const bgColor = (colors as any)?.mealChips?.[meal.id as any]?.bg ?? meal.bg;
 
           return (
@@ -338,19 +399,16 @@ export default function MealsScreen() {
               icon={meal.icon}
               backgroundColor={bgColor}
               hasItems={hasItems}
-              items={mealsForDate[meal.id]}
+              items={items}
               isSelectedToday={isSelectedToday}
               isSelectedFuture={isSelectedFuture}
               onAddPress={() => goToCamera(meal.id)}
               onViewPress={() => {
-                // Navegar pasando la data de los ítems y la fecha seleccionada
-                router.push({
-                  pathname: `/meals/${meal.id}`,
-                  params: {
-                    dateISO: displayDateISO,
-                    items: JSON.stringify(mealsForDate[meal.id] ?? []),
-                  },
-                } as any);
+                // Use the same route shape as Home -> Meals so DetailMeals receives
+                // the meal segment (e.g. '/(tabs)/meals/lunch') which our detail
+                // component recognizes reliably.
+                const path = `/(tabs)/meals/${meal.id}?dateISO=${encodeURIComponent(displayDateISO)}`;
+                router.push(path as any);
               }}
             />
           );

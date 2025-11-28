@@ -88,9 +88,16 @@ export default function MealCard({
                 <View key={it.id} style={styles.itemRow}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
                     <View style={[styles.bulletPoint, { backgroundColor: colors?.addBtnBg ?? '#2FCCAC' }]} />
-                    <AppText variant="ag9" style={[styles.itemName, { color: colors?.subtext ?? '#364153' }]}>{it.name}</AppText>
+                    <AppText
+                      variant="ag9"
+                      numberOfLines={1}
+                      ellipsizeMode="tail"
+                      style={[styles.itemName, { color: colors?.subtext ?? '#364153', flexShrink: 1 }]}
+                    >
+                      {it.name}
+                    </AppText>
                   </View>
-                  <AppText variant="ag10" color={colors?.subtext ?? '#6A7282'}>{timeText}</AppText>
+                  <AppText variant="ag10" style={styles.itemTime} color={colors?.subtext ?? '#6A7282'}>{timeText}</AppText>
                 </View>
               );
             })}
@@ -271,6 +278,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+  },
+  itemTime: {
+    width: 64,
+    textAlign: 'right',
   },
   bulletPoint: {
     width: 8,

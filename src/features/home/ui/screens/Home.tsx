@@ -165,23 +165,42 @@ export default function Home() {
     return () => { mounted = false; };
   }, [session?.isAuthenticated, session?.sub, session?.accessToken, todayISO]);
 
-  // If dailySummary is available, use it; otherwise fall back to demo `data` values
-  const caloriesSource = dailySummary?.target && dailySummary?.consumed ? {
-    consumed: Number(dailySummary.consumed?.calories ?? 0),
-    burned: Number(dailySummary.activity_burned ?? 0),
-    goal: Number(dailySummary.target?.calories ?? 0),
+  // If we have any dailySummary object from the API, prefer its values (even if some nested keys are missing).
+  // This is more robust than checking both `target` and `consumed` because some server responses may omit one of them.
+  const hasDaily = dailySummary != null;
+  const caloriesSource = hasDaily ? {
+    consumed: Number(dailySummary?.consumed?.calories ?? 0),
+    burned: Number(dailySummary?.activity_burned ?? 0),
+    goal: Number(dailySummary?.target?.calories ?? 0),
   } : data.calories;
 
-  const macrosSource = dailySummary?.target && dailySummary?.consumed ? {
-    protein: { done: Number(dailySummary.consumed?.protein ?? 0), goal: Number(dailySummary.target?.protein ?? 0), color: '#2B7FFF', label: 'Proteínas' },
-    carbs:   { done: Number(dailySummary.consumed?.carbs ?? 0),   goal: Number(dailySummary.target?.carbs ?? 0),   color: '#FF6900', label: 'Carbohidratos' },
-    fats:    { done: Number(dailySummary.consumed?.fats ?? 0),    goal: Number(dailySummary.target?.fats ?? 0),    color: '#F0B100', label: 'Grasas' },
+  const macrosSource = hasDaily ? {
+    protein: { done: Number(dailySummary?.consumed?.protein ?? 0), goal: Number(dailySummary?.target?.protein ?? 0), color: '#2B7FFF', label: 'Proteínas' },
+    carbs:   { done: Number(dailySummary?.consumed?.carbs ?? 0),   goal: Number(dailySummary?.target?.carbs ?? 0),   color: '#FF6900', label: 'Carbohidratos' },
+    fats:    { done: Number(dailySummary?.consumed?.fats ?? 0),    goal: Number(dailySummary?.target?.fats ?? 0),    color: '#F0B100', label: 'Grasas' },
   } : data.macros;
 
   // Use calorie values from API when available for progress calculations
   const caloriesConsumedForProgress = typeof caloriesSource.consumed === 'number' ? caloriesSource.consumed : consumed;
   const remaining = Math.max(0, (caloriesSource.goal ?? 0) - (caloriesConsumedForProgress ?? 0));
   const progress = Math.max(0, Math.min(1, (caloriesConsumedForProgress ?? 0) / (caloriesSource.goal ?? 1))); // 0..1
+
+  React.useEffect(() => {
+    try {
+      console.log('[Home] debug', {
+        todayISO,
+        sessionSub: session?.sub,
+        dailySummaryReceived: dailySummary != null,
+        dailySummary,
+        caloriesSource,
+        macrosSource,
+        consumedFromMeals: consumed,
+        caloriesConsumedForProgress,
+        remaining,
+        progress,
+      });
+    } catch (e) {}
+  }, [dailySummary, consumed, caloriesSource, macrosSource, caloriesConsumedForProgress, remaining, progress, todayISO, session?.sub]);
 
   // Build meals array for MealsList using the fetched data when available
   const mealsForList = React.useMemo(() => {
@@ -289,7 +308,7 @@ export default function Home() {
                   {item === 'macros' && <MacrosCard macros={macrosSource} compact={COMPACT} />}
                   {item === 'imc' && (
                     <ImcCard
-                      value={profile?.bmi ?? data.imc.value}
+                      value={profile?.bmi}
                       heightCm={profile?.heightCm}
                       weightKg={profile?.weightKg}
                       compact={COMPACT}
