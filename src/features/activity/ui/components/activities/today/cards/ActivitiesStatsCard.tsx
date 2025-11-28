@@ -7,7 +7,7 @@ type Activity = {
   id: string;
   name: string;
   minutes: number;
-  intensity: 'Baja' | 'Moderada' | 'Alta';
+  intensity: string;
   calories: number;
 };
 
@@ -32,28 +32,64 @@ export default function ActivitiesStatsCard({ activities }: Props) {
 
   return (
     <View style={styles.card}>
-      <AppText variant="ag7" color={theme.text ?? '#0F172A'}>Estadísticas de actividad</AppText>
+      <AppText
+        variant="ag7"
+        color={theme.text ?? '#0F172A'}
+        children="Estadísticas de actividad"
+      />
 
       <View style={{ height: 12 }} />
 
       <View style={styles.row}>
-        <AppText variant="ag9" color={theme.subtext ?? '#9CA3AF'}>Total actividades</AppText>
-        <AppText variant="ag8" color={theme.text ?? '#0F172A'}>{`${totalActivities}`}</AppText>
+        <AppText
+          variant="ag9"
+          color={theme.subtext ?? '#9CA3AF'}
+          children="Total actividades"
+        />
+        <AppText
+          variant="ag8"
+          color={theme.text ?? '#0F172A'}
+          children={`${totalActivities}`}
+        />
       </View>
 
       <View style={styles.row}>
-        <AppText variant="ag9" color={theme.subtext ?? '#9CA3AF'}>Calorías quemadas (total)</AppText>
-        <AppText variant="ag8" color={theme.text ?? '#0F172A'}>{`${totalCalories} kcal`}</AppText>
+        <AppText
+          variant="ag9"
+          color={theme.subtext ?? '#9CA3AF'}
+          children="Calorías quemadas (total)"
+        />
+        <AppText
+          variant="ag8"
+          color={theme.text ?? '#0F172A'}
+          children={`${totalCalories} kcal`}
+        />
       </View>
 
       <View style={styles.row}>
-        <AppText variant="ag9" color={theme.subtext ?? '#9CA3AF'}>Promedio por sesión</AppText>
-        <AppText variant="ag8" color={theme.text ?? '#0F172A'}>{`${avgPerSession} kcal`}</AppText>
+        <AppText
+          variant="ag9"
+          color={theme.subtext ?? '#9CA3AF'}
+          children="Promedio por sesión"
+        />
+        <AppText
+          variant="ag8"
+          color={theme.text ?? '#0F172A'}
+          children={`${avgPerSession} kcal`}
+        />
       </View>
 
       <View style={styles.row}>
-        <AppText variant="ag9" color={theme.subtext ?? '#9CA3AF'}>Actividad favorita</AppText>
-        <AppText variant="ag8" color={theme.text ?? '#0F172A'}>{`${favorite}`}</AppText>
+        <AppText
+          variant="ag9"
+          color={theme.subtext ?? '#9CA3AF'}
+          children="Actividad favorita"
+        />
+        <AppText
+          variant="ag8"
+          color={theme.text ?? '#0F172A'}
+          children={`${favorite}`}
+        />
       </View>
     </View>
   );

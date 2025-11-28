@@ -1,134 +1,96 @@
-import React, { useRef, useState, useEffect } from "react";
-import { View, StyleSheet, TouchableOpacity, Alert, Platform } from 'react-native';
+import React from 'react';
+import { View, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
 import AppText from '@/src/shared/ui/components/Typography';
 import { useTheme } from '@/src/shared/styles/useTheme';
 import ProgressIcon from '@/assets/icons/activity/progressIcon.svg';
 import ActivitiesStatsCard from './cards/ActivitiesStatsCard';
 import ActivityCard from './cards/ActivityCard';
-import { useIsFocused } from '@react-navigation/native';
-import * as activitiesApi from '@/src/features/activity/infrastructure/activitiesApi';
-
-type Activity = {
-  id: string;
-  name: string;
-  minutes: number;
-  intensity: 'Baja' | 'Moderada' | 'Alta';
-  calories: number;
-};
-
-// sample activities for preview while API isn't connected
-const PREVIEW_ACTIVITIES: Activity[] = [
-  { id: 'a1', name: 'Correr', minutes: 30, intensity: 'Moderada', calories: 300 },
-  { id: 'a2', name: 'Ciclismo', minutes: 20, intensity: 'Alta', calories: 220 },
-  { id: 'a3', name: 'Natación', minutes: 10, intensity: 'Baja', calories: 100 },
-];
+import type { ActivityListItem } from '@/src/features/activity/application/usePhysicalActivity';
 
 type Props = {
-  activities?: Activity[];
-  // preview flag to force sample data
+  activities?: ActivityListItem[];
   preview?: boolean;
+  isLoading?: boolean;
+  errorMessage?: string | null;
   onRegisterPress?: () => void;
+  onDeleteActivity?: (id: string) => void;
 };
 
-// ActivityCard extracted to `components/activities/ActivityCard.tsx`.
+const PREVIEW_ACTIVITIES: ActivityListItem[] = [
+];
 
-export default function ActivitiesToday({ activities, preview = true, onRegisterPress }: Props) {
-  const [list, setList] = useState<Activity[]>([]);
-  const isFocused = useIsFocused();
+export default function ActivitiesToday({
+  activities,
+  preview = true,
+  isLoading,
+  errorMessage,
+  onRegisterPress,
+  onDeleteActivity,
+}: Props) {
   const { colors } = useTheme();
   const theme = colors as any;
   const styles = createStyles(theme);
   const cardStyles = createCardStyles(theme);
 
-  // Load activities from the local API abstraction when the screen mounts
-  // or receives focus. If running in preview mode and storage is empty,
-  // seed storage with the preview data so subsequent edits persist.
-  useEffect(() => {
-    let mounted = true;
-    async function load() {
-      // prefer parent-provided activities when preview is disabled
-      if (!preview && activities && activities.length > 0) {
-        if (!mounted) return;
-        setList(activities);
-        return;
-      }
-
-      const stored = await activitiesApi.getActivities();
-      if (stored && stored.length > 0) {
-        if (!mounted) return;
-        setList(stored);
-        return;
-      }
-
-      // no stored activities: if preview requested, seed storage and use
-      if (preview) {
-        await activitiesApi.saveActivities(PREVIEW_ACTIVITIES as Activity[]);
-        if (!mounted) return;
-        setList(PREVIEW_ACTIVITIES as Activity[]);
-        return;
-      }
-
-      // fallback to props or empty
-      if (!mounted) return;
-      setList(activities || []);
-    }
-
-    if (isFocused) load();
-    return () => { mounted = false; };
-  }, [preview, activities, isFocused]);
-
-  function handleDeleteRequest(id: string) {
-    // Ask for confirmation before deleting
-    Alert.alert(
-      'Eliminar actividad',
-      '¿Estás seguro que quieres eliminar esta actividad?',
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Eliminar',
-          style: 'destructive',
-          onPress: async () => {
-            // Optimistically update UI
-            setList((prev) => prev.filter((a) => a.id !== id));
-
-            try {
-              // use local API abstraction which persists to AsyncStorage
-              await activitiesApi.deleteActivityById(id);
-              // reload current list to ensure consistency
-              const refreshed = await activitiesApi.getActivities();
-              setList(refreshed);
-            } catch (e) {
-              // ignore for now; in a real app show error to user
-            }
-          },
-        },
-      ],
-    );
-  }
+  const list = activities && activities.length > 0
+    ? activities
+    : preview
+      ? PREVIEW_ACTIVITIES
+      : [];
 
   return (
     <View style={{ marginTop: 2 }}>
       <View style={{ marginBottom: 16 }}>
             <TouchableOpacity activeOpacity={0.9} onPress={onRegisterPress} style={cardStyles.registerBtn}>
-              <AppText variant="ag7" color={theme.primaryOnBrand ?? '#FFFFFF'}>+  Registrar Actividad</AppText>
+              <AppText
+                variant="ag7"
+                color={theme.primaryOnBrand ?? '#FFFFFF'}
+                children="+  Registrar Actividad"
+              />
             </TouchableOpacity>
       </View>
 
-      <AppText variant="ag7" color={theme.text ?? '#1A1A1A'}>{`Actividades de Hoy`}</AppText>
+      <AppText
+        variant="ag7"
+        color={theme.text ?? '#1A1A1A'}
+        children="Actividades de Hoy"
+      />
 
-      {list.length === 0 ? (
+      {isLoading ? (
+        <View style={[styles.emptyCard, { flexDirection: 'row' }] }>
+          <ActivityIndicator size="small" color={theme.brandA ?? '#2FCCAC'} />
+          <AppText
+            variant="ag9"
+            color={theme.subtext ?? '#6A7282'}
+            style={{ marginLeft: 12 }}
+            children="Cargando tus actividades…"
+          />
+        </View>
+      ) : list.length === 0 ? (
         <View style={styles.emptyCard}>
           <View style={styles.emptyIconCircle}>
             <ProgressIcon width={32} height={32} strokeWidth={2.667} color={theme.subtext ?? '#99A1AF'} />
           </View>
-          <AppText variant="ag7" color={theme.muted ?? '#4A5565'} style={{ marginTop: 12, textAlign: 'center' }}>{`No hay actividades registradas`}</AppText>
-          <AppText variant="ag9" color={theme.subtext ?? '#6A7282'} style={{ marginTop: 8, textAlign: 'center' }}>{`¡Comienza a moverte!`}</AppText>
+          <AppText
+            variant="ag7"
+            color={theme.muted ?? '#4A5565'}
+            style={{ marginTop: 12, textAlign: 'center' }}
+            children={errorMessage || 'No hay actividades registradas'}
+          />
+          {!errorMessage && (
+            <AppText
+              variant="ag9"
+              color={theme.subtext ?? '#6A7282'}
+              style={{ marginTop: 8, textAlign: 'center' }}
+              children="¡Comienza a moverte!"
+            />
+          )}
         </View>
       ) : (
         <View style={{ marginTop: 12 }}>
           <View style={{ height: 12 }} />
           {list.map((a) => (
-            <ActivityCard key={a.id} activity={a} onDelete={handleDeleteRequest} />
+            <ActivityCard key={a.id} activity={a} onDelete={onDeleteActivity} />
           ))}
           
           <ActivitiesStatsCard activities={list} />

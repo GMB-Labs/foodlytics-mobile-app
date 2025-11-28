@@ -7,6 +7,7 @@ import { useTheme } from '@/src/shared/styles/useTheme';
 type Props = {
   // records: optional mapping from 'YYYY-MM-DD' to number of exercise registrations that day
   records?: Record<string, number>;
+  preview?: boolean;
 };
 
 function daysInMonth(year: number, month: number) {
@@ -27,40 +28,25 @@ const M = NOW.getMonth();
 
 // Algunos días con distintas intensidades
 const DEV_RECORDS: Record<string, number> = {
-  [formatISO(Y, M, 1)]: 1,
-  [formatISO(Y, M, 2)]: 2,
-  [formatISO(Y, M, 4)]: 3,
-  [formatISO(Y, M, 5)]: 4,
-  [formatISO(Y, M, 6)]: 1,
-  [formatISO(Y, M, 8)]: 2,
-  [formatISO(Y, M, 9)]: 1,
-  [formatISO(Y, M, 10)]: 3,  
-  [formatISO(Y, M, 11)]: 3,
-  [formatISO(Y, M, 12)]: 2,
-  [formatISO(Y, M, 13)]: 4,
-  [formatISO(Y, M, 15)]: 1,
-  [formatISO(Y, M, 17)]: 2,
-  [formatISO(Y, M, 18)]: 3,
-  [formatISO(Y, M, 20)]: 1,
-  [formatISO(Y, M, 22)]: 2,
-  [formatISO(Y, M, 25)]: 4,
-  [formatISO(Y, M, 27)]: 4,
-  [formatISO(Y, M, 28)]: 4,
+
 };
 
 // default color ramp from empty -> light -> dark (fallback)
 const colorScale = ['#F3F4F6', '#CFF6EE', '#9BEBDC', '#59DBC7', '#2FCCAC'];
 const darkColorScale = ['#282828', '#CFF6EE', '#9BEBDC', '#59DBC7', '#2FCCAC'];
 
-export default function StreakWidget({ records }: Props) {
+export default function StreakWidget({ records, preview = false }: Props) {
   const { width } = Dimensions.get('window');
   const { colors, mode } = useTheme();
   const theme = colors as any;
   const cardHorizontalPadding = 24; // matches parent padding
   const chartWidth = Math.max(220, width - cardHorizontalPadding * 2);
 
-  // Si no te pasan records, usa los datos mock
-  const effectiveRecords = records && Object.keys(records).length ? records : DEV_RECORDS;
+  const effectiveRecords = records
+    ? records
+    : preview
+      ? DEV_RECORDS
+      : {};
 
   // prefer theme-provided heatmap colors when available
 
@@ -107,20 +93,27 @@ export default function StreakWidget({ records }: Props) {
         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
           <CalendarIcon width={18} height={18} color={theme.text ?? '#1A1A1A'} />
           <View style={{ width: 8 }} />
-          <AppText variant="ag7" color={theme.text ?? '#1A1A1A'}>
-            Racha de ejercicio
-          </AppText>
+          <AppText
+            variant="ag7"
+            color={theme.text ?? '#1A1A1A'}
+            children="Racha de ejercicio"
+          />
         </View>
-        <AppText variant="ag9" color={theme.subtext ?? '#6A7282'}>
-          {`${totalThisMonth} días este mes`}
-        </AppText>
+        <AppText
+          variant="ag9"
+          color={theme.subtext ?? '#6A7282'}
+          children={`${totalThisMonth} días este mes`}
+        />
       </View>
 
       <View style={{ height: 8 }} />
 
-      <AppText variant="ag10" color={theme.brandA ?? '#2FCCAC'} style={{ marginBottom: 8 }}>
-        {monthLabel}
-      </AppText>
+      <AppText
+        variant="ag10"
+        color={theme.brandA ?? '#2FCCAC'}
+        style={{ marginBottom: 8 }}
+        children={monthLabel}
+      />
 
       <View onLayout={onLayoutGrid} style={{ width: '100%' }}>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
@@ -148,9 +141,12 @@ export default function StreakWidget({ records }: Props) {
         </View>
       </View>
 
-      <AppText variant="ag9" color={theme.subtext ?? '#6A7282'} style={{ marginTop: 12 }}>
-        {`Has ejercitado ${totalThisMonth} de los últimos ${numDays} días`}
-      </AppText>
+      <AppText
+        variant="ag9"
+        color={theme.subtext ?? '#6A7282'}
+        style={{ marginTop: 12 }}
+        children={`Has ejercitado ${totalThisMonth} de los últimos ${numDays} días`}
+      />
     </View>
   );
 }

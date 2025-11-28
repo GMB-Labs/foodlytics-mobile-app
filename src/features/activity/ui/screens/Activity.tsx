@@ -6,6 +6,9 @@ import ActivityHeader from '@/src/shared/ui/components/ActivityHeader';
 import ActivitySummaryCombined from '@/src/features/activity/ui/components/activities/today/cards/ActivitySummary';
 import ActivitiesToday from '@/src/features/activity/ui/components/activities/today/ActivitiesToday';
 import StreakWidget from '@/src/features/activity/ui/components/activities/month/StreakWidget';
+import usePhysicalActivity from '@/src/features/activity/application/usePhysicalActivity';
+import * as activitiesLocalApi from '@/src/features/activity/infrastructure/activitiesApi';
+import { useCallback } from 'react';
 
 export default function ActivityScreen() {
   const router = useRouter();
@@ -17,8 +20,21 @@ export default function ActivityScreen() {
   const theme = colors as any;
   const styles = createStyles(s, theme);
 
-  const calories = 0;
-  const minutes = 0;
+  const { today, month } = usePhysicalActivity();
+  const handleDeleteActivity = useCallback(async (id: string) => {
+    try {
+      // Optimistic UI: delete from local storage so preview/dev flows still work
+      await activitiesLocalApi.deleteActivityById(id);
+      // refetch today's list and month map to keep UI consistent
+      try { await today.refetch({ force: true }); } catch (e) { /* ignore */ }
+      try { await month.refetch({ force: true }); } catch (e) { /* ignore */ }
+    } catch (err) {
+      // swallow for now; in a real app show an error toast
+      console.error('[Activity] delete failed', err);
+    }
+  }, [today, month]);
+  const calories = today.totalCalories;
+  const minutes = today.totalMinutes;
   const pathname = usePathname();
 
   const openAddActivity = () => {
@@ -47,11 +63,21 @@ export default function ActivityScreen() {
         <View style={styles.container}>
           <ActivitySummaryCombined  onRegisterPress={openAddActivity} />
           
-          <ActivitiesToday onRegisterPress={openAddActivity} />
+          <ActivitiesToday
+            activities={today.activities}
+            isLoading={today.fetching}
+            errorMessage={today.error}
+            preview={!today.activities.length && !today.fetching}
+            onRegisterPress={openAddActivity}
+            onDeleteActivity={handleDeleteActivity}
+          />
 
           {/* Placeholder streak widget (heatmap) */}
 
-          <StreakWidget />
+          <StreakWidget
+            records={Object.keys(month.records).length ? month.records : undefined}
+            preview={!Object.keys(month.records).length}
+          />
 
         </View>
       </ScrollView>
