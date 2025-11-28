@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { View, StyleSheet, ScrollView, Alert } from "react-native";
+import { View, StyleSheet, ScrollView } from "react-native";
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS, s } from "../tokens";
 import useProfile from "../../application/useProfile";
@@ -51,42 +51,26 @@ export default function Profile() {
   }
   
   async function handleSignOut() {
-    // Mostrar diálogo de confirmación antes de cerrar sesión
-    Alert.alert(
-      'Cerrar Sesión',
-      '¿Estás seguro de que deseas cerrar sesión? Se eliminarán todos los datos de la sesión actual.',
-      [
-        {
-          text: 'Cancelar',
-          style: 'cancel',
-        },
-        {
-          text: 'Cerrar Sesión',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              // Limpiar datos locales adicionales de la app
-              const AsyncStorage = (await import('@react-native-async-storage/async-storage')).default;
-              await AsyncStorage.removeItem('@foodlytics:notif_prefs');
-              await AsyncStorage.removeItem('@foodlytics:language');
-            } catch (e) {
-              // No crítico si falla, continuar con el logout
-              // eslint-disable-next-line no-console
-              console.warn('error clearing storage on signOut', e);
-            }
+    try {
+      // Limpiar datos locales adicionales de la app
+      const AsyncStorage = (await import('@react-native-async-storage/async-storage')).default;
+      await AsyncStorage.removeItem('@foodlytics:notif_prefs');
+      await AsyncStorage.removeItem('@foodlytics:language');
+    } catch (e) {
+      // No crítico si falla, continuar con el logout
+      // eslint-disable-next-line no-console
+      console.warn('error clearing storage on signOut', e);
+    }
 
-            // Cerrar sesión completamente:
-            // - Borra todos los tokens (access_token, id_token, refresh_token)
-            // - Borra datos de usuario de AsyncStorage
-            // - Resetea el estado de sesión
-            await sessionActions.signOut();
+    // Cerrar sesión completamente:
+    // - Cierra sesión en Auth0 (cierra sesión del navegador)
+    // - Borra todos los tokens (access_token, id_token, refresh_token)
+    // - Borra datos de usuario de AsyncStorage
+    // - Resetea el estado de sesión
+    await sessionActions.signOut();
 
-            // Navegar a login y reemplazar el historial para que el usuario no pueda volver
-            router.replace('/(auth)/login');
-          },
-        },
-      ]
-    );
+    // Navegar a login y reemplazar el historial para que el usuario no pueda volver
+    router.replace('/(auth)/login');
   }
 
   function openEdit(section: 'personal' | 'goals'){

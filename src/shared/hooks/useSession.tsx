@@ -1,11 +1,15 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import { Alert } from 'react-native';
+import { Alert, Linking } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
 import * as AuthSession from 'expo-auth-session';
 import * as WebBrowser from 'expo-web-browser';
+import { DevSettings } from 'react-native';
 import { decode as base64Decode } from 'base-64';
 import Constants, { ExecutionEnvironment } from 'expo-constants';
+import { API_BASE_URL } from '../constants/api';
+import { postJSON } from '../utils/api';
+import { fetchProfileCached } from '../api/profileGateway';
 
 // Ensure the browser is closed correctly on web/Android after redirect
 WebBrowser.maybeCompleteAuthSession();
@@ -25,6 +29,7 @@ const TOKEN_KEY = 'foodlytics_access_token';
 const IDTOKEN_KEY = 'foodlytics_id_token';
 const REFRESH_TOKEN_KEY = 'foodlytics_refresh_token';
 const SESSION_KEY = 'foodlytics_session';
+const AUTH_IN_PROGRESS_KEY = '@foodlytics:auth_in_progress';
 
 export type UserProfile = {
   id?: string;
@@ -44,6 +49,7 @@ type SessionState = {
   roles?: string[];
   sub?: string;
   user: UserProfile | null;
+  userProfileCompleted?: boolean;
   bypass?: boolean;
 };
 
@@ -51,6 +57,7 @@ type SessionActions = {
   login: (opts?: { screenHint?: 'signup' | 'login' }) => Promise<void>;
   signOut: () => Promise<void>;
   setUserProfile: (u: Partial<UserProfile>) => Promise<void>;
+  refreshProfileAndUpdateCompletion: (completed: boolean, accessToken?: string | null, sub?: string) => Promise<void>;
 };
 
 type StoredSession = {
@@ -58,6 +65,7 @@ type StoredSession = {
   roles?: string[];
   sub?: string;
   user?: UserProfile | null;
+  userProfileCompleted?: boolean;
 };
 
 const SessionContext = createContext<[SessionState, SessionActions] | undefined>(undefined);
@@ -95,6 +103,51 @@ function getValidTokenClaims(token: string) {
   } catch (e) {
     return null;
   }
+}
+
+/**
+ * Helper function to sync user and get profile
+ */
+async function syncUserAndGetProfile(
+  accessToken: string,
+  sub: string | undefined,
+  fallbackUserProfileCompleted?: boolean
+): Promise<{
+  userProfileCompleted: boolean;
+  profileData: any;
+}> {
+  let userProfileCompleted = fallbackUserProfileCompleted ?? false;
+  let profileData: any = null;
+
+  try {
+    // 1. User-sync
+    console.log('Sincronizando usuario desde token...');
+    const userSyncResult = await postJSON(
+      `${API_BASE_URL}/api/v1/users-sync/sync`,
+      {},
+      { baseUrl: '', token: accessToken }
+    );
+    console.log('User-sync exitoso:', userSyncResult);
+
+    // 2. GET profile usando el sub como user_id (authId)
+    if (sub) {
+      profileData = await fetchProfileCached({
+        userId: sub,
+        token: accessToken,
+        force: true,
+      });
+      userProfileCompleted = profileData?.user_profile_completed === true;
+      console.log('Perfil obtenido:', { userProfileCompleted, profileData });
+    }
+  } catch (err: any) {
+    console.error('Error en syncUserAndGetProfile:', err);
+    // Si falla, usar el fallback si está disponible
+    if (fallbackUserProfileCompleted !== undefined) {
+      userProfileCompleted = fallbackUserProfileCompleted;
+    }
+  }
+
+  return { userProfileCompleted, profileData };
 }
 
 export function SessionProvider({ children }: { children: React.ReactNode }) {
@@ -135,7 +188,9 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   const isExpoGo = executionEnvironment === ExecutionEnvironment.StoreClient;
 
   const { redirectUri, useProxy } = useMemo(() => {
-    const usingProxy = false; // Expo Go is unsupported for this Auth0 SDK; custom dev/eas only
+    // Use the Expo proxy when running inside Expo Go so callbacks reach the running app.
+    // For bare/custom clients we prefer the custom scheme.
+    const usingProxy = isExpoGo ? true : false;
     const uri =
       AuthSession.makeRedirectUri({
         useProxy: usingProxy,
@@ -150,9 +205,12 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       isExpoGo,
     });
     if (isExpoGo) {
-      console.log(
-        '⚠️ Expo Go detected. Auth0 SDK requires custom dev client / EAS build. Build with "npx expo run:ios" or EAS.'
-      );
+      console.log('⚠️ Expo Go detected. Using Expo proxy redirect URI for development.');
+      console.log('If you see issues with refresh tokens or code exchange, build a custom dev client/EAS.');
+    }
+
+    if (__DEV__) {
+      console.log('Dev: register this callback URL in Auth0 Allowed Callback URLs:', uri);
     }
 
     return { redirectUri: uri, useProxy: usingProxy };
@@ -178,6 +236,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
         roles: payload.roles || [],
         sub: payload.sub,
         user: payload.user,
+        userProfileCompleted: payload.userProfileCompleted,
       };
       await AsyncStorage.setItem(SESSION_KEY, JSON.stringify(toStore));
     } catch (e) {
@@ -346,6 +405,13 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
             ? [rolesFromClaims]
             : [];
 
+      // 1. User-sync y obtener perfil (usar valor guardado como fallback)
+      const { userProfileCompleted, profileData } = await syncUserAndGetProfile(
+        accessToken,
+        subFromClaims || persistedSession?.sub,
+        persistedSession?.userProfileCompleted
+      );
+
       // Construir estado de sesión autenticada
       const nextState: SessionState = {
         loading: false,
@@ -355,18 +421,26 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
         email: sessionEmail,
         roles,
         sub: subFromClaims || persistedSession?.sub,
-        user,
+        user: profileData ? { ...user, ...profileData } : user,
+        userProfileCompleted,
       };
 
       // Actualizar estado y persistir tokens e información del usuario (incluyendo refresh_token)
       setState(nextState);
       await persistSession(nextState, refreshToken);
+      try {
+        await AsyncStorage.removeItem('@foodlytics:logout_in_progress');
+        await AsyncStorage.removeItem(AUTH_IN_PROGRESS_KEY);
+      } catch (e) {
+        // ignore
+      }
 
       console.log('Login exitoso:', {
         email: sessionEmail,
         sub: subFromClaims,
         hasUser: !!user,
         hasRefreshToken: !!refreshToken,
+        userProfileCompleted,
         tokenExp: claims.exp ? new Date(claims.exp * 1000).toISOString() : 'N/A',
       });
     },
@@ -389,6 +463,34 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
+      // Clear any previous logout-in-progress flag to avoid blocking a new login flow
+      try {
+        await AsyncStorage.removeItem('@foodlytics:logout_in_progress');
+      } catch (e) {
+        // ignore
+      }
+
+      // In dev, attach a Linking listener to log incoming deep links (helps debug redirect issues)
+      let linkingListener: any = null;
+      if (__DEV__) {
+        try {
+          const initialUrl = await Linking.getInitialURL();
+          console.log('Linking initial URL (dev):', initialUrl);
+        } catch (e) {
+          // ignore
+        }
+        const listener = (event: { url: string }) => {
+          try {
+            console.log('Linking incoming URL (dev):', event?.url);
+          } catch (err) {
+            // ignore
+          }
+        };
+        // @ts-expect-error -- RN types vary across versions; dev-only logging helper
+        Linking.addEventListener('url', listener);
+        linkingListener = listener;
+      }
+
       if (isExpoGo) {
         const msg = 'Auth0 login no es compatible con Expo Go. Usa un custom dev client (npx expo run) o build EAS.';
         console.error('login blocked on Expo Go', { executionEnvironment, isExpoGo, redirectUri, useProxy });
@@ -407,6 +509,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
         extraParams: {
           audience: AUTH0.audience,
           ...(opts?.screenHint ? { screen_hint: opts.screenHint } : {}),
+          ...(opts?.screenHint === 'signup' ? { prompt: 'login' } : {}),
         },
       });
 
@@ -417,8 +520,25 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
           screenHint: opts?.screenHint,
         });
 
+        // Mark that an auth flow is in progress so the UI can block duplicate clicks
+        try {
+          await AsyncStorage.setItem(AUTH_IN_PROGRESS_KEY, '1');
+        } catch (e) {
+          // ignore
+        }
+
         // Abrir navegador de Auth0 para login
         const result = await request.promptAsync(discovery, { useProxy });
+
+        // remove linking listener after prompt completes
+        if (linkingListener) {
+          try {
+            // @ts-expect-error -- removeEventListener types vary
+            Linking.removeEventListener('url', linkingListener);
+          } catch (e) {
+            // ignore
+          }
+        }
 
         console.log('Resultado de Auth0:', {
           type: result.type,
@@ -436,6 +556,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
             throw new Error(errorMsg);
           }
           // Usuario canceló el login
+          try { await AsyncStorage.removeItem(AUTH_IN_PROGRESS_KEY); } catch (e) { /* ignore */ }
           return;
         }
 
@@ -447,6 +568,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
 
         // Intercambiar código por tokens y guardar sesión
         await handleAuthSuccess(result.params.code, request.codeVerifier);
+        // handleAuthSuccess will clear the auth_in_progress flag on success
       } catch (err: any) {
         const msg = err?.message || 'No se pudo iniciar sesión';
         console.error('Error en flujo de login:', {
@@ -458,6 +580,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
           isExpoGo,
         });
         Alert.alert('Autenticación fallida', msg);
+        try { await AsyncStorage.removeItem(AUTH_IN_PROGRESS_KEY); } catch (e) { /* ignore */ }
         throw err;
       }
     },
@@ -528,6 +651,13 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
               user = { email };
             }
 
+            // User-sync y obtener perfil (usar valor guardado como fallback)
+            const { userProfileCompleted, profileData } = await syncUserAndGetProfile(
+              refreshedTokens.accessToken,
+              sub,
+              parsed?.userProfileCompleted
+            );
+
             const restoredState: SessionState = {
               loading: false,
               isAuthenticated: true,
@@ -536,16 +666,24 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
               email,
               roles,
               sub,
-              user,
+              user: profileData ? { ...user, ...profileData } : user,
+              userProfileCompleted,
             };
 
             setState(restoredState);
             await persistSession(restoredState, refreshedTokens.refreshToken);
+            try {
+              await AsyncStorage.removeItem('@foodlytics:logout_in_progress');
+              await AsyncStorage.removeItem(AUTH_IN_PROGRESS_KEY);
+            } catch (e) {
+              // ignore
+            }
 
             console.log('Sesión restaurada exitosamente usando refresh_token', {
               email,
               sub,
               hasUser: !!user,
+              userProfileCompleted,
               tokenExp: newClaims.exp ? new Date(newClaims.exp * 1000).toISOString() : 'N/A',
             });
             return;
@@ -612,6 +750,13 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
               user = { email };
             }
 
+            // User-sync y obtener perfil (usar valor guardado como fallback)
+            const { userProfileCompleted, profileData } = await syncUserAndGetProfile(
+              refreshedTokens.accessToken,
+              sub,
+              parsed?.userProfileCompleted
+            );
+
             const restoredState: SessionState = {
               loading: false,
               isAuthenticated: true,
@@ -620,16 +765,24 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
               email,
               roles,
               sub,
-              user,
+              user: profileData ? { ...user, ...profileData } : user,
+              userProfileCompleted,
             };
 
             setState(restoredState);
             await persistSession(restoredState, refreshedTokens.refreshToken);
+            try {
+              await AsyncStorage.removeItem('@foodlytics:logout_in_progress');
+              await AsyncStorage.removeItem(AUTH_IN_PROGRESS_KEY);
+            } catch (e) {
+              // ignore
+            }
 
             console.log('Sesión restaurada exitosamente después de refrescar token', {
               email,
               sub,
               hasUser: !!user,
+              userProfileCompleted,
               tokenExp: newClaims.exp ? new Date(newClaims.exp * 1000).toISOString() : 'N/A',
             });
             return;
@@ -695,7 +848,14 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
         user = { email };
       }
 
-      // 5. Construir estado de sesión restaurado
+      // 5. User-sync y obtener perfil (usar valor guardado como fallback)
+      const { userProfileCompleted, profileData } = await syncUserAndGetProfile(
+        storedToken,
+        sub,
+        parsed?.userProfileCompleted
+      );
+
+      // 6. Construir estado de sesión restaurado
       const restoredState: SessionState = {
         loading: false,
         isAuthenticated: true,
@@ -704,12 +864,19 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
         email,
         roles,
         sub,
-        user,
+        user: profileData ? { ...user, ...profileData } : user,
+        userProfileCompleted,
       };
 
-      // 6. Actualizar estado y persistir (reescribir AsyncStorage con datos actualizados)
+      // 7. Actualizar estado y persistir (reescribir AsyncStorage con datos actualizados)
       setState(restoredState);
       await persistSession(restoredState);
+      try {
+        await AsyncStorage.removeItem('@foodlytics:logout_in_progress');
+        await AsyncStorage.removeItem(AUTH_IN_PROGRESS_KEY);
+      } catch (e) {
+        // ignore
+      }
 
       console.log('Sesión restaurada exitosamente', {
         email,
@@ -729,6 +896,50 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     restoreSession();
   }, [restoreSession]);
 
+  // Dev-only: global Linking listener to log and persist incoming deep-links
+  useEffect(() => {
+    if (!__DEV__) return undefined;
+
+    const handler = (event: { url: string }) => {
+      try {
+        console.log('Global Linking incoming URL (dev):', event?.url);
+        AsyncStorage.setItem('@foodlytics:last_link', event?.url ?? '');
+      } catch (e) {
+        // ignore
+      }
+    };
+
+    try {
+      // @ts-expect-error types differ across RN versions
+      Linking.addEventListener('url', handler);
+    } catch (e) {
+      // ignore
+    }
+
+    // Also capture initial URL if app was cold-started via deep-link
+    try {
+      Linking.getInitialURL()
+        .then((url) => {
+          if (url) {
+            console.log('Global Linking initial URL (dev):', url);
+            AsyncStorage.setItem('@foodlytics:last_link', url).catch(() => {});
+          }
+        })
+        .catch(() => {});
+    } catch (e) {
+      // ignore
+    }
+
+    return () => {
+      try {
+        // @ts-expect-error types differ across RN versions
+        Linking.removeEventListener('url', handler);
+      } catch (e) {
+        // ignore
+      }
+    };
+  }, []);
+
   /**
    * Cierra la sesión en Auth0 abriendo el endpoint de logout.
    * Esto cierra la sesión del navegador para que el usuario pueda iniciar sesión con otra cuenta.
@@ -745,11 +956,15 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       
       console.log('Cerrando sesión en Auth0...', { logoutUrl, returnTo });
       
-      // Abrir el navegador con openAuthSessionAsync para que pueda volver a la app
-      // Auth0 procesará el logout y redirigirá a returnTo, que abrirá la app
-      await WebBrowser.openAuthSessionAsync(logoutUrl, returnTo);
-      
-      console.log('Sesión cerrada en Auth0');
+      // Abrir el navegador para que el usuario cierre sesión en Auth0.
+      // Usamos openBrowserAsync (no esperamos el redirect) para evitar que
+      // el app reciba inmediatamente un deep-link callback que pudiera
+      // provocar restauraciones de sesión inesperadas.
+      // Es un comportamiento aceptable para logout (no necesitamos capturar la URL).
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      WebBrowser.openBrowserAsync(logoutUrl);
+
+      console.log('Logout request opened in browser (no redirect capture)');
     } catch (error) {
       // No es crítico si falla el logout de Auth0, continuamos con el logout local
       console.warn('Error al cerrar sesión en Auth0 (continuando con logout local):', error);
@@ -758,19 +973,47 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
 
   /**
    * Cierra sesión completamente:
+   * - Cierra la sesión en Auth0 (cierra sesión del navegador)
    * - Borra access_token, id_token y refresh_token de SecureStore
    * - Borra datos de usuario de AsyncStorage
    * - Resetea el estado a no autenticado
    * Después del logout, la próxima vez que se abra la app se mostrará login obligatoriamente.
-   * 
-   * Nota: No se cierra la sesión en Auth0 para evitar el popup del navegador.
-   * Los tokens se eliminan localmente, por lo que el usuario necesitará iniciar sesión nuevamente.
    */
   const signOut = useCallback(async () => {
     console.log('Cerrando sesión completamente...');
     
-    // Borrar completamente SecureStore (incluyendo refresh_token) y AsyncStorage
+    // 1. Limpiar persistencia local inmediatamente antes de abrir el logout externo,
+    // para evitar que un redirect desde Auth0 reestablezca estado en la app.
     await clearPersistedSession();
+
+    // 2. Resetear estado a no autenticado lo antes posible
+    setState({ ...initialState, loading: false });
+
+    // 3. Reset in-memory profile state (if available) to avoid stale UI while reloading
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const g: any = global as any;
+      if (g && typeof g.__resetProfile === 'function') {
+        try { g.__resetProfile(); } catch (e) { /* ignore */ }
+      }
+    } catch (e) {
+      // ignore
+    }
+
+    // 4. Marcar que hay un logout en curso y abrir logout en Auth0 en navegador
+    // (no esperar el redirect que vuelve a la app). Esto evita que el deep-link
+    // del logout vuelva a disparar la restauración de sesión.
+    try {
+      try {
+        await AsyncStorage.setItem('@foodlytics:logout_in_progress', '1');
+      } catch (e) {
+        // ignore storage errors
+      }
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      logoutFromAuth0();
+    } catch (e) {
+      // ignore
+    }
     
     if (bypassAuth) {
       // Dev bypass: mantener sesión fake pero asegurar que tokens guardados estén borrados
@@ -778,12 +1021,44 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       setState(fake);
       return;
     }
-    
-    // Resetear estado a no autenticado
-    setState({ ...initialState, loading: false });
-    
+
     console.log('Sesión cerrada completamente');
-  }, [bypassAuth, buildFakeSession, clearPersistedSession]);
+
+    // Reload app to ensure there's no stale cached state lingering.
+    // Prefer expo-updates reload; fallback to DevSettings.reload().
+    try {
+      // By default we DO NOT force a full app reload after signOut because
+      // navigation + cleared session state should be sufficient. If you
+      // need the previous behaviour (force reload) set the environment
+      // variable `EXPO_PUBLIC_RELOAD_ON_SIGNOUT=true` in your build.
+      const shouldForceReload = process.env.EXPO_PUBLIC_RELOAD_ON_SIGNOUT === 'true';
+      if (shouldForceReload && !bypassAuth) {
+        // Try to dynamically import expo-updates (may not be available in some environments)
+        try {
+          // eslint-disable-next-line global-require, import/no-extraneous-dependencies
+          const UpdatesModule = await import('expo-updates');
+          if (UpdatesModule && typeof UpdatesModule.reloadAsync === 'function') {
+            console.log('Reloading app via expo-updates reloadAsync() [FORCED_BY_ENV]');
+            await UpdatesModule.reloadAsync();
+            return;
+          }
+        } catch (e) {
+          // expo-updates not available or failed to import — fallback to DevSettings
+        }
+
+        if (DevSettings && typeof DevSettings.reload === 'function') {
+          console.log('Reloading app via DevSettings.reload() [FORCED_BY_ENV]');
+          DevSettings.reload();
+        } else {
+          console.log('No reload API available (force reload requested)');
+        }
+      } else {
+        console.log('Skipping full app reload after signOut (EXPO_PUBLIC_RELOAD_ON_SIGNOUT not set)');
+      }
+    } catch (err) {
+      console.warn('Error reloading app after signOut', err);
+    }
+  }, [bypassAuth, buildFakeSession, clearPersistedSession, logoutFromAuth0]);
 
   const setUserProfile = useCallback(
     async (u: Partial<UserProfile>) => {
@@ -800,13 +1075,50 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     [persistSession]
   );
 
+  /**
+   * Actualiza el estado de userProfileCompleted y opcionalmente refresca el perfil desde el backend
+   */
+  const refreshProfileAndUpdateCompletion = useCallback(
+    async (completed: boolean, accessToken?: string | null, sub?: string) => {
+      let profileData: any = null;
+      
+      // Si tenemos token y sub, obtener el perfil actualizado del backend
+      if (accessToken && sub && completed) {
+        try {
+          profileData = await fetchProfileCached({
+            userId: sub,
+            token: accessToken,
+            force: true,
+          });
+          console.log('[refreshProfileAndUpdateCompletion] Perfil actualizado obtenido:', profileData);
+        } catch (err) {
+          console.error('[refreshProfileAndUpdateCompletion] Error al obtener perfil:', err);
+          // Continuar aunque falle el GET
+        }
+      }
+
+      // Actualizar el estado de la sesión
+      setState((s) => {
+        const nextState: SessionState = {
+          ...s,
+          userProfileCompleted: completed,
+          user: profileData ? { ...(s.user || {}), ...profileData } : s.user,
+        };
+        persistSession(nextState);
+        return nextState;
+      });
+    },
+    [persistSession]
+  );
+
   const actions = useMemo<SessionActions>(
     () => ({
       login,
       signOut,
       setUserProfile,
+      refreshProfileAndUpdateCompletion,
     }),
-    [login, setUserProfile, signOut]
+    [login, setUserProfile, signOut, refreshProfileAndUpdateCompletion]
   );
 
   return <SessionContext.Provider value={[state, actions]}>{children}</SessionContext.Provider>;
