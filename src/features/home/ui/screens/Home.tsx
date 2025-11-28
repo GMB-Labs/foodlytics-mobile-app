@@ -6,6 +6,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
+import { useFocusEffect } from 'expo-router';
 import AppText from '@/src/shared/ui/components/Typography';
 import { useTodayISO } from '@/src/shared/hooks/useTodayISO';
 import { getAllMeals, DetectedItem } from '@/src/features/meals/infrastructure/mealsApi';
@@ -29,17 +30,17 @@ import { styles } from '../components/styles';
 
 // ===== Datos fake para demo
 const data = {
-  calories: { consumed: 954, burned: 0, goal: 1789 },
+  calories: { consumed: 0, burned: 0, goal: 0 },
   macros: {
-    protein: { done: 91, goal: 134, color: '#2B7FFF', label: 'Proteínas' },
-    carbs:   { done: 90, goal: 179, color: '#FF6900', label: 'Carbohidratos' },
-    fats:    { done: 29, goal: 60,  color: '#F0B100', label: 'Grasas' },
+    protein: { done: 0, goal: 0, color: '#2B7FFF', label: 'Proteínas' },
+    carbs:   { done: 0, goal: 0, color: '#FF6900', label: 'Carbohidratos' },
+    fats:    { done: 0, goal: 0,  color: '#F0B100', label: 'Grasas' },
   },
-  imc: { value: 22.5, label: 'Normal' },
+  imc: { value: 0, label: 'Normal' },
   meals: [
     { key: 'breakfast', title: 'Desayuno', calories: '', chipBg: '#FFEDD4' },
-    { key: 'lunch',     title: 'Almuerzo', calories: '238 kcal', chipBg: '#FEF9C2' },
-    { key: 'dinner',    title: 'Cena',     calories: '306 kcal', chipBg: '#E9D5FF' },
+    { key: 'lunch',     title: 'Almuerzo', calories: '', chipBg: '#FEF9C2' },
+    { key: 'dinner',    title: 'Cena',     calories: '', chipBg: '#E9D5FF' },
   ],
 };
 
@@ -148,22 +149,32 @@ export default function Home() {
   const [dailySummaryLoading, setDailySummaryLoading] = React.useState(false);
   const [dailySummaryError, setDailySummaryError] = React.useState<string | null>(null);
 
-  React.useEffect(() => {
-    let mounted = true;
+  const loadDailySummary = React.useCallback((force = false) => {
     if (!session?.isAuthenticated || !session?.sub) {
       setDailySummary(null);
-      return () => { mounted = false; };
+      return;
     }
 
     setDailySummaryLoading(true);
     setDailySummaryError(null);
-    fetchDailySummaryCached({ patientId: session.sub, token: session.accessToken ?? undefined, day: todayISO })
-      .then((res) => { if (!mounted) return; try { console.log('[Home] dailySummary', res); } catch (e) {} setDailySummary(res); })
-      .catch((err) => { if (!mounted) return; setDailySummaryError(String(err ?? 'Error fetching daily summary')); setDailySummary(null); })
-      .finally(() => { if (mounted) setDailySummaryLoading(false); });
-
-    return () => { mounted = false; };
+    fetchDailySummaryCached({ patientId: session.sub, token: session.accessToken ?? undefined, day: todayISO, force })
+      .then((res) => { try { console.log('[Home] dailySummary', res); } catch (e) {} setDailySummary(res); })
+      .catch((err) => { setDailySummaryError(String(err ?? 'Error fetching daily summary')); setDailySummary(null); })
+      .finally(() => { setDailySummaryLoading(false); });
   }, [session?.isAuthenticated, session?.sub, session?.accessToken, todayISO]);
+
+  React.useEffect(() => {
+    loadDailySummary(false);
+  }, [loadDailySummary]);
+
+  // Refetch when screen comes into focus (e.g., after registering activity)
+  useFocusEffect(
+    React.useCallback(() => {
+      if (session?.isAuthenticated && session?.sub) {
+        loadDailySummary(true);
+      }
+    }, [session?.isAuthenticated, session?.sub, loadDailySummary])
+  );
 
   // If we have any dailySummary object from the API, prefer its values (even if some nested keys are missing).
   // This is more robust than checking both `target` and `consumed` because some server responses may omit one of them.
