@@ -7,17 +7,15 @@ import * as WebBrowser from 'expo-web-browser';
 import { decode as base64Decode } from 'base-64';
 import Constants, { ExecutionEnvironment } from 'expo-constants';
 import { API_BASE_URL } from '@/src/shared/constants/api';
+import { AUTH0_CONFIG, getLogoutUrl } from '@/src/shared/constants/auth';
+import { SECURE_STORE_KEYS, ASYNC_STORAGE_KEYS } from '@/src/shared/constants/storage';
+import type { ProfileDto, ProfileFetchResult, UserProfile } from '@/src/shared/types/profile';
 
 // Ensure the browser is closed correctly on web/Android after redirect
 WebBrowser.maybeCompleteAuthSession();
 
-const AUTH0 = {
-  domain: 'dev-ydl81668b887kqqx.us.auth0.com',
-  clientId: 'kNXBPgHkHo7nYCOHUOgOFxnOt27C353y',
-  audience: 'https://foodlytics/api/v1/auth',
-  scheme: 'foodlytics',
-  callbackPath: 'callback',
-};
+// Re-export UserProfile for backwards compatibility
+export type { UserProfile } from '@/src/shared/types/profile';
 
 async function syncUserFromToken(token?: string | null) {
   if (!token) return;
@@ -38,29 +36,6 @@ async function syncUserFromToken(token?: string | null) {
     console.warn('[useSession] syncUserFromToken error', error);
   }
 }
-
-type ProfileDto = {
-  user_profile_completed?: boolean | null;
-  first_name?: string | null;
-  last_name?: string | null;
-  age?: number | null;
-  gender?: string | null;
-  height_cm?: number | null;
-  weight_kg?: number | null;
-  desired_weight_kg?: number | null;
-  activity_level?: string | null;
-  goal_type?: string | null;
-  daily_calories?: number | null;
-  has_profile_picture?: boolean | null;
-  profile_picture_url?: string | null;
-  nutritionist_id?: string | null;
-  [k: string]: any;
-};
-
-type ProfileFetchResult = {
-  dto: ProfileDto | null;
-  completion: boolean;
-};
 
 const API_BASE = (API_BASE_URL || '').replace(/\/$/, '');
 
@@ -195,22 +170,11 @@ function applyProfileDataToState(
   };
 }
 
-// Claves de SecureStore/AsyncStorage:
-// Deben contener SOLO: letras, números, ".", "-" y "_"
-// (Nada de "@" o ":" para evitar errores en iOS/Android)
-const TOKEN_KEY = 'foodlytics_access_token';
-const IDTOKEN_KEY = 'foodlytics_id_token';
-const REFRESH_TOKEN_KEY = 'foodlytics_refresh_token';
-const SESSION_KEY = 'foodlytics_session';
-
-export type UserProfile = {
-  id?: string;
-  email?: string;
-  heightCm?: number;
-  weightKg?: number;
-  // add other fields your backend returns
-  [k: string]: any;
-};
+// Use centralized storage keys
+const TOKEN_KEY = SECURE_STORE_KEYS.ACCESS_TOKEN;
+const IDTOKEN_KEY = SECURE_STORE_KEYS.ID_TOKEN;
+const REFRESH_TOKEN_KEY = SECURE_STORE_KEYS.REFRESH_TOKEN;
+const SESSION_KEY = ASYNC_STORAGE_KEYS.SESSION;
 
 type SessionState = {
   loading: boolean;
@@ -311,8 +275,8 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
 
   const discovery = useMemo(
     () => ({
-      authorizationEndpoint: `https://${AUTH0.domain}/authorize`,
-      tokenEndpoint: `https://${AUTH0.domain}/oauth/token`,
+      authorizationEndpoint: `https://${AUTH0_CONFIG.domain}/authorize`,
+      tokenEndpoint: `https://${AUTH0_CONFIG.domain}/oauth/token`,
     }),
     []
   );
@@ -324,10 +288,9 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     const usingProxy = false; // Expo Go is unsupported for this Auth0 SDK; custom dev/eas only
     const uri =
       AuthSession.makeRedirectUri({
-        useProxy: usingProxy,
-        scheme: AUTH0.scheme,
-        path: AUTH0.callbackPath,
-      }) || `${AUTH0.scheme}://${AUTH0.callbackPath}`;
+        scheme: AUTH0_CONFIG.scheme,
+        path: AUTH0_CONFIG.callbackPath,
+      } as any) || `${AUTH0_CONFIG.scheme}://${AUTH0_CONFIG.callbackPath}`;
 
     console.log('Auth redirect config', {
       redirectUri: uri,
@@ -396,7 +359,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     idToken: string | null;
     refreshToken: string | null;
   }> => {
-    const tokenUrl = `https://${AUTH0.domain}/oauth/token`;
+    const tokenUrl = `https://${AUTH0_CONFIG.domain}/oauth/token`;
     
     console.log('Refrescando access_token con refresh_token...');
 
@@ -407,9 +370,9 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       },
       body: JSON.stringify({
         grant_type: 'refresh_token',
-        client_id: AUTH0.clientId,
+        client_id: AUTH0_CONFIG.clientId,
         refresh_token: refreshToken,
-        audience: AUTH0.audience,
+        audience: AUTH0_CONFIG.audience,
       }),
     });
 
@@ -467,12 +430,12 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       // Intercambiar código de autorización por tokens
       const tokenResult = await AuthSession.exchangeCodeAsync(
         {
-          clientId: AUTH0.clientId,
+          clientId: AUTH0_CONFIG.clientId,
           code,
           redirectUri,
           extraParams: {
             code_verifier: codeVerifier,
-            audience: AUTH0.audience,
+            audience: AUTH0_CONFIG.audience,
           },
         },
         discovery
@@ -602,12 +565,12 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       // Incluir scope "offline_access" para obtener refresh_token
       const request = new AuthSession.AuthRequest({
         responseType: AuthSession.ResponseType.Code,
-        clientId: AUTH0.clientId,
+        clientId: AUTH0_CONFIG.clientId,
         redirectUri,
         usePKCE: true,
         scopes: ['openid', 'profile', 'email', 'offline_access'],
         extraParams: {
-          audience: AUTH0.audience,
+          audience: AUTH0_CONFIG.audience,
           ...(opts?.screenHint ? { screen_hint: opts.screenHint } : {}),
         },
       });
@@ -620,21 +583,24 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
         });
 
         // Abrir navegador de Auth0 para login
-        const result = await request.promptAsync(discovery, { useProxy });
+        const result = await request.promptAsync(discovery);
+
+        // Cast to any for accessing params/url which exist on success type
+        const authResult = result as any;
 
         console.log('Resultado de Auth0:', {
           type: result.type,
-          hasCode: !!result.params?.code,
-          error: (result as any).error,
+          hasCode: !!authResult.params?.code,
+          error: authResult.error,
         });
 
         // Verificar resultado del login
-        if (result.type !== 'success' || !result.params?.code) {
-          if (result.url) {
-            console.log('URL de resultado:', result.url);
+        if (result.type !== 'success' || !authResult.params?.code) {
+          if (authResult.url) {
+            console.log('URL de resultado:', authResult.url);
           }
           if (result.type !== 'dismiss') {
-            const errorMsg = result.params?.error_description || 'Inicio cancelado';
+            const errorMsg = authResult.params?.error_description || 'Inicio cancelado';
             throw new Error(errorMsg);
           }
           // Usuario canceló el login
@@ -648,7 +614,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
         }
 
         // Intercambiar código por tokens y guardar sesión
-        await handleAuthSuccess(result.params.code, request.codeVerifier);
+        await handleAuthSuccess(authResult.params.code, request.codeVerifier);
       } catch (err: any) {
         const msg = err?.message || 'No se pudo iniciar sesión';
         console.error('Error en flujo de login:', {
@@ -663,7 +629,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
         throw err;
       }
     },
-    [bypassAuth, buildFakeSession, discovery, executionEnvironment, handleAuthSuccess, isExpoGo, redirectUri, useProxy]
+    [bypassAuth, buildFakeSession, discovery, executionEnvironment, handleAuthSuccess, isExpoGo, redirectUri]
   );
 
   /**
@@ -963,8 +929,8 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
 
     try {
       // Construir URL de logout de Auth0 con los query params correctos
-      const returnTo = `${AUTH0.scheme}://callback-logout`;
-      const logoutUrl = `https://${AUTH0.domain}/v2/logout?client_id=${AUTH0.clientId}&returnTo=${encodeURIComponent(returnTo)}`;
+      const returnTo = `${AUTH0_CONFIG.scheme}://${AUTH0_CONFIG.logoutCallbackPath}`;
+      const logoutUrl = getLogoutUrl(returnTo);
       
       console.log('Cerrando sesión en Auth0...', { logoutUrl, returnTo });
       

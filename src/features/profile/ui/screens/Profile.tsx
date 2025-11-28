@@ -7,6 +7,7 @@ import { useTheme } from '@/src/shared/styles/useTheme';
 import { useSession } from '@/src/shared/hooks/useSession';
 import { getJSON } from '@/src/shared/utils/api';
 import { API_BASE_URL } from '@/src/shared/constants/api';
+import { ASYNC_STORAGE_KEYS } from '@/src/shared/constants/storage';
 import { Pressable, Text } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 
@@ -54,8 +55,8 @@ export default function Profile() {
     try {
       // Limpiar datos locales adicionales de la app
       const AsyncStorage = (await import('@react-native-async-storage/async-storage')).default;
-      await AsyncStorage.removeItem('@foodlytics:notif_prefs');
-      await AsyncStorage.removeItem('@foodlytics:language');
+      await AsyncStorage.removeItem(ASYNC_STORAGE_KEYS.NOTIFICATION_PREFS);
+      await AsyncStorage.removeItem(ASYNC_STORAGE_KEYS.LANGUAGE);
     } catch (e) {
       // No crítico si falla, continuar con el logout
       // eslint-disable-next-line no-console
