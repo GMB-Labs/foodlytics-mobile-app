@@ -1,12 +1,16 @@
 // src/features/vision/ui/screens/CameraResult.tsx
 import React, { useMemo, useState, useEffect } from "react";
-import { View, StyleSheet, ScrollView, Pressable, TextInput, Platform, Modal, ActivityIndicator } from "react-native";
+import { View, StyleSheet, ScrollView, Pressable, TextInput, Platform, Modal, ActivityIndicator, Alert } from "react-native";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { getDetection } from "@/src/features/vision/infrastructure/detectCache";
 import { LinearGradient } from "expo-linear-gradient";
 import AppText from "@/src/shared/ui/components/Typography";
 import { useTheme } from '@/src/shared/styles/useTheme';
 import { useTodayISO } from "@/src/shared/hooks/useTodayISO";
+import { useSession } from '@/src/shared/hooks/useSession';
+import { notifyMealsChanged } from '@/src/features/meals/infrastructure/mealsApi';
+import { postJSON } from '@/src/shared/utils/api';
+import { API_BASE_URL } from '@/src/shared/constants/api';
 import ChekIcon from "@/assets/icons/meals/chekIcon.svg";
 import RedDeleteIcon from "@/assets/icons/meals/deleteIcon.svg"
 import SaveConfirmationModal from "@/src/features/vision/ui/components/result/SaveConfirmationModal";
@@ -47,6 +51,7 @@ export default function CameraResult() {
   const params = useLocalSearchParams() as any;
   const router = useRouter();
   const todayISO = useTodayISO();
+  const [session] = useSession();
 
   const { colors } = useTheme();
   const theme = colors as any;
@@ -108,7 +113,8 @@ export default function CameraResult() {
   }, [data, dateISO, router]);
 
   // displayData usa los datos reales si existen, o el mock en desarrollo para preview visual
-  const displayData: DetectionResponse | null = data ?? (__DEV__ ? DEV_MOCK_DATA : null);
+  const [overrideData, setOverrideData] = useState<DetectionResponse | null>(null);
+  const displayData: DetectionResponse | null = overrideData ?? data ?? (__DEV__ ? DEV_MOCK_DATA : null);
 
   // Estado local para manejar cantidades editables
   const [quantities, setQuantities] = useState<Record<number, number>>({});
@@ -226,28 +232,74 @@ export default function CameraResult() {
     if (computedItems.length === 0) return;
     setSaving(true);
     try {
+      // Map local/param mealType values (english/spanish/keys) to server-expected enum
+      function mapToServerMealT(mt?: string | null) {
+        if (!mt) return '';
+        const t = String(mt).toLowerCase();
+        if (['breakfast', 'desayuno'].includes(t)) return 'Desayuno';
+        if (['lunch', 'almuerzo', 'comida'].includes(t)) return 'Almuerzo';
+        if (['dinner', 'cena'].includes(t)) return 'Cena';
+        // Server expects 'Snack' (English) for snack values
+        if (['snack', 'aperitivo', 'aperitivos', 'snacks'].includes(t)) return 'Snack';
+        // If it's already one of the expected server labels, normalize capitalization
+        if (['desayuno', 'almuerzo', 'cena', 'snack'].includes(t)) {
+          return t.charAt(0).toUpperCase() + t.slice(1);
+        }
+        return String(mt);
+      }
+
+      const mealName = displayData?.dishName ?? computedItems[0]?.name ?? 'Comida detectada';
+      const meal_t = mapToServerMealT(selectedMealType ?? '');
+
       const payload = {
-        dateISO,
-        mealType: selectedMealType ?? "",
-        items: computedItems.map((it) => ({ name: it.name, qty: it.qty, unit: it.unit, kcal: it.kcal, p: it.p, c: it.c, f: it.f })),
+        name: mealName,
+        patient_id: session?.sub,
+        meal_t,
+        kcal: totals.kcal,
+        protein: totals.proteinG,
+        carbs: totals.carbsG,
+        fats: totals.fatG,
       };
-      console.log("[CameraResult] performSave payload", { payload });
-      // TODO: replace with real fetch to backend, e.g. await fetch(...)
-      // Simulate network latency but keep a log to indicate simulated save
-      console.log("[CameraResult] performSave simulated request start");
-      await new Promise((r) => setTimeout(r, 300));
-      console.log("[CameraResult] performSave simulated request finished");
+
+      console.log('[CameraResult] registering meal payload', { payload });
+      console.log('[CameraResult] session preview', { sub: session?.sub, hasAccessToken: !!session?.accessToken });
+
+      const url = '/api/v1/meals/register-meal';
+      const res = await postJSON(url, payload, { baseUrl: API_BASE_URL, token: session?.accessToken ?? undefined });
+
+      console.log('[CameraResult] register-meal response', { ok: true, preview: res && typeof res === 'object' ? Object.keys(res).slice(0,5) : res });
+
       setSaved(true);
       setShowSaveModal(false);
-      // Navegar al CompleteScreen
-      const q = new URLSearchParams();
-      q.set("dateISO", dateISO);
-      if (selectedMealType) q.set("mealType", selectedMealType);
 
+      try {
+        notifyMealsChanged({ patientId: session?.sub, day: dateISO });
+      } catch (e) {
+        console.warn('[CameraResult] notifyMealsChanged failed', e);
+      }
+
+      const q = new URLSearchParams();
+      q.set('dateISO', dateISO);
+      if (selectedMealType) q.set('mealType', selectedMealType);
       router.replace(`/camera/complete?${q.toString()}`);
-    } catch (e) {
-      // show error toast in real app
-      console.error("[CameraResult] save failed", e);
+    } catch (e: any) {
+      // postJSON throws an Error with `status` and `body` properties when available
+      console.error('[CameraResult] save failed', e);
+      try {
+        const status = e?.status;
+        const body = e?.body;
+        let bodyStr = '';
+        try {
+          bodyStr = body && typeof body === 'object' ? JSON.stringify(body, null, 2) : String(body ?? '');
+        } catch (s) {
+          bodyStr = String(body ?? '');
+        }
+        console.error('[CameraResult] save failed details', { status, bodyStr });
+        // Show a user-friendly alert in the emulator with validation details
+        Alert.alert('Error al guardar', `Código: ${status}\n${bodyStr.slice(0, 1000)}`);
+      } catch (inner) {
+        // ignore logging errors
+      }
     } finally {
       setSaving(false);
     }

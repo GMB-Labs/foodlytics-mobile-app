@@ -11,6 +11,8 @@ import LunchIcon from '@/assets/icons/meals/DlunchIcon.svg';
 import SnackIcon from '@/assets/icons/meals/DsnackIcon.svg';
 import BreakfastIcon from '@/assets/icons/meals/DbreakIcon.svg';
 import { useTheme } from '@/src/shared/styles/useTheme';
+import { useSession } from '@/src/shared/hooks/useSession';
+import { getMealsForDayFromServer, RawMealItem } from '@/src/features/meals/infrastructure/mealsApi';
 
 interface MealItem {
   id: string;
@@ -35,35 +37,88 @@ const DEFAULT_MEAL = 'breakfast';
 export default function MealDetailScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
-  const { mealId, items: itemsParam } = params as { mealId?: string; items?: string };
+  const rawParams = params as Record<string, any>;
+  const itemsParam = rawParams.items as string | undefined;
+  // Resolve mealId from multiple possible routing shapes (query param, dynamic segment, or positional param)
+  let mealId = (rawParams.mealId as string) ?? (rawParams.meal as string) ?? undefined;
+  if (!mealId) {
+    // Try to detect any param value that matches known keys or spanish labels
+    const knownKeys = ['breakfast', 'lunch', 'dinner', 'snack'];
+    const spanishMap: Record<string, string> = { desayuno: 'breakfast', almuerzo: 'lunch', cena: 'dinner', aperitivo: 'snack' };
+    for (const k of Object.keys(rawParams)) {
+      const v = rawParams[k];
+      if (!v || typeof v !== 'string') continue;
+      const low = v.toLowerCase();
+      if (knownKeys.includes(low)) { mealId = low; break; }
+      if (spanishMap[low]) { mealId = spanishMap[low]; break; }
+      // also accept a raw segment like '/meals/lunch' where param key may be '0' or similar
+      if (k === '0' && typeof v === 'string') {
+        const seg = String(v).toLowerCase();
+        if (knownKeys.includes(seg)) { mealId = seg; break; }
+      }
+    }
+  }
   const todayISO = useTodayISO();
   const dateISO = (params as any)?.dateISO ?? todayISO;
 
   const [items, setItems] = useState<MealItem[]>(() => {
     try {
       if (!itemsParam) return [];
-      const parsed = JSON.parse(itemsParam as string);
+      // itemsParam may be URL-encoded depending on navigation origin — try decodeURIComponent first
+      const raw = (() => {
+        try { return decodeURIComponent(itemsParam as string); } catch { return itemsParam as string; }
+      })();
+      const parsed = JSON.parse(raw as string);
       return Array.isArray(parsed) ? (parsed as MealItem[]) : [];
     } catch {
       return [];
     }
   });
 
+  const [session] = useSession();
+
   useEffect(() => {
     let mounted = true;
-    if (!itemsParam) {
-      // fetch the single GET and pick items for this date/meal
-      getAllMeals()
-        .then((all) => {
+    async function loadFromServer() {
+      try {
+        const raw: RawMealItem[] = await getMealsForDayFromServer(String(dateISO), session?.sub, session?.accessToken ?? undefined);
+        if (!mounted) return;
+        // map meal_t -> keys
+        const mapKey = (mealT?: string) => {
+          if (!mealT) return 'snack';
+          const t = mealT.toLowerCase();
+          if (t.includes('desay')) return 'breakfast';
+          if (t.includes('almuer') || t.includes('comida')) return 'lunch';
+          if (t.includes('cena')) return 'dinner';
+          if (t.includes('aper') || t.includes('snack')) return 'snack';
+          return 'snack';
+        };
+
+        const found = raw
+          .filter((r) => mapKey(r.meal_t) === (mealId ?? 'breakfast'))
+          .map((r) => ({ id: r.id, name: r.name, protein: r.protein ?? 0, carbs: r.carbs ?? 0, fats: r.fats ?? 0, kcal: r.kcal ?? 0, time: r.uploaded_at ? (() => { try { const d = new Date(r.uploaded_at); return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}` } catch { return undefined } })() : undefined }));
+
+        setItems(found as MealItem[]);
+      } catch (e) {
+        // fallback to client-side store if server fetch fails
+        try {
+          const all = await getAllMeals();
           if (!mounted) return;
           const byDate = all[String(dateISO)] ?? {};
-          const found = byDate[mealId ?? ''] ?? [];
-          setItems(found as MealItem[]);
-        })
-        .catch(() => { if (mounted) setItems([]); });
+          const foundLocal = byDate[mealId ?? ''] ?? [];
+          setItems(foundLocal as MealItem[]);
+        } catch {
+          if (mounted) setItems([]);
+        }
+      }
     }
+
+    if (!itemsParam) {
+      void loadFromServer();
+    }
+
     return () => { mounted = false; };
-  }, [itemsParam, mealId, dateISO]);
+  }, [itemsParam, mealId, dateISO, session?.sub, session?.accessToken]);
 
   // If the route provides `items` (Meals -> Detail), update items state whenever
   // that param changes. This fixes the bug where Detail kept showing a previous
@@ -187,10 +242,10 @@ export default function MealDetailScreen() {
             <View style={styles.itemRowTop}>
               <View style={styles.itemLeft}>
                 <AppText style={[styles.itemName, { color: colors?.text ?? '#1E2939' }]}>{it.name}</AppText>
+                {it.time ? (
+                  <AppText style={[styles.itemTime, { color: colors?.subtext ?? '#6A7282', marginTop: 6 }]}>{it.time}</AppText>
+                ) : null}
                 {it.qtyLabel && <AppText style={[styles.itemQty, { color: colors?.subtext ?? '#6A7282' }]}>{it.qtyLabel}</AppText>}
-              </View>
-              <View style={styles.itemCenter}>
-                <AppText style={[styles.itemTime, { color: colors?.subtext ?? '#6A7282' }]}>{it.time}</AppText>
               </View>
               <View style={styles.itemRight}>
                 <AppText style={[styles.itemKcal, { color: colors?.brandA ?? '#2FCCAC' }]}>{it.kcal}</AppText>

@@ -196,7 +196,23 @@ export async function fetchCalorieTargetsCached(opts: { patientId: string; token
 
   const promise = (async () => {
     const url = buildUrl(`/api/v1/calorie-targets/${patientId}`, opts.baseUrl);
-    const data = await getJSON(url, { baseUrl: '', token: opts.token });
+    let data: any = null;
+    try {
+      data = await getJSON(url, { baseUrl: '', token: opts.token });
+    } catch (err: any) {
+      try {
+        console.error('[profileGateway] fetchCalorieTargetsCached error', {
+          url,
+          hasToken: !!opts.token,
+          message: err?.message,
+          status: err?.status,
+          body: err?.body,
+        });
+      } catch (e) {
+        // ignore
+      }
+      throw err;
+    }
     calorieCache.set(patientId, { value: data, fetchedAt: Date.now() });
     return data;
   })().finally(() => {
