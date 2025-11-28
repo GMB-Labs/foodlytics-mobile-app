@@ -23,6 +23,10 @@ export default function AuthLayout() {
 
   // Si ya está autenticado, redirigir directamente a tabs (sesión restaurada)
   if (session.isAuthenticated) {
+    // Si el perfil del usuario NO está completado, llevar al onboarding
+    if (session.userProfileCompleted === false) {
+      return <Redirect href="/onboarding/step-name" />;
+    }
     return <Redirect href="/(tabs)" />;
   }
 

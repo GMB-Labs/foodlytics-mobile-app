@@ -20,6 +20,11 @@ const Layout = () => {
     return <Redirect href="/(auth)/login" />;
   }
 
+  // Si el usuario autenticado no ha completado su perfil, redirigir al onboarding
+  if (session.userProfileCompleted === false) {
+    return <Redirect href="/onboarding/step-name" />;
+  }
+
   // Renderizar tabs protegidas
   return (
     <View style={{ flex: 1 }}>

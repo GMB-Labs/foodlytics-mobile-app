@@ -1,5 +1,5 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import { Alert } from 'react-native';
+import { Alert, Linking } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
 import * as AuthSession from 'expo-auth-session';
@@ -29,6 +29,7 @@ const TOKEN_KEY = 'foodlytics_access_token';
 const IDTOKEN_KEY = 'foodlytics_id_token';
 const REFRESH_TOKEN_KEY = 'foodlytics_refresh_token';
 const SESSION_KEY = 'foodlytics_session';
+const AUTH_IN_PROGRESS_KEY = '@foodlytics:auth_in_progress';
 
 export type UserProfile = {
   id?: string;
@@ -187,7 +188,9 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   const isExpoGo = executionEnvironment === ExecutionEnvironment.StoreClient;
 
   const { redirectUri, useProxy } = useMemo(() => {
-    const usingProxy = false; // Expo Go is unsupported for this Auth0 SDK; custom dev/eas only
+    // Use the Expo proxy when running inside Expo Go so callbacks reach the running app.
+    // For bare/custom clients we prefer the custom scheme.
+    const usingProxy = isExpoGo ? true : false;
     const uri =
       AuthSession.makeRedirectUri({
         useProxy: usingProxy,
@@ -202,9 +205,12 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       isExpoGo,
     });
     if (isExpoGo) {
-      console.log(
-        '⚠️ Expo Go detected. Auth0 SDK requires custom dev client / EAS build. Build with "npx expo run:ios" or EAS.'
-      );
+      console.log('⚠️ Expo Go detected. Using Expo proxy redirect URI for development.');
+      console.log('If you see issues with refresh tokens or code exchange, build a custom dev client/EAS.');
+    }
+
+    if (__DEV__) {
+      console.log('Dev: register this callback URL in Auth0 Allowed Callback URLs:', uri);
     }
 
     return { redirectUri: uri, useProxy: usingProxy };
@@ -422,6 +428,12 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       // Actualizar estado y persistir tokens e información del usuario (incluyendo refresh_token)
       setState(nextState);
       await persistSession(nextState, refreshToken);
+      try {
+        await AsyncStorage.removeItem('@foodlytics:logout_in_progress');
+        await AsyncStorage.removeItem(AUTH_IN_PROGRESS_KEY);
+      } catch (e) {
+        // ignore
+      }
 
       console.log('Login exitoso:', {
         email: sessionEmail,
@@ -449,6 +461,34 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
         console.log('Bypass auth active; returning fake session', fake);
         setState(fake);
         return;
+      }
+
+      // Clear any previous logout-in-progress flag to avoid blocking a new login flow
+      try {
+        await AsyncStorage.removeItem('@foodlytics:logout_in_progress');
+      } catch (e) {
+        // ignore
+      }
+
+      // In dev, attach a Linking listener to log incoming deep links (helps debug redirect issues)
+      let linkingListener: any = null;
+      if (__DEV__) {
+        try {
+          const initialUrl = await Linking.getInitialURL();
+          console.log('Linking initial URL (dev):', initialUrl);
+        } catch (e) {
+          // ignore
+        }
+        const listener = (event: { url: string }) => {
+          try {
+            console.log('Linking incoming URL (dev):', event?.url);
+          } catch (err) {
+            // ignore
+          }
+        };
+        // @ts-expect-error -- RN types vary across versions; dev-only logging helper
+        Linking.addEventListener('url', listener);
+        linkingListener = listener;
       }
 
       if (isExpoGo) {
@@ -480,8 +520,25 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
           screenHint: opts?.screenHint,
         });
 
+        // Mark that an auth flow is in progress so the UI can block duplicate clicks
+        try {
+          await AsyncStorage.setItem(AUTH_IN_PROGRESS_KEY, '1');
+        } catch (e) {
+          // ignore
+        }
+
         // Abrir navegador de Auth0 para login
         const result = await request.promptAsync(discovery, { useProxy });
+
+        // remove linking listener after prompt completes
+        if (linkingListener) {
+          try {
+            // @ts-expect-error -- removeEventListener types vary
+            Linking.removeEventListener('url', linkingListener);
+          } catch (e) {
+            // ignore
+          }
+        }
 
         console.log('Resultado de Auth0:', {
           type: result.type,
@@ -499,6 +556,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
             throw new Error(errorMsg);
           }
           // Usuario canceló el login
+          try { await AsyncStorage.removeItem(AUTH_IN_PROGRESS_KEY); } catch (e) { /* ignore */ }
           return;
         }
 
@@ -510,6 +568,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
 
         // Intercambiar código por tokens y guardar sesión
         await handleAuthSuccess(result.params.code, request.codeVerifier);
+        // handleAuthSuccess will clear the auth_in_progress flag on success
       } catch (err: any) {
         const msg = err?.message || 'No se pudo iniciar sesión';
         console.error('Error en flujo de login:', {
@@ -521,6 +580,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
           isExpoGo,
         });
         Alert.alert('Autenticación fallida', msg);
+        try { await AsyncStorage.removeItem(AUTH_IN_PROGRESS_KEY); } catch (e) { /* ignore */ }
         throw err;
       }
     },
@@ -612,6 +672,12 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
 
             setState(restoredState);
             await persistSession(restoredState, refreshedTokens.refreshToken);
+            try {
+              await AsyncStorage.removeItem('@foodlytics:logout_in_progress');
+              await AsyncStorage.removeItem(AUTH_IN_PROGRESS_KEY);
+            } catch (e) {
+              // ignore
+            }
 
             console.log('Sesión restaurada exitosamente usando refresh_token', {
               email,
@@ -705,6 +771,12 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
 
             setState(restoredState);
             await persistSession(restoredState, refreshedTokens.refreshToken);
+            try {
+              await AsyncStorage.removeItem('@foodlytics:logout_in_progress');
+              await AsyncStorage.removeItem(AUTH_IN_PROGRESS_KEY);
+            } catch (e) {
+              // ignore
+            }
 
             console.log('Sesión restaurada exitosamente después de refrescar token', {
               email,
@@ -799,6 +871,12 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       // 7. Actualizar estado y persistir (reescribir AsyncStorage con datos actualizados)
       setState(restoredState);
       await persistSession(restoredState);
+      try {
+        await AsyncStorage.removeItem('@foodlytics:logout_in_progress');
+        await AsyncStorage.removeItem(AUTH_IN_PROGRESS_KEY);
+      } catch (e) {
+        // ignore
+      }
 
       console.log('Sesión restaurada exitosamente', {
         email,
@@ -817,6 +895,50 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     restoreSession();
   }, [restoreSession]);
+
+  // Dev-only: global Linking listener to log and persist incoming deep-links
+  useEffect(() => {
+    if (!__DEV__) return undefined;
+
+    const handler = (event: { url: string }) => {
+      try {
+        console.log('Global Linking incoming URL (dev):', event?.url);
+        AsyncStorage.setItem('@foodlytics:last_link', event?.url ?? '');
+      } catch (e) {
+        // ignore
+      }
+    };
+
+    try {
+      // @ts-expect-error types differ across RN versions
+      Linking.addEventListener('url', handler);
+    } catch (e) {
+      // ignore
+    }
+
+    // Also capture initial URL if app was cold-started via deep-link
+    try {
+      Linking.getInitialURL()
+        .then((url) => {
+          if (url) {
+            console.log('Global Linking initial URL (dev):', url);
+            AsyncStorage.setItem('@foodlytics:last_link', url).catch(() => {});
+          }
+        })
+        .catch(() => {});
+    } catch (e) {
+      // ignore
+    }
+
+    return () => {
+      try {
+        // @ts-expect-error types differ across RN versions
+        Linking.removeEventListener('url', handler);
+      } catch (e) {
+        // ignore
+      }
+    };
+  }, []);
 
   /**
    * Cierra la sesión en Auth0 abriendo el endpoint de logout.
@@ -905,13 +1027,18 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     // Reload app to ensure there's no stale cached state lingering.
     // Prefer expo-updates reload; fallback to DevSettings.reload().
     try {
-      if (!bypassAuth) {
+      // By default we DO NOT force a full app reload after signOut because
+      // navigation + cleared session state should be sufficient. If you
+      // need the previous behaviour (force reload) set the environment
+      // variable `EXPO_PUBLIC_RELOAD_ON_SIGNOUT=true` in your build.
+      const shouldForceReload = process.env.EXPO_PUBLIC_RELOAD_ON_SIGNOUT === 'true';
+      if (shouldForceReload && !bypassAuth) {
         // Try to dynamically import expo-updates (may not be available in some environments)
         try {
           // eslint-disable-next-line global-require, import/no-extraneous-dependencies
           const UpdatesModule = await import('expo-updates');
           if (UpdatesModule && typeof UpdatesModule.reloadAsync === 'function') {
-            console.log('Reloading app via expo-updates reloadAsync()');
+            console.log('Reloading app via expo-updates reloadAsync() [FORCED_BY_ENV]');
             await UpdatesModule.reloadAsync();
             return;
           }
@@ -920,11 +1047,13 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
         }
 
         if (DevSettings && typeof DevSettings.reload === 'function') {
-          console.log('Reloading app via DevSettings.reload()');
+          console.log('Reloading app via DevSettings.reload() [FORCED_BY_ENV]');
           DevSettings.reload();
         } else {
-          console.log('No reload API available');
+          console.log('No reload API available (force reload requested)');
         }
+      } else {
+        console.log('Skipping full app reload after signOut (EXPO_PUBLIC_RELOAD_ON_SIGNOUT not set)');
       }
     } catch (err) {
       console.warn('Error reloading app after signOut', err);

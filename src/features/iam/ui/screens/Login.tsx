@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { View, TouchableOpacity, ActivityIndicator } from "react-native";
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Stack, useRouter } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
@@ -13,6 +14,20 @@ export default function LoginScreen() {
   const insets = useSafeAreaInsets();
   const [session, sessionActions] = useSession();
   const [loading, setLoading] = useState(false);
+  const [authInProgress, setAuthInProgress] = useState(false);
+
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const v = await AsyncStorage.getItem('@foodlytics:auth_in_progress');
+        if (mounted) setAuthInProgress(!!v);
+      } catch (e) {
+        // ignore
+      }
+    })();
+    return () => { mounted = false; };
+  }, []);
 
   const runAuth = async (screenHint?: 'signup' | 'login') => {
     setLoading(true);
@@ -75,14 +90,14 @@ export default function LoginScreen() {
             style={{ paddingBottom: Math.max(32, insets.bottom + 16) }}
           >
             {/* Botón Registrarse (blanco) */}
-            <TouchableOpacity
+              <TouchableOpacity
               onPress={() => runAuth('signup')}
               className="bg-white rounded-[20px] mb-4 items-center justify-center"
               style={{ height: 56, opacity: loading ? 0.7 : 1 }}
-              disabled={loading}
+              disabled={loading || authInProgress}
             >
               <AppText variant="ag9" align="center" color="#000000">
-                {loading ? "Abriendo..." : "Registrarse"}
+                {loading || authInProgress ? "Abriendo..." : "Registrarse"}
               </AppText>
             </TouchableOpacity>
 
@@ -91,10 +106,10 @@ export default function LoginScreen() {
               onPress={() => runAuth('login')}
               className="bg-[#2fccac] rounded-[20px] items-center justify-center"
               style={{ height: 56, opacity: loading ? 0.7 : 1 }}
-              disabled={loading}
+              disabled={loading || authInProgress}
             >
               <AppText variant="ag9" align="center" color="#FFFFFF">
-                {loading ? "Conectando..." : "Iniciar Sesión"}
+                {loading || authInProgress ? "Conectando..." : "Iniciar Sesión"}
               </AppText>
             </TouchableOpacity>
             {loading && (
