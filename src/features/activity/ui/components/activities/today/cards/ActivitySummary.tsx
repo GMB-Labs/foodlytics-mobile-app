@@ -130,7 +130,7 @@ export default function ActivitySummaryCombined({ onRegisterPress }: Props) {
           </View>
 
           <View style={styles.statsColumn}>
-            <AppText variant="ag9" color={theme.subtext ?? '#6A7282'} style={styles.kcalText}>{caloriesBurned} kcal</AppText>
+            <AppText variant="ag9" color={theme.subtext ?? '#6A7282'} style={styles.kcalText}>{caloriesBurned} kcal aprox.</AppText>
             <AppText variant="ag10" color={theme.subtext ?? '#6A7282'} style={styles.metaText}>Meta: { (computedGoal || 10000).toLocaleString() }</AppText>
           </View>
 

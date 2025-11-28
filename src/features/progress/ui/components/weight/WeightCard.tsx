@@ -6,6 +6,8 @@ import { useTheme } from '@/src/shared/styles/useTheme';
 
 import WeightIcon from '@/assets/icons/activity/weightIcon.svg';
 import DownIcon from '@/assets/icons/activity/downIcon.svg';
+import MantenimientoIcon from '@/assets/icons/activity-icon.svg';
+import VolumenIcon from '@/assets/icons/activity/progressIcon.svg';
 import GoalIcon from '@/assets/icons/activity/goalIcon.svg';
 import AddIcon from '@/assets/icons/activity/addIcon.svg';
 
@@ -13,6 +15,7 @@ type Props = {
   weight?: string | number;
   unit?: string;
   delta?: string;
+  goalType?: string;
   progressToGoal?: string | number;
   onRegisterPress?: () => void;
 };
@@ -21,6 +24,7 @@ export default function WeightCard({
   weight = '',
   unit = '',
   delta = '',
+  goalType,
   progressToGoal = '',
   onRegisterPress,
 }: Props) {
@@ -80,8 +84,35 @@ export default function WeightCard({
                 )}
               </View>
 
-              {/* Segunda línea: 1.0 kg */}
-              {!!delta && (
+              {/* Mostrar tipo de objetivo + icono (Definición / Mantenimiento / Volumen) */}
+              {/** priority: goalType -> icon+label, fallback to delta if provided */}
+              {goalType ? (
+                <View style={styles.secondLineRowLeft}>
+                  {(() => {
+                    const gt = String(goalType).toLowerCase();
+                    if (gt === 'maintenance' || gt === 'mantenimiento') {
+                      return <MantenimientoIcon width={16} height={16} color={theme.activity?.intensity?.lowText ?? '#6B7280'} />;
+                    }
+                    if (gt === 'definition' || gt === 'definicion' || gt === 'weight_loss' || gt === 'cutting') {
+                      return <DownIcon width={16} height={16} color={theme.activity?.intensity?.lowText ?? '#00C950'} />;
+                    }
+                    // bulking / volumen
+                    return <VolumenIcon width={16} height={16} color={theme.activity?.intensity?.lowText ?? '#2B7FFF'} />;
+                  })()}
+                  <AppText
+                    variant="ag9"
+                    color={theme.activity?.intensity?.lowText ?? '#00C950'}
+                    style={styles.deltaText}
+                  >
+                    {(() => {
+                      const gt = String(goalType).toLowerCase();
+                      if (gt === 'maintenance' || gt === 'mantenimiento') return 'Mantenimiento';
+                      if (gt === 'definition' || gt === 'definicion' || gt === 'weight_loss' || gt === 'cutting') return 'Definición';
+                      return 'Volumen';
+                    })()}
+                  </AppText>
+                </View>
+              ) : !!delta ? (
                 <View style={styles.secondLineRowLeft}>
                   <DownIcon width={16} height={16} color={theme.activity?.intensity?.lowText ?? '#00C950'} />
                   <AppText
@@ -92,7 +123,7 @@ export default function WeightCard({
                     {delta}
                   </AppText>
                 </View>
-              )}
+              ) : null}
             </View>
           </View>
         </View>

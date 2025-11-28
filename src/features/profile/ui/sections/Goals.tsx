@@ -7,6 +7,7 @@ import ActivityIcon from "@/assets/icons/activity-icon.svg";
 import EditAction from '../components/EditAction';
 import { s } from "../tokens";
 import { useTheme } from '@/src/shared/styles/useTheme';
+import useSession from '@/src/shared/hooks/useSession';
 
 type Props = {
   goalWeight: number;
@@ -67,13 +68,34 @@ export default React.memo(function Goals({
     }
   }, [isEditing, goalWeight, activity, dailyCalories]);
 
-  function save() {
-    onSave && onSave({
+  const [, sessionActions] = useSession();
+
+  async function save() {
+    const payload = {
       goalWeight: Number(form.goalWeight),
       activity: form.activity,
       dailyCalories: Number(form.dailyCalories),
       goalType: form.goalType,
-    });
+    };
+    try {
+      if (onSave) await onSave(payload);
+    } catch (e) {
+      console.warn('[Goals] onSave handler failed', e);
+    }
+
+    try {
+      if (typeof sessionActions?.setUserProfile === 'function') {
+        // Persist keys used by Session: goalWeight, activity, goalType, dailyCalories
+        await sessionActions.setUserProfile({
+          goalWeight: payload.goalWeight,
+          activity: payload.activity,
+          goalType: payload.goalType,
+          dailyCalories: payload.dailyCalories,
+        });
+      }
+    } catch (e) {
+      console.warn('[Goals] setUserProfile failed', e);
+    }
   }
 
   if (isEditing) {

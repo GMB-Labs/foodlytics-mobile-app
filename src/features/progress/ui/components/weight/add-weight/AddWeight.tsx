@@ -5,7 +5,8 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import useTodayISO from '@/src/shared/hooks/useTodayISO';
 import useSession from '@/src/shared/hooks/useSession';
-import { postJSON } from '@/src/shared/utils/api';
+import { putJSON } from '@/src/shared/utils/api';
+import { API_BASE_URL } from '@/src/shared/constants/api';
 import useToast from '@/src/shared/hooks/useToast';
 import CalendarIcon from '@/assets/icons/activity/calendarIcon.svg'
 import ModalHeader from '@/src/shared/ui/components/ModalHeader';
@@ -39,11 +40,11 @@ export default function AddWeight() {
   const theme = colors as any;
   const styles = createStyles(theme);
 
-  // Previous weight (for demo - could be fetched from storage)
-  const previousWeight = 70.0;
-  const goalWeight = 65;
+  // Previous weight and goal from session if available
+  const previousWeight = typeof sessionState?.user?.weightKg === 'number' ? sessionState.user.weightKg : 70.0;
+  const goalWeight = (sessionState?.user as any)?.goalWeight ?? (sessionState?.user as any)?.desired_weight_kg ?? 65;
   const change = previousWeight - valueKg;
-  const remaining = valueKg - goalWeight;
+  const remaining = valueKg - (typeof goalWeight === 'number' ? goalWeight : 0);
 
   const formatDate = (iso: string) => {
     const [year, month, day] = iso.split('-');
@@ -60,11 +61,22 @@ export default function AddWeight() {
   const onSave = async () => {
     setSaving(true);
     try {
-      // Send to backend. Adjust endpoint as needed for your API.
-      await postJSON('/weights', { dateISO: todayISO, weightKg: valueKg });
+      const userId = sessionState?.sub;
+      const token = sessionState?.accessToken;
+
+      if (userId && token) {
+        try {
+          await putJSON(`/api/v1/calorie-targets/${userId}/weight-history`, { day: todayISO, weight_kg: valueKg }, { baseUrl: API_BASE_URL, token });
+          console.log('[AddWeight] PUT weight-history ok', { userId, day: todayISO, weightKg: valueKg });
+        } catch (err: any) {
+          console.warn('[AddWeight] PUT weight-history failed', err?.message || err);
+        }
+      } else {
+        console.log('[AddWeight] no userId/accessToken available — skipping remote PUT');
+      }
 
       if (typeof sessionActions?.setUserProfile === 'function') {
-        sessionActions.setUserProfile({ weightKg: valueKg });
+        await sessionActions.setUserProfile({ weightKg: valueKg });
       }
 
       toast.show({ type: 'success', text: 'Peso enviado correctamente' });
