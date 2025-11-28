@@ -7,6 +7,7 @@ import useSteps from '@/src/shared/hooks/useSteps';
 import useProfile from '@/src/features/profile/application/useProfile';
 import ShoeIcon from '@/assets/icons/activity/shoeIcon.svg';
 import LandPlotIcon from '@/assets/icons/activity/landPlotIcon.svg';
+import { ASYNC_STORAGE_KEYS } from '@/src/shared/constants/storage';
 
 type Props = {
   onRegisterPress?: () => void;
@@ -57,7 +58,7 @@ export default function ActivitySummaryCombined({ onRegisterPress }: Props) {
     let mounted = true;
     (async () => {
       try {
-        const raw = await AsyncStorage.getItem('@foodlytics:activities');
+        const raw = await AsyncStorage.getItem(ASYNC_STORAGE_KEYS.ACTIVITIES);
         if (!raw) return;
         const list = JSON.parse(raw) as any[];
         if (!Array.isArray(list) || list.length === 0) return;

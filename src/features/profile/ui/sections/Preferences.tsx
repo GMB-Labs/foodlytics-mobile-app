@@ -13,8 +13,9 @@ import { useTheme } from '@/src/shared/styles/useTheme';
 import AppText from '@/src/shared/ui/components/Typography';
 import { s } from '../tokens';
 import ThemeSelector from '@/src/features/profile/ui/components/ThemeSelector';
+import { ASYNC_STORAGE_KEYS } from '@/src/shared/constants/storage';
 
-const STORAGE_KEY = '@foodlytics:language';
+const STORAGE_KEY = ASYNC_STORAGE_KEYS.LANGUAGE;
 
 export default React.memo(function Preferences({
   onOpenNotifications, onOpenLanguage, onOpenPrivacy,

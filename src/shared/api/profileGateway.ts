@@ -1,27 +1,10 @@
 import { encode as base64Encode } from 'base-64';
 import { API_BASE_URL } from '@/src/shared/constants/api';
 import { getJSON, postJSON } from '@/src/shared/utils/api';
+import type { ProfileDto } from '@/src/shared/types/profile';
 
-export type ProfileDto = {
-  user_id: string;
-  nutritionist_id?: string | null;
-  first_name?: string | null;
-  last_name?: string | null;
-  age?: number | null;
-  height_cm?: number | null;
-  weight_kg?: number | null;
-  gender?: string | null;
-  goal_type?: string | null;
-  activity_level?: string | null;
-  desired_weight_kg?: number | null;
-  daily_calories?: number | null;
-  user_profile_completed?: boolean;
-  created_at?: string;
-  updated_at?: string;
-  has_profile_picture?: boolean;
-  profile_picture_url?: string | null;
-  [key: string]: any;
-};
+// Re-export ProfileDto for backwards compatibility
+export type { ProfileDto } from '@/src/shared/types/profile';
 
 type ProfileFetchOpts = {
   userId: string;

@@ -12,6 +12,7 @@ import useToast from '@/src/shared/hooks/useToast';
 import { useSession } from '@/src/shared/hooks/useSession';
 import { postJSON } from '@/src/shared/utils/api';
 import { API_BASE_URL } from '@/src/shared/constants/api';
+import { ASYNC_STORAGE_KEYS } from '@/src/shared/constants/storage';
 
 type Intensity = 'Baja' | 'Moderada' | 'Alta';
 const INTENSITY_LEVELS: Intensity[] = ['Baja', 'Moderada', 'Alta'];
@@ -182,8 +183,7 @@ export default function ActivityDetails() {
           toast.show({ type: 'info', text: 'Actividad guardada localmente (sin conexión)' });
         }
 
-        const STORAGE_KEY = '@foodlytics:activities';
-        const raw = await AsyncStorage.getItem(STORAGE_KEY);
+        const raw = await AsyncStorage.getItem(ASYNC_STORAGE_KEYS.ACTIVITIES);
         const existing = raw ? JSON.parse(raw) : [];
         const now = new Date();
 

@@ -3,10 +3,11 @@ import { useColorScheme } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { light } from './themes/light';
 import { dark } from './themes/dark';
+import { ASYNC_STORAGE_KEYS } from '@/src/shared/constants/storage';
 
 export type Mode = 'light' | 'dark' | 'system';
 
-const STORAGE_KEY = '@foodlytics:theme';
+const STORAGE_KEY = ASYNC_STORAGE_KEYS.THEME;
 
 type ThemeContextValue = {
   mode: Mode;

@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { ASYNC_STORAGE_KEYS } from '@/src/shared/constants/storage';
 
 export type Activity = {
   id: string;
@@ -13,7 +14,7 @@ export type Activity = {
   type?: string;
 };
 
-const STORAGE_KEY = '@foodlytics:activities';
+const STORAGE_KEY = ASYNC_STORAGE_KEYS.ACTIVITIES;
 
 // This module serves as the local data layer for activities. Replace the
 // placeholder with real API calls when the backend is available. The

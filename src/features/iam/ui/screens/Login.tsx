@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from "react";
 import { View, TouchableOpacity, ActivityIndicator } from "react-native";
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Stack, useRouter } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
@@ -14,20 +13,6 @@ export default function LoginScreen() {
   const insets = useSafeAreaInsets();
   const [session, sessionActions] = useSession();
   const [loading, setLoading] = useState(false);
-  const [authInProgress, setAuthInProgress] = useState(false);
-
-  useEffect(() => {
-    let mounted = true;
-    (async () => {
-      try {
-        const v = await AsyncStorage.getItem('@foodlytics:auth_in_progress');
-        if (mounted) setAuthInProgress(!!v);
-      } catch (e) {
-        // ignore
-      }
-    })();
-    return () => { mounted = false; };
-  }, []);
 
   const runAuth = async (screenHint?: 'signup' | 'login') => {
     setLoading(true);
@@ -48,13 +33,19 @@ export default function LoginScreen() {
 
     if (!session.isAuthenticated) return;
 
-    // If backend indicates profile incomplete -> onboarding
-    const profileCompleted = session.user?.user_profile_completed;
+    // Use session.userProfileCompleted (consistent with layouts)
+    // Fallback to session.user?.user_profile_completed for backwards compatibility
+    const profileCompleted = session.userProfileCompleted ?? session.user?.user_profile_completed;
     // eslint-disable-next-line no-console
-    console.log('[Login] session updated after auth', { profileCompleted, user: session.user });
+    console.log('[Login] session updated after auth', { 
+      profileCompleted, 
+      sessionProfileCompleted: session.userProfileCompleted,
+      userProfileCompleted: session.user?.user_profile_completed,
+    });
 
     if (profileCompleted === false) {
-      router.replace('/onboarding/step-dob');
+      // Use same route as other layouts for consistency
+      router.replace('/onboarding/step-name');
     } else {
       router.replace('/(tabs)');
     }
@@ -90,14 +81,14 @@ export default function LoginScreen() {
             style={{ paddingBottom: Math.max(32, insets.bottom + 16) }}
           >
             {/* Botón Registrarse (blanco) */}
-              <TouchableOpacity
+            <TouchableOpacity
               onPress={() => runAuth('signup')}
               className="bg-white rounded-[20px] mb-4 items-center justify-center"
               style={{ height: 56, opacity: loading ? 0.7 : 1 }}
-              disabled={loading || authInProgress}
+              disabled={loading}
             >
               <AppText variant="ag9" align="center" color="#000000">
-                {loading || authInProgress ? "Abriendo..." : "Registrarse"}
+                {loading ? "Abriendo..." : "Registrarse"}
               </AppText>
             </TouchableOpacity>
 
@@ -106,10 +97,10 @@ export default function LoginScreen() {
               onPress={() => runAuth('login')}
               className="bg-[#2fccac] rounded-[20px] items-center justify-center"
               style={{ height: 56, opacity: loading ? 0.7 : 1 }}
-              disabled={loading || authInProgress}
+              disabled={loading}
             >
               <AppText variant="ag9" align="center" color="#FFFFFF">
-                {loading || authInProgress ? "Conectando..." : "Iniciar Sesión"}
+                {loading ? "Conectando..." : "Iniciar Sesión"}
               </AppText>
             </TouchableOpacity>
             {loading && (

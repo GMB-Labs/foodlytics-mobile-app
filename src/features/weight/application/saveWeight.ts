@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { ASYNC_STORAGE_KEYS } from '@/src/shared/constants/storage';
 
 export type WeightEntry = {
   dateISO: string; // YYYY-MM-DD
@@ -6,7 +7,7 @@ export type WeightEntry = {
   createdAt: string; // ISO timestamp
 };
 
-const STORAGE_KEY = '@foodlytics:weights';
+const STORAGE_KEY = ASYNC_STORAGE_KEYS.WEIGHTS;
 
 function todayISO(): string {
   const d = new Date();

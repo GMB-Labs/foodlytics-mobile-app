@@ -1,47 +1,9 @@
-export type Profile = {
-  name: string;
-  email: string;
-  avatar: string | null;
-  age: number;
-  gender: string;
-  heightCm: number;
-  weightKg: number;
-  bmi: number;
-  goalWeight: number;
-  activity: string;
-  dailyCalories: number;
-  // Calorie target breakdown from /api/v1/calorie-targets
-  calories: number;
-  proteinGrams: number;
-  carbGrams: number;
-  fatGrams: number;
-  calorieTargetsUpdatedAt?: string | null;
-  goalType: string;
-  nutritionistId: string | null;
-  hasProfilePicture: boolean;
-};
+// Import consolidated types from shared
+import { Profile, EMPTY_PROFILE } from '@/src/shared/types/profile';
 
-export const EMPTY_PROFILE: Profile = {
-  name: '',
-  email: '',
-  avatar: null,
-  age: 0,
-  gender: '',
-  heightCm: 0,
-  weightKg: 0,
-  bmi: 0,
-  goalWeight: 0,
-  activity: '',
-  dailyCalories: 0,
-  calories: 0,
-  proteinGrams: 0,
-  carbGrams: 0,
-  fatGrams: 0,
-  calorieTargetsUpdatedAt: null,
-  goalType: '',
-  nutritionistId: null,
-  hasProfilePicture: false,
-};
+// Re-export for backwards compatibility
+export type { Profile } from '@/src/shared/types/profile';
+export { EMPTY_PROFILE } from '@/src/shared/types/profile';
 
 let currentProfile: Profile = EMPTY_PROFILE;
 const listeners: Array<(p: Profile) => void> = [];

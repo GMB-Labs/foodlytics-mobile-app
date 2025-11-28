@@ -6,8 +6,9 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import SHeader from '../sections/SHeader';
 import { s } from '../tokens';
 import { useTheme } from '@/src/shared/styles/useTheme';
+import { ASYNC_STORAGE_KEYS } from '@/src/shared/constants/storage';
 
-const STORAGE_KEY = '@foodlytics:language';
+const STORAGE_KEY = ASYNC_STORAGE_KEYS.LANGUAGE;
 
 const LANGS = [
   { code: 'es', label: 'Español' },
