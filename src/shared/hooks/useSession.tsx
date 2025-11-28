@@ -4,12 +4,9 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
 import * as AuthSession from 'expo-auth-session';
 import * as WebBrowser from 'expo-web-browser';
-import { DevSettings } from 'react-native';
 import { decode as base64Decode } from 'base-64';
 import Constants, { ExecutionEnvironment } from 'expo-constants';
-import { API_BASE_URL } from '../constants/api';
-import { postJSON } from '../utils/api';
-import { fetchProfileCached } from '../api/profileGateway';
+import { API_BASE_URL } from '@/src/shared/constants/api';
 
 // Ensure the browser is closed correctly on web/Android after redirect
 WebBrowser.maybeCompleteAuthSession();
@@ -21,6 +18,182 @@ const AUTH0 = {
   scheme: 'foodlytics',
   callbackPath: 'callback',
 };
+
+async function syncUserFromToken(token?: string | null) {
+  if (!token) return;
+  try {
+    const url = buildApiUrl('/api/v1/users-sync/sync');
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        Accept: 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+    });
+    if (!response.ok) {
+      const text = await response.text().catch(() => '');
+      console.warn('[useSession] syncUserFromToken failed', response.status, text);
+    }
+  } catch (error) {
+    console.warn('[useSession] syncUserFromToken error', error);
+  }
+}
+
+type ProfileDto = {
+  user_profile_completed?: boolean | null;
+  first_name?: string | null;
+  last_name?: string | null;
+  age?: number | null;
+  gender?: string | null;
+  height_cm?: number | null;
+  weight_kg?: number | null;
+  desired_weight_kg?: number | null;
+  activity_level?: string | null;
+  goal_type?: string | null;
+  daily_calories?: number | null;
+  has_profile_picture?: boolean | null;
+  profile_picture_url?: string | null;
+  nutritionist_id?: string | null;
+  [k: string]: any;
+};
+
+type ProfileFetchResult = {
+  dto: ProfileDto | null;
+  completion: boolean;
+};
+
+const API_BASE = (API_BASE_URL || '').replace(/\/$/, '');
+
+function buildApiUrl(path: string) {
+  if (!API_BASE) return path;
+  if (!path.startsWith('/')) {
+    return `${API_BASE}/${path}`;
+  }
+  return `${API_BASE}${path}`;
+}
+
+async function fetchProfileMetadata(token?: string | null, userId?: string | null): Promise<ProfileFetchResult | null> {
+  if (!token || !userId) return null;
+  const attemptFetch = async (): Promise<Response> => {
+    const url = buildApiUrl(`/api/v1/profiles/${userId}`);
+    return fetch(url, {
+      method: 'GET',
+      headers: {
+        Accept: 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+    });
+  };
+
+  try {
+    let response = await attemptFetch();
+
+    if (response.status === 404) {
+      await syncUserFromToken(token);
+      await new Promise((resolve) => setTimeout(resolve, 500));
+      response = await attemptFetch();
+    }
+
+    if (response.status === 404) {
+      return { dto: null, completion: false };
+    }
+
+    if (!response.ok) {
+      const text = await response.text().catch(() => '');
+      throw new Error(`Profile fetch failed: ${response.status} ${text}`);
+    }
+
+    const data = (await response.json()) as ProfileDto;
+    return {
+      dto: data,
+      completion: data?.user_profile_completed ?? false,
+    };
+  } catch (error) {
+    console.warn('[useSession] fetchProfileMetadata error', error);
+    return null;
+  }
+}
+
+function mergeUserWithProfile(
+  user: UserProfile | null,
+  dto: ProfileDto | null,
+  email?: string | null,
+  completion?: boolean
+): UserProfile | null {
+  const next: UserProfile = { ...(user || {}) };
+
+  if (email && !next.email) {
+    next.email = email;
+  }
+
+  if (dto) {
+    const name = `${dto.first_name ?? ''} ${dto.last_name ?? ''}`.trim();
+    if (name.length > 0) {
+      (next as any).name = name;
+    }
+    if (typeof dto.age === 'number') {
+      (next as any).age = dto.age;
+    }
+    if (dto.gender) {
+      (next as any).gender = dto.gender;
+    }
+    if (typeof dto.height_cm === 'number') {
+      next.heightCm = dto.height_cm;
+    }
+    if (typeof dto.weight_kg === 'number') {
+      next.weightKg = dto.weight_kg;
+    }
+    if (typeof dto.desired_weight_kg === 'number') {
+      (next as any).goalWeight = dto.desired_weight_kg;
+    }
+    if (dto.activity_level) {
+      (next as any).activity = dto.activity_level;
+    }
+    if (dto.goal_type) {
+      (next as any).goalType = dto.goal_type;
+    }
+    if (typeof dto.daily_calories === 'number') {
+      (next as any).dailyCalories = dto.daily_calories;
+    }
+    if (typeof dto.has_profile_picture === 'boolean') {
+      (next as any).hasProfilePicture = dto.has_profile_picture;
+    }
+    if (typeof dto.profile_picture_url === 'string') {
+      (next as any).avatar = dto.profile_picture_url;
+    }
+    if (dto.nutritionist_id) {
+      (next as any).nutritionistId = dto.nutritionist_id;
+    }
+  }
+
+  if (completion !== undefined) {
+    (next as any).user_profile_completed = completion;
+  }
+
+  return Object.keys(next).length > 0 ? next : null;
+}
+
+function applyProfileDataToState(
+  baseState: SessionState,
+  profileResult: ProfileFetchResult | null,
+  fallbackCompletion?: boolean
+): SessionState {
+  const completion =
+    profileResult?.completion ??
+    (fallbackCompletion !== undefined ? fallbackCompletion : baseState.userProfileCompleted);
+  const mergedUser = mergeUserWithProfile(
+    baseState.user,
+    profileResult?.dto ?? null,
+    baseState.email,
+    completion
+  );
+
+  return {
+    ...baseState,
+    user: mergedUser,
+    userProfileCompleted: completion,
+  };
+}
 
 // Claves de SecureStore/AsyncStorage:
 // Deben contener SOLO: letras, números, ".", "-" y "_"
@@ -48,15 +221,19 @@ type SessionState = {
   roles?: string[];
   sub?: string;
   user: UserProfile | null;
-  userProfileCompleted?: boolean;
   bypass?: boolean;
+  userProfileCompleted?: boolean;
 };
 
 type SessionActions = {
   login: (opts?: { screenHint?: 'signup' | 'login' }) => Promise<void>;
   signOut: () => Promise<void>;
   setUserProfile: (u: Partial<UserProfile>) => Promise<void>;
-  refreshProfileAndUpdateCompletion: (completed: boolean, accessToken?: string | null, sub?: string) => Promise<void>;
+  refreshProfileAndUpdateCompletion: (
+    completedOverride?: boolean,
+    tokenOverride?: string | null,
+    userIdOverride?: string | null
+  ) => Promise<void>;
 };
 
 type StoredSession = {
@@ -79,6 +256,7 @@ const initialState: SessionState = {
   sub: undefined,
   user: null,
   bypass: false,
+  userProfileCompleted: undefined,
 };
 
 function decodeJwt(token: string) {
@@ -104,51 +282,6 @@ function getValidTokenClaims(token: string) {
   }
 }
 
-/**
- * Helper function to sync user and get profile
- */
-async function syncUserAndGetProfile(
-  accessToken: string,
-  sub: string | undefined,
-  fallbackUserProfileCompleted?: boolean
-): Promise<{
-  userProfileCompleted: boolean;
-  profileData: any;
-}> {
-  let userProfileCompleted = fallbackUserProfileCompleted ?? false;
-  let profileData: any = null;
-
-  try {
-    // 1. User-sync
-    console.log('Sincronizando usuario desde token...');
-    const userSyncResult = await postJSON(
-      `${API_BASE_URL}/api/v1/users-sync/sync`,
-      {},
-      { baseUrl: '', token: accessToken }
-    );
-    console.log('User-sync exitoso:', userSyncResult);
-
-    // 2. GET profile usando el sub como user_id (authId)
-    if (sub) {
-      profileData = await fetchProfileCached({
-        userId: sub,
-        token: accessToken,
-        force: true,
-      });
-      userProfileCompleted = profileData?.user_profile_completed === true;
-      console.log('Perfil obtenido:', { userProfileCompleted, profileData });
-    }
-  } catch (err: any) {
-    console.error('Error en syncUserAndGetProfile:', err);
-    // Si falla, usar el fallback si está disponible
-    if (fallbackUserProfileCompleted !== undefined) {
-      userProfileCompleted = fallbackUserProfileCompleted;
-    }
-  }
-
-  return { userProfileCompleted, profileData };
-}
-
 export function SessionProvider({ children }: { children: React.ReactNode }) {
   const [state, setState] = useState<SessionState>(initialState);
 
@@ -172,6 +305,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       sub: 'fake|designer',
       user: fakeUser,
       bypass: true,
+      userProfileCompleted: true,
     };
   }, []);
 
@@ -399,25 +533,32 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
             ? [rolesFromClaims]
             : [];
 
-      // 1. User-sync y obtener perfil (usar valor guardado como fallback)
-      const { userProfileCompleted, profileData } = await syncUserAndGetProfile(
-        accessToken,
-        subFromClaims || persistedSession?.sub,
-        persistedSession?.userProfileCompleted
-      );
+      const resolvedSub = subFromClaims || persistedSession?.sub;
+
+      await syncUserFromToken(accessToken);
+
+      let profileResult: ProfileFetchResult | null = null;
+      if (resolvedSub) {
+        profileResult = await fetchProfileMetadata(accessToken, resolvedSub);
+      }
 
       // Construir estado de sesión autenticada
-      const nextState: SessionState = {
+      const baseState: SessionState = {
         loading: false,
         isAuthenticated: true,
         accessToken,
         idToken,
         email: sessionEmail,
         roles,
-        sub: subFromClaims || persistedSession?.sub,
-        user: profileData ? { ...user, ...profileData } : user,
-        userProfileCompleted,
+        sub: resolvedSub,
+        user,
       };
+
+      const nextState = applyProfileDataToState(
+        baseState,
+        profileResult,
+        persistedSession?.userProfileCompleted
+      );
 
       // Actualizar estado y persistir tokens e información del usuario (incluyendo refresh_token)
       setState(nextState);
@@ -428,7 +569,6 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
         sub: subFromClaims,
         hasUser: !!user,
         hasRefreshToken: !!refreshToken,
-        userProfileCompleted,
         tokenExp: claims.exp ? new Date(claims.exp * 1000).toISOString() : 'N/A',
       });
     },
@@ -469,7 +609,6 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
         extraParams: {
           audience: AUTH0.audience,
           ...(opts?.screenHint ? { screen_hint: opts.screenHint } : {}),
-          ...(opts?.screenHint === 'signup' ? { prompt: 'login' } : {}),
         },
       });
 
@@ -591,14 +730,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
               user = { email };
             }
 
-            // User-sync y obtener perfil (usar valor guardado como fallback)
-            const { userProfileCompleted, profileData } = await syncUserAndGetProfile(
-              refreshedTokens.accessToken,
-              sub,
-              parsed?.userProfileCompleted
-            );
-
-            const restoredState: SessionState = {
+            const baseState: SessionState = {
               loading: false,
               isAuthenticated: true,
               accessToken: refreshedTokens.accessToken,
@@ -606,9 +738,15 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
               email,
               roles,
               sub,
-              user: profileData ? { ...user, ...profileData } : user,
-              userProfileCompleted,
+              user,
             };
+
+            const profileResult = await fetchProfileMetadata(baseState.accessToken, baseState.sub);
+            const restoredState = applyProfileDataToState(
+              baseState,
+              profileResult,
+              parsed?.userProfileCompleted
+            );
 
             setState(restoredState);
             await persistSession(restoredState, refreshedTokens.refreshToken);
@@ -617,7 +755,6 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
               email,
               sub,
               hasUser: !!user,
-              userProfileCompleted,
               tokenExp: newClaims.exp ? new Date(newClaims.exp * 1000).toISOString() : 'N/A',
             });
             return;
@@ -684,14 +821,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
               user = { email };
             }
 
-            // User-sync y obtener perfil (usar valor guardado como fallback)
-            const { userProfileCompleted, profileData } = await syncUserAndGetProfile(
-              refreshedTokens.accessToken,
-              sub,
-              parsed?.userProfileCompleted
-            );
-
-            const restoredState: SessionState = {
+            const baseState: SessionState = {
               loading: false,
               isAuthenticated: true,
               accessToken: refreshedTokens.accessToken,
@@ -699,9 +829,15 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
               email,
               roles,
               sub,
-              user: profileData ? { ...user, ...profileData } : user,
-              userProfileCompleted,
+              user,
             };
+
+            const profileResult = await fetchProfileMetadata(baseState.accessToken, baseState.sub);
+            const restoredState = applyProfileDataToState(
+              baseState,
+              profileResult,
+              parsed?.userProfileCompleted
+            );
 
             setState(restoredState);
             await persistSession(restoredState, refreshedTokens.refreshToken);
@@ -710,7 +846,6 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
               email,
               sub,
               hasUser: !!user,
-              userProfileCompleted,
               tokenExp: newClaims.exp ? new Date(newClaims.exp * 1000).toISOString() : 'N/A',
             });
             return;
@@ -776,15 +911,8 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
         user = { email };
       }
 
-      // 5. User-sync y obtener perfil (usar valor guardado como fallback)
-      const { userProfileCompleted, profileData } = await syncUserAndGetProfile(
-        storedToken,
-        sub,
-        parsed?.userProfileCompleted
-      );
-
-      // 6. Construir estado de sesión restaurado
-      const restoredState: SessionState = {
+      // 5. Construir estado de sesión restaurado
+      const baseState: SessionState = {
         loading: false,
         isAuthenticated: true,
         accessToken: storedToken,
@@ -792,11 +920,17 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
         email,
         roles,
         sub,
-        user: profileData ? { ...user, ...profileData } : user,
-        userProfileCompleted,
+        user,
       };
 
-      // 7. Actualizar estado y persistir (reescribir AsyncStorage con datos actualizados)
+      const profileResult = await fetchProfileMetadata(baseState.accessToken, baseState.sub);
+      const restoredState = applyProfileDataToState(
+        baseState,
+        profileResult,
+        parsed?.userProfileCompleted
+      );
+
+      // 6. Actualizar estado y persistir (reescribir AsyncStorage con datos actualizados)
       setState(restoredState);
       await persistSession(restoredState);
 
@@ -834,15 +968,11 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       
       console.log('Cerrando sesión en Auth0...', { logoutUrl, returnTo });
       
-      // Abrir el navegador para que el usuario cierre sesión en Auth0.
-      // Usamos openBrowserAsync (no esperamos el redirect) para evitar que
-      // el app reciba inmediatamente un deep-link callback que pudiera
-      // provocar restauraciones de sesión inesperadas.
-      // Es un comportamiento aceptable para logout (no necesitamos capturar la URL).
-      // eslint-disable-next-line @typescript-eslint/no-floating-promises
-      WebBrowser.openBrowserAsync(logoutUrl);
-
-      console.log('Logout request opened in browser (no redirect capture)');
+      // Abrir el navegador con openAuthSessionAsync para que pueda volver a la app
+      // Auth0 procesará el logout y redirigirá a returnTo, que abrirá la app
+      await WebBrowser.openAuthSessionAsync(logoutUrl, returnTo);
+      
+      console.log('Sesión cerrada en Auth0');
     } catch (error) {
       // No es crítico si falla el logout de Auth0, continuamos con el logout local
       console.warn('Error al cerrar sesión en Auth0 (continuando con logout local):', error);
@@ -860,38 +990,11 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   const signOut = useCallback(async () => {
     console.log('Cerrando sesión completamente...');
     
-    // 1. Limpiar persistencia local inmediatamente antes de abrir el logout externo,
-    // para evitar que un redirect desde Auth0 reestablezca estado en la app.
+    // 1. Primero cerrar sesión en Auth0 (cierra la sesión del navegador)
+    await logoutFromAuth0();
+    
+    // 2. Borrar completamente SecureStore (incluyendo refresh_token) y AsyncStorage
     await clearPersistedSession();
-
-    // 2. Resetear estado a no autenticado lo antes posible
-    setState({ ...initialState, loading: false });
-
-    // 3. Reset in-memory profile state (if available) to avoid stale UI while reloading
-    try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const g: any = global as any;
-      if (g && typeof g.__resetProfile === 'function') {
-        try { g.__resetProfile(); } catch (e) { /* ignore */ }
-      }
-    } catch (e) {
-      // ignore
-    }
-
-    // 4. Marcar que hay un logout en curso y abrir logout en Auth0 en navegador
-    // (no esperar el redirect que vuelve a la app). Esto evita que el deep-link
-    // del logout vuelva a disparar la restauración de sesión.
-    try {
-      try {
-        await AsyncStorage.setItem('@foodlytics:logout_in_progress', '1');
-      } catch (e) {
-        // ignore storage errors
-      }
-      // eslint-disable-next-line @typescript-eslint/no-floating-promises
-      logoutFromAuth0();
-    } catch (e) {
-      // ignore
-    }
     
     if (bypassAuth) {
       // Dev bypass: mantener sesión fake pero asegurar que tokens guardados estén borrados
@@ -899,36 +1002,11 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       setState(fake);
       return;
     }
-
+    
+    // 3. Resetear estado a no autenticado
+    setState({ ...initialState, loading: false });
+    
     console.log('Sesión cerrada completamente');
-
-    // Reload app to ensure there's no stale cached state lingering.
-    // Prefer expo-updates reload; fallback to DevSettings.reload().
-    try {
-      if (!bypassAuth) {
-        // Try to dynamically import expo-updates (may not be available in some environments)
-        try {
-          // eslint-disable-next-line global-require, import/no-extraneous-dependencies
-          const UpdatesModule = await import('expo-updates');
-          if (UpdatesModule && typeof UpdatesModule.reloadAsync === 'function') {
-            console.log('Reloading app via expo-updates reloadAsync()');
-            await UpdatesModule.reloadAsync();
-            return;
-          }
-        } catch (e) {
-          // expo-updates not available or failed to import — fallback to DevSettings
-        }
-
-        if (DevSettings && typeof DevSettings.reload === 'function') {
-          console.log('Reloading app via DevSettings.reload()');
-          DevSettings.reload();
-        } else {
-          console.log('No reload API available');
-        }
-      }
-    } catch (err) {
-      console.warn('Error reloading app after signOut', err);
-    }
   }, [bypassAuth, buildFakeSession, clearPersistedSession, logoutFromAuth0]);
 
   const setUserProfile = useCallback(
@@ -936,7 +1014,16 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       let nextState: SessionState | null = null;
       setState((s) => {
         const merged = { ...(s.user || {}), ...u };
-        nextState = { ...s, user: merged };
+        const completionPatch =
+          (u as any)?.user_profile_completed !== undefined
+            ? Boolean((u as any).user_profile_completed)
+            : undefined;
+        nextState = {
+          ...s,
+          user: merged,
+          userProfileCompleted:
+            completionPatch !== undefined ? completionPatch : s.userProfileCompleted,
+        };
         return nextState;
       });
       if (nextState) {
@@ -946,40 +1033,46 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     [persistSession]
   );
 
-  /**
-   * Actualiza el estado de userProfileCompleted y opcionalmente refresca el perfil desde el backend
-   */
   const refreshProfileAndUpdateCompletion = useCallback(
-    async (completed: boolean, accessToken?: string | null, sub?: string) => {
-      let profileData: any = null;
-      
-      // Si tenemos token y sub, obtener el perfil actualizado del backend
-      if (accessToken && sub && completed) {
-        try {
-          profileData = await fetchProfileCached({
-            userId: sub,
-            token: accessToken,
-            force: true,
-          });
-          console.log('[refreshProfileAndUpdateCompletion] Perfil actualizado obtenido:', profileData);
-        } catch (err) {
-          console.error('[refreshProfileAndUpdateCompletion] Error al obtener perfil:', err);
-          // Continuar aunque falle el GET
-        }
+    async (
+      completedOverride?: boolean,
+      tokenOverride?: string | null,
+      userIdOverride?: string | null
+    ) => {
+      const token = tokenOverride ?? state.accessToken;
+      const userId = userIdOverride ?? state.sub;
+      if (!token || !userId) {
+        return;
       }
 
-      // Actualizar el estado de la sesión
-      setState((s) => {
-        const nextState: SessionState = {
-          ...s,
-          userProfileCompleted: completed,
-          user: profileData ? { ...(s.user || {}), ...profileData } : s.user,
-        };
-        persistSession(nextState);
-        return nextState;
+      let profileResult = await fetchProfileMetadata(token, userId);
+      if (!profileResult && completedOverride !== undefined) {
+        profileResult = { dto: null, completion: completedOverride };
+      } else if (profileResult && completedOverride !== undefined) {
+        profileResult = { ...profileResult, completion: completedOverride };
+      }
+
+      if (!profileResult && completedOverride === undefined) {
+        return;
+      }
+
+      let nextState: SessionState | null = null;
+      setState((prev) => {
+        if (!prev.isAuthenticated) return prev;
+        const updated = applyProfileDataToState(
+          prev,
+          profileResult,
+          completedOverride ?? prev.userProfileCompleted
+        );
+        nextState = updated;
+        return updated;
       });
+
+      if (nextState) {
+        await persistSession(nextState);
+      }
     },
-    [persistSession]
+    [fetchProfileMetadata, persistSession, state.accessToken, state.sub, state.userProfileCompleted]
   );
 
   const actions = useMemo<SessionActions>(
@@ -989,7 +1082,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       setUserProfile,
       refreshProfileAndUpdateCompletion,
     }),
-    [login, setUserProfile, signOut, refreshProfileAndUpdateCompletion]
+    [login, refreshProfileAndUpdateCompletion, setUserProfile, signOut]
   );
 
   return <SessionContext.Provider value={[state, actions]}>{children}</SessionContext.Provider>;
