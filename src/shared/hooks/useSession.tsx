@@ -6,6 +6,7 @@ import * as AuthSession from 'expo-auth-session';
 import * as WebBrowser from 'expo-web-browser';
 import { decode as base64Decode } from 'base-64';
 import Constants, { ExecutionEnvironment } from 'expo-constants';
+import { API_BASE_URL } from '@/src/shared/constants/api';
 
 // Ensure the browser is closed correctly on web/Android after redirect
 WebBrowser.maybeCompleteAuthSession();
@@ -17,6 +18,182 @@ const AUTH0 = {
   scheme: 'foodlytics',
   callbackPath: 'callback',
 };
+
+async function syncUserFromToken(token?: string | null) {
+  if (!token) return;
+  try {
+    const url = buildApiUrl('/api/v1/users-sync/sync');
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        Accept: 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+    });
+    if (!response.ok) {
+      const text = await response.text().catch(() => '');
+      console.warn('[useSession] syncUserFromToken failed', response.status, text);
+    }
+  } catch (error) {
+    console.warn('[useSession] syncUserFromToken error', error);
+  }
+}
+
+type ProfileDto = {
+  user_profile_completed?: boolean | null;
+  first_name?: string | null;
+  last_name?: string | null;
+  age?: number | null;
+  gender?: string | null;
+  height_cm?: number | null;
+  weight_kg?: number | null;
+  desired_weight_kg?: number | null;
+  activity_level?: string | null;
+  goal_type?: string | null;
+  daily_calories?: number | null;
+  has_profile_picture?: boolean | null;
+  profile_picture_url?: string | null;
+  nutritionist_id?: string | null;
+  [k: string]: any;
+};
+
+type ProfileFetchResult = {
+  dto: ProfileDto | null;
+  completion: boolean;
+};
+
+const API_BASE = (API_BASE_URL || '').replace(/\/$/, '');
+
+function buildApiUrl(path: string) {
+  if (!API_BASE) return path;
+  if (!path.startsWith('/')) {
+    return `${API_BASE}/${path}`;
+  }
+  return `${API_BASE}${path}`;
+}
+
+async function fetchProfileMetadata(token?: string | null, userId?: string | null): Promise<ProfileFetchResult | null> {
+  if (!token || !userId) return null;
+  const attemptFetch = async (): Promise<Response> => {
+    const url = buildApiUrl(`/api/v1/profiles/${userId}`);
+    return fetch(url, {
+      method: 'GET',
+      headers: {
+        Accept: 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+    });
+  };
+
+  try {
+    let response = await attemptFetch();
+
+    if (response.status === 404) {
+      await syncUserFromToken(token);
+      await new Promise((resolve) => setTimeout(resolve, 500));
+      response = await attemptFetch();
+    }
+
+    if (response.status === 404) {
+      return { dto: null, completion: false };
+    }
+
+    if (!response.ok) {
+      const text = await response.text().catch(() => '');
+      throw new Error(`Profile fetch failed: ${response.status} ${text}`);
+    }
+
+    const data = (await response.json()) as ProfileDto;
+    return {
+      dto: data,
+      completion: data?.user_profile_completed ?? false,
+    };
+  } catch (error) {
+    console.warn('[useSession] fetchProfileMetadata error', error);
+    return null;
+  }
+}
+
+function mergeUserWithProfile(
+  user: UserProfile | null,
+  dto: ProfileDto | null,
+  email?: string | null,
+  completion?: boolean
+): UserProfile | null {
+  const next: UserProfile = { ...(user || {}) };
+
+  if (email && !next.email) {
+    next.email = email;
+  }
+
+  if (dto) {
+    const name = `${dto.first_name ?? ''} ${dto.last_name ?? ''}`.trim();
+    if (name.length > 0) {
+      (next as any).name = name;
+    }
+    if (typeof dto.age === 'number') {
+      (next as any).age = dto.age;
+    }
+    if (dto.gender) {
+      (next as any).gender = dto.gender;
+    }
+    if (typeof dto.height_cm === 'number') {
+      next.heightCm = dto.height_cm;
+    }
+    if (typeof dto.weight_kg === 'number') {
+      next.weightKg = dto.weight_kg;
+    }
+    if (typeof dto.desired_weight_kg === 'number') {
+      (next as any).goalWeight = dto.desired_weight_kg;
+    }
+    if (dto.activity_level) {
+      (next as any).activity = dto.activity_level;
+    }
+    if (dto.goal_type) {
+      (next as any).goalType = dto.goal_type;
+    }
+    if (typeof dto.daily_calories === 'number') {
+      (next as any).dailyCalories = dto.daily_calories;
+    }
+    if (typeof dto.has_profile_picture === 'boolean') {
+      (next as any).hasProfilePicture = dto.has_profile_picture;
+    }
+    if (typeof dto.profile_picture_url === 'string') {
+      (next as any).avatar = dto.profile_picture_url;
+    }
+    if (dto.nutritionist_id) {
+      (next as any).nutritionistId = dto.nutritionist_id;
+    }
+  }
+
+  if (completion !== undefined) {
+    (next as any).user_profile_completed = completion;
+  }
+
+  return Object.keys(next).length > 0 ? next : null;
+}
+
+function applyProfileDataToState(
+  baseState: SessionState,
+  profileResult: ProfileFetchResult | null,
+  fallbackCompletion?: boolean
+): SessionState {
+  const completion =
+    profileResult?.completion ??
+    (fallbackCompletion !== undefined ? fallbackCompletion : baseState.userProfileCompleted);
+  const mergedUser = mergeUserWithProfile(
+    baseState.user,
+    profileResult?.dto ?? null,
+    baseState.email,
+    completion
+  );
+
+  return {
+    ...baseState,
+    user: mergedUser,
+    userProfileCompleted: completion,
+  };
+}
 
 // Claves de SecureStore/AsyncStorage:
 // Deben contener SOLO: letras, números, ".", "-" y "_"
@@ -45,12 +222,18 @@ type SessionState = {
   sub?: string;
   user: UserProfile | null;
   bypass?: boolean;
+  userProfileCompleted?: boolean;
 };
 
 type SessionActions = {
   login: (opts?: { screenHint?: 'signup' | 'login' }) => Promise<void>;
   signOut: () => Promise<void>;
   setUserProfile: (u: Partial<UserProfile>) => Promise<void>;
+  refreshProfileAndUpdateCompletion: (
+    completedOverride?: boolean,
+    tokenOverride?: string | null,
+    userIdOverride?: string | null
+  ) => Promise<void>;
 };
 
 type StoredSession = {
@@ -58,6 +241,7 @@ type StoredSession = {
   roles?: string[];
   sub?: string;
   user?: UserProfile | null;
+  userProfileCompleted?: boolean;
 };
 
 const SessionContext = createContext<[SessionState, SessionActions] | undefined>(undefined);
@@ -72,6 +256,7 @@ const initialState: SessionState = {
   sub: undefined,
   user: null,
   bypass: false,
+  userProfileCompleted: undefined,
 };
 
 function decodeJwt(token: string) {
@@ -120,6 +305,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       sub: 'fake|designer',
       user: fakeUser,
       bypass: true,
+      userProfileCompleted: true,
     };
   }, []);
 
@@ -178,6 +364,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
         roles: payload.roles || [],
         sub: payload.sub,
         user: payload.user,
+        userProfileCompleted: payload.userProfileCompleted,
       };
       await AsyncStorage.setItem(SESSION_KEY, JSON.stringify(toStore));
     } catch (e) {
@@ -346,17 +533,32 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
             ? [rolesFromClaims]
             : [];
 
+      const resolvedSub = subFromClaims || persistedSession?.sub;
+
+      await syncUserFromToken(accessToken);
+
+      let profileResult: ProfileFetchResult | null = null;
+      if (resolvedSub) {
+        profileResult = await fetchProfileMetadata(accessToken, resolvedSub);
+      }
+
       // Construir estado de sesión autenticada
-      const nextState: SessionState = {
+      const baseState: SessionState = {
         loading: false,
         isAuthenticated: true,
         accessToken,
         idToken,
         email: sessionEmail,
         roles,
-        sub: subFromClaims || persistedSession?.sub,
+        sub: resolvedSub,
         user,
       };
+
+      const nextState = applyProfileDataToState(
+        baseState,
+        profileResult,
+        persistedSession?.userProfileCompleted
+      );
 
       // Actualizar estado y persistir tokens e información del usuario (incluyendo refresh_token)
       setState(nextState);
@@ -528,7 +730,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
               user = { email };
             }
 
-            const restoredState: SessionState = {
+            const baseState: SessionState = {
               loading: false,
               isAuthenticated: true,
               accessToken: refreshedTokens.accessToken,
@@ -538,6 +740,13 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
               sub,
               user,
             };
+
+            const profileResult = await fetchProfileMetadata(baseState.accessToken, baseState.sub);
+            const restoredState = applyProfileDataToState(
+              baseState,
+              profileResult,
+              parsed?.userProfileCompleted
+            );
 
             setState(restoredState);
             await persistSession(restoredState, refreshedTokens.refreshToken);
@@ -612,7 +821,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
               user = { email };
             }
 
-            const restoredState: SessionState = {
+            const baseState: SessionState = {
               loading: false,
               isAuthenticated: true,
               accessToken: refreshedTokens.accessToken,
@@ -622,6 +831,13 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
               sub,
               user,
             };
+
+            const profileResult = await fetchProfileMetadata(baseState.accessToken, baseState.sub);
+            const restoredState = applyProfileDataToState(
+              baseState,
+              profileResult,
+              parsed?.userProfileCompleted
+            );
 
             setState(restoredState);
             await persistSession(restoredState, refreshedTokens.refreshToken);
@@ -696,7 +912,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       }
 
       // 5. Construir estado de sesión restaurado
-      const restoredState: SessionState = {
+      const baseState: SessionState = {
         loading: false,
         isAuthenticated: true,
         accessToken: storedToken,
@@ -706,6 +922,13 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
         sub,
         user,
       };
+
+      const profileResult = await fetchProfileMetadata(baseState.accessToken, baseState.sub);
+      const restoredState = applyProfileDataToState(
+        baseState,
+        profileResult,
+        parsed?.userProfileCompleted
+      );
 
       // 6. Actualizar estado y persistir (reescribir AsyncStorage con datos actualizados)
       setState(restoredState);
@@ -791,7 +1014,16 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       let nextState: SessionState | null = null;
       setState((s) => {
         const merged = { ...(s.user || {}), ...u };
-        nextState = { ...s, user: merged };
+        const completionPatch =
+          (u as any)?.user_profile_completed !== undefined
+            ? Boolean((u as any).user_profile_completed)
+            : undefined;
+        nextState = {
+          ...s,
+          user: merged,
+          userProfileCompleted:
+            completionPatch !== undefined ? completionPatch : s.userProfileCompleted,
+        };
         return nextState;
       });
       if (nextState) {
@@ -801,13 +1033,56 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     [persistSession]
   );
 
+  const refreshProfileAndUpdateCompletion = useCallback(
+    async (
+      completedOverride?: boolean,
+      tokenOverride?: string | null,
+      userIdOverride?: string | null
+    ) => {
+      const token = tokenOverride ?? state.accessToken;
+      const userId = userIdOverride ?? state.sub;
+      if (!token || !userId) {
+        return;
+      }
+
+      let profileResult = await fetchProfileMetadata(token, userId);
+      if (!profileResult && completedOverride !== undefined) {
+        profileResult = { dto: null, completion: completedOverride };
+      } else if (profileResult && completedOverride !== undefined) {
+        profileResult = { ...profileResult, completion: completedOverride };
+      }
+
+      if (!profileResult && completedOverride === undefined) {
+        return;
+      }
+
+      let nextState: SessionState | null = null;
+      setState((prev) => {
+        if (!prev.isAuthenticated) return prev;
+        const updated = applyProfileDataToState(
+          prev,
+          profileResult,
+          completedOverride ?? prev.userProfileCompleted
+        );
+        nextState = updated;
+        return updated;
+      });
+
+      if (nextState) {
+        await persistSession(nextState);
+      }
+    },
+    [fetchProfileMetadata, persistSession, state.accessToken, state.sub, state.userProfileCompleted]
+  );
+
   const actions = useMemo<SessionActions>(
     () => ({
       login,
       signOut,
       setUserProfile,
+      refreshProfileAndUpdateCompletion,
     }),
-    [login, setUserProfile, signOut]
+    [login, refreshProfileAndUpdateCompletion, setUserProfile, signOut]
   );
 
   return <SessionContext.Provider value={[state, actions]}>{children}</SessionContext.Provider>;
