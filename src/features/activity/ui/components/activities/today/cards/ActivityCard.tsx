@@ -10,7 +10,7 @@ type Activity = {
   id: string;
   name: string;
   minutes: number;
-  intensity: 'Baja' | 'Moderada' | 'Alta';
+  intensity: string;
   calories: number;
 };
 
@@ -65,7 +65,7 @@ export default function ActivityCard({
   onDelete,
 }: {
   activity: Activity;
-  onDelete: (id: string) => void;
+  onDelete?: (id: string) => void;
 }) {
   const animationRef = useRef<any>(null);
   const { colors } = useTheme();
@@ -118,9 +118,11 @@ export default function ActivityCard({
         </View>
       </View>
 
-      <TouchableOpacity style={styles.deleteBtn} onPress={() => onDelete(activity.id)}>
-        <DeleteIcon width={18} height={18} color={theme.danger ?? '#FF495C'} />
-      </TouchableOpacity>
+      {onDelete ? (
+        <TouchableOpacity style={styles.deleteBtn} onPress={() => onDelete(activity.id)}>
+          <DeleteIcon width={18} height={18} color={theme.danger ?? '#FF495C'} />
+        </TouchableOpacity>
+      ) : null}
     </View>
   );
 }
