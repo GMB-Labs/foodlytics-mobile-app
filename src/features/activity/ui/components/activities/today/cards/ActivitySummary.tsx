@@ -3,8 +3,7 @@ import { View, StyleSheet, Dimensions, ActivityIndicator } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import AppText from '@/src/shared/ui/components/Typography';
 import { useTheme } from '@/src/shared/styles/useTheme';
-import useSteps from '@/src/shared/hooks/useSteps';
-import useProfile from '@/src/features/profile/application/useProfile';
+import useStepsSummary from '@/src/features/activity/application/useStepsSummary';
 import ShoeIcon from '@/assets/icons/activity/shoeIcon.svg';
 import LandPlotIcon from '@/assets/icons/activity/landPlotIcon.svg';
 import { ASYNC_STORAGE_KEYS } from '@/src/shared/constants/storage';
@@ -23,25 +22,16 @@ export default function ActivitySummaryCombined({ onRegisterPress }: Props) {
   const theme = colors as any;
   const styles = createStyles(s, theme);
 
-  const { available, steps, uploading, pending, lastStepISO } = useSteps();
-  const { profile } = useProfile();
+  const {
+    steps: effectiveSteps,
+    goal: computedGoal,
+    distanceKm,
+    caloriesBurned,
+    syncing,
+    lastStepISO,
+  } = useStepsSummary();
 
-  const activityStepsMap: Record<string, number> = {
-    Sedentario: 3000,
-    Ligero: 4000,
-    Moderado: 5000,
-    Activo: 6000,
-    'Muy activo': 7000,
-  };
-  const computedGoal = profile?.activity ? (activityStepsMap[profile.activity] ?? 10000) : 10000;
-
-  const effectiveSteps = typeof steps === 'number' && steps > 0 ? steps : 0;
   const stepProgress = Math.min(1, (effectiveSteps || 0) / (computedGoal || 10000));
-
-  const strideMeters = profile?.heightCm ? (profile.heightCm * 0.415) / 100 : 0.7;
-  const distanceKm = (effectiveSteps * strideMeters) / 1000;
-  const kcalPerKgPerKm = 1.0;
-  const caloriesBurned = profile?.weightKg ? Math.round(profile.weightKg * distanceKm * kcalPerKgPerKm) : 0;
 
   const now = new Date();
   const hours = now.getHours();

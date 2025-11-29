@@ -27,7 +27,7 @@ const ACTIVITY_MAP: Array<{ key: string; label: string }> = [
   { key: 'light', label: 'Ligero' },
   { key: 'moderate', label: 'Moderado' },
   { key: 'active', label: 'Activo' },
-  { key: 'veryActive', label: 'Muy activo' },
+  { key: 'very_active', label: 'Muy activo' },
 ];
 
 const GOAL_TYPE_MAP: Array<{ key: string; label: string }> = [
@@ -75,10 +75,10 @@ export default React.memo(function Goals({
     if (!key) return undefined;
     const k = String(key).toLowerCase();
     const mapping: Record<string, string> = {
-      sedentary: 'sedentario',
-      light: 'ligero',
-      moderate: 'moderado',
-      active: 'activo',
+      sedentary: 'Sedentario',
+      light: 'Ligero',
+      moderate: 'Moderado',
+      active: 'Activo',
       veryactive: 'muy_activo',
       'veryActive': 'muy_activo',
       'very_active': 'muy_activo',
