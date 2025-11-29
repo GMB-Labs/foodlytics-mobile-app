@@ -183,7 +183,7 @@ export default function WeightEvolution({ data = DEFAULT_DATA }: Props) {
               <ActivityIndicator size="small" color={lineColor} />
             </View>
           ) : points.length === 0 ? (
-            <View style={{ height: 200, justifyContent: 'center', alignItems: 'center' }}>
+            <View style={{ height: 200, justifyContent: 'center', alignItems: 'center' , backgroundColor:theme.border ?? '#F9FAFB' }}>
               <AppText variant="ag9" color={theme.subtext ?? '#6B7280'}>Sin datos para este mes</AppText>
             </View>
           ) : (
