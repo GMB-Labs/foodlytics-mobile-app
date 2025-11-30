@@ -305,7 +305,28 @@ function useProfile() {
           code: trimmed,
           token: session.accessToken ?? undefined,
         });
-        await applyProfileDto(dto, { ensurePicture: true });
+
+        // The redeem endpoint may return data that belongs to the nutritionist
+        // (first_name/last_name). Avoid applying the full DTO directly because
+        // it can overwrite the patient's `name` field used by Header/Home.
+        // Strategy:
+        // - If the response includes an explicit nutritionist id, update only that.
+        // - If the response appears to be the patient's DTO (id matches session.sub),
+        //   it's safe to apply the DTO.
+        const newNutritionistId = (dto as any)?.nutritionist_id ?? (dto as any)?.nutritionistId ?? null;
+        const dtoUserId = (dto as any)?.id ?? (dto as any)?.user_id ?? null;
+
+        if (newNutritionistId) {
+          patchProfile({ nutritionistId: newNutritionistId });
+        } else if (dtoUserId && String(dtoUserId) === String(session.sub)) {
+          // DTO belongs to the patient — safe to apply
+          await applyProfileDto(dto, { ensurePicture: true });
+        } else {
+          // No clear nutritionist id and DTO does not match current user: do not apply
+          // to avoid accidentally overwriting patient fields. Instead, leave it to
+          // the NutritionistInvite component (or a subsequent sync) to fetch names.
+        }
+
         return dto;
       } catch (err) {
         console.error('[useProfile] error redeeming code', err);
@@ -372,7 +393,7 @@ function buildProfilePatchFromDto(dto: ProfileDto, current: Profile, emailFromSe
     email: emailFromSession ?? current.email,
     avatar,
     age: typeof dto?.age === 'number' ? dto.age : current.age,
-    gender: (dto?.gender ?? dto?.sex) || current.gender,
+    gender: typeof dto?.gender === 'string' ? dto.gender : (typeof dto?.sex === 'string' ? dto.sex : current.gender),
     heightCm: height,
     weightKg: weight,
     goalWeight: typeof dto?.desired_weight_kg === 'number' ? dto.desired_weight_kg : current.goalWeight,

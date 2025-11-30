@@ -99,7 +99,11 @@ export async function redeemNutritionistInvite(opts: RedeemCodeOpts) {
     code: opts.code,
   };
   const response = await postJSON(url, payload, { baseUrl: '', token: opts.token });
-  primeProfileCache(opts.patientId, response);
+  // Don't prime the profile cache with the raw response from redeem endpoint.
+  // That response may include nutritionist personal fields which could overwrite
+  // the patient's name if stored in the profile cache. Invalidate instead
+  // so subsequent reads fetch authoritative data from the server.
+  invalidateProfileCache(opts.patientId);
   invalidateProfilePictureCache(opts.patientId);
   return response as ProfileDto;
 }

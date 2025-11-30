@@ -1,5 +1,5 @@
-import React, { useMemo, useState, useEffect } from 'react';
-import { View, StyleSheet, ScrollView, Pressable, useWindowDimensions } from 'react-native';
+import React, { useMemo, useState, useEffect, useCallback } from 'react';
+import { View, StyleSheet, ScrollView, Pressable, useWindowDimensions, RefreshControl, Platform } from 'react-native';
 import { Stack, useRouter, useLocalSearchParams } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Path } from 'react-native-svg';
@@ -9,9 +9,7 @@ import MealCard from '../components/MealCard';
 import { getAllMeals, getMealsForDayFromServer, RawMealItem } from '@/src/features/meals/infrastructure/mealsApi';
 import { useSession } from '@/src/shared/hooks/useSession';
 import NativeDatePicker from '../components/NativeDatePicker';
-import { Platform } from 'react-native';
 import { useTheme } from '@/src/shared/styles/useTheme';
-
 
 // SVG Icons
 import BreakfastIcon from '@/assets/icons/BreakfastIcon.svg';
@@ -20,25 +18,24 @@ import DinnerIcon from '@/assets/icons/DinnerIcon.svg';
 import SnackIcon from '@/assets/icons/SnackIcon.svg';
 
 // Inline chevron icons
-function ChevronLeft({ color = "#4A5565" }) {
+function ChevronLeft({ color = '#4A5565' }) {
   return (
     <Svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-      <Path d="M12.5 15L7.5 10L12.5 5" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+      <Path d="M12.5 15L7.5 10L12.5 5" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
     </Svg>
   );
 }
 
-function ChevronRight({ color = "#4A5565" }) {
+function ChevronRight({ color = '#4A5565' }) {
   return (
     <Svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-      <Path d="M7.5 15L12.5 10L7.5 5" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+      <Path d="M7.5 15L12.5 10L7.5 5" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
     </Svg>
   );
 }
 
 // Helper functions
 function isoFromDate(d: Date) {
-  // Use local date parts to avoid timezone issues
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, '0');
   const day = String(d.getDate()).padStart(2, '0');
@@ -46,7 +43,6 @@ function isoFromDate(d: Date) {
 }
 
 function dateFromISO(iso: string): Date {
-  // Parse as local date to avoid timezone shift
   const [year, month, day] = iso.split('-').map(Number);
   return new Date(year, month - 1, day);
 }
@@ -56,41 +52,92 @@ function prettyDate(d: Date, locale = 'es-ES') {
   return d.toLocaleDateString(locale, options);
 }
 
-// Fixed Monday-first weekday initials: L, M, M, J, V, S, D
+// Tipos para las comidas en UI
+type MealUIItem = {
+  id: string;
+  name: string;
+  protein: number;
+  carbs: number;
+  fats: number;
+  kcal: number;
+  time?: string;
+  raw: RawMealItem;
+};
+
+type MealsByKey = Record<'breakfast' | 'lunch' | 'dinner' | 'snack', MealUIItem[]>;
+
+// Helper para mapear la respuesta cruda a la estructura por tipo de comida
+function mapMealsByKey(raw: RawMealItem[]): MealsByKey {
+  const mapKey = (meal_t?: string) => {
+    if (!meal_t) return 'snack';
+    const t = meal_t.toLowerCase();
+    if (t.includes('desay')) return 'breakfast';
+    if (t.includes('almuer') || t.includes('comida')) return 'lunch';
+    if (t.includes('cena')) return 'dinner';
+    if (t.includes('aper') || t.includes('snack')) return 'snack';
+    return 'snack';
+  };
+
+  const byKey: MealsByKey = { breakfast: [], lunch: [], dinner: [], snack: [] };
+
+  raw.forEach((r) => {
+    const k = mapKey(r.meal_t);
+    const time = r.uploaded_at
+      ? (() => {
+          try {
+            const d = new Date(r.uploaded_at);
+            return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+          } catch {
+            return undefined;
+          }
+        })()
+      : undefined;
+
+    byKey[k].push({
+      id: r.id,
+      name: r.name,
+      protein: r.protein ?? 0,
+      carbs: r.carbs ?? 0,
+      fats: r.fats ?? 0,
+      kcal: r.kcal ?? 0,
+      time,
+      raw: r,
+    });
+  });
+
+  return byKey;
+}
+
+// Fixed Monday first initials
 const MONDAY_FIRST_INITIALS = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
 
-// Returns the week days for the week containing `centerDate`,
-// always Monday → Sunday, keeping weekday positions fixed.
+// Returns the week days for the week containing `centerDate`
 function getWeekDays(
   centerDate: Date,
   today: Date,
-  // Optional ISO string of a user-selected date. If provided, that day will be marked
-  // as selected. If omitted, no day will be selected (useful when just navigating weeks).
   selectedISO?: string
 ): { date: Date; dayNum: number; initial: string; isSelected: boolean; isFuture: boolean }[] {
-  const result = [] as {
+  const result: {
     date: Date;
     dayNum: number;
     initial: string;
     isSelected: boolean;
     isFuture: boolean;
-  }[];
+  }[] = [];
 
-  // Determine Monday of the current week
   const startOfWeek = new Date(centerDate);
-  const dow = (startOfWeek.getDay() + 6) % 7; // Monday = 0, Sunday = 6
+  const dow = (startOfWeek.getDay() + 6) % 7; // Monday = 0
   startOfWeek.setDate(startOfWeek.getDate() - dow);
 
   for (let i = 0; i < 7; i++) {
     const current = new Date(startOfWeek);
     current.setDate(startOfWeek.getDate() + i);
     const isFuture = isoFromDate(current) > isoFromDate(today);
+
     result.push({
       date: current,
       dayNum: current.getDate(),
       initial: MONDAY_FIRST_INITIALS[i],
-      // If `selectedISO` is provided, only that date is considered selected.
-      // Otherwise no date is selected when navigating weeks.
       isSelected: selectedISO ? isoFromDate(current) === selectedISO : false,
       isFuture,
     });
@@ -105,7 +152,7 @@ const MEAL_TYPES = [
   { id: 'snack', label: 'Aperitivo', icon: SnackIcon, bg: '#FBCFE8' },
 ];
 
-const NAV_BTN_MARGIN = Platform.OS === 'ios' ? -16 : -4; 
+const NAV_BTN_MARGIN = Platform.OS === 'ios' ? -16 : -4;
 
 export default function MealsScreen() {
   const { colors } = useTheme();
@@ -114,149 +161,168 @@ export default function MealsScreen() {
   const params = useLocalSearchParams();
   const incomingDateISO = (params as any)?.dateISO as string | undefined;
   const incomingFrom = (params as any)?.from as string | undefined;
-  // The date explicitly chosen by the user (nullable). When null, no day is selected
-  // and the week view is controlled by `weekCenterISO`.
+
   const [selectedDate, setSelectedDate] = useState<string | null>(incomingDateISO ?? todayISO);
-  // Controls which week is shown when navigating with the arrows. Does NOT imply
-  // that a day is selected by the user.
   const [weekCenterISO, setWeekCenterISO] = useState<string>(incomingDateISO ?? todayISO);
-  // The date shown in the header / picker. This must NOT change when the user
-  // navigates between weeks with the arrows; it only updates when the user
-  // explicitly selects a day or picks a date.
   const [displayDateISO, setDisplayDateISO] = useState<string>(incomingDateISO ?? todayISO);
 
-  // Determine the active date used to show meals: prefer an explicitly
-  // selected date, otherwise fall back to the displayDate (header/picker).
   const activeDateISO = selectedDate ?? displayDateISO;
 
-  // Fetch the full meals map once and filter client-side by date. Keep an
-  // inline mockDB as fallback so the UI still shows examples when the API
-  // isn't available yet.
-  const [allMeals, setAllMeals] = useState<Record<string, Record<string, any[]>> | null>(null);
+  const [allMeals, setAllMeals] = useState<Record<string, MealsByKey> | null>(null);
   const [allMealsLoading, setAllMealsLoading] = useState(false);
   const [allMealsError, setAllMealsError] = useState<string | null>(null);
-  // Server-fetched meals for the active date (grouped by internal keys: breakfast,lunch,dinner,snack)
-  const [apiMealsByKey, setApiMealsByKey] = useState<Record<string, any[]> | null>(null);
+
+  const [apiMealsByKey, setApiMealsByKey] = useState<MealsByKey | null>(null);
   const [apiMealsLoading, setApiMealsLoading] = useState(false);
   const [apiMealsError, setApiMealsError] = useState<string | null>(null);
-  const [session] = useSession();
 
+  const [session] = useSession();
+  const [refreshing, setRefreshing] = useState(false);
+
+  // Carga inicial de todas las comidas
   useEffect(() => {
     let mounted = true;
     setAllMealsLoading(true);
     setAllMealsError(null);
+
     getAllMeals()
-      .then((res) => { if (!mounted) return; setAllMeals(res); })
-      .catch((err) => { if (!mounted) return; setAllMealsError(String(err ?? 'Error fetching meals')); setAllMeals(null); })
-      .finally(() => { if (mounted) setAllMealsLoading(false); });
-    return () => { mounted = false; };
+      .then((res) => {
+        if (!mounted) return;
+        setAllMeals(res as Record<string, MealsByKey>);
+      })
+      .catch((err) => {
+        if (!mounted) return;
+        setAllMealsError(String(err ?? 'Error fetching meals'));
+        setAllMeals(null);
+      })
+      .finally(() => {
+        if (mounted) setAllMealsLoading(false);
+      });
+
+    return () => {
+      mounted = false;
+    };
   }, []);
 
-  // Fetch meals for the currently active date from backend when it changes
+  // Carga de comidas por día activo
   useEffect(() => {
     let mounted = true;
+
     async function load() {
+      if (!session?.sub || !session?.accessToken) return;
+
       setApiMealsLoading(true);
       setApiMealsError(null);
-      setApiMealsByKey(null);
+      // Ojo, no limpiamos apiMealsByKey aquí, mantenemos lo último
+
       try {
-        const raw: RawMealItem[] = await getMealsForDayFromServer(activeDateISO, session?.sub, session?.accessToken ?? undefined);
+        const raw: RawMealItem[] = await getMealsForDayFromServer(
+          activeDateISO,
+          session.sub,
+          session.accessToken ?? undefined
+        );
+
         if (!mounted) return;
-        // Map backend meal_t values to our keys: breakfast/lunch/dinner/snack
-        const mapKey = (meal_t?: string) => {
-          if (!meal_t) return 'snack';
-          const t = meal_t.toLowerCase();
-          if (t.includes('desay')) return 'breakfast';
-          if (t.includes('almuer') || t.includes('comida')) return 'lunch';
-          if (t.includes('cena')) return 'dinner';
-          if (t.includes('aper') || t.includes('snack')) return 'snack';
-          return 'snack';
-        };
 
-        const byKey: Record<string, any[]> = { breakfast: [], lunch: [], dinner: [], snack: [] };
-        raw.forEach((r) => {
-          const k = mapKey(r.meal_t);
-          const time = r.uploaded_at ? (() => {
-            try { const d = new Date(r.uploaded_at); return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;} catch { return undefined; }
-          })() : undefined;
-          byKey[k].push({
-            id: r.id,
-            name: r.name,
-            protein: r.protein ?? 0,
-            carbs: r.carbs ?? 0,
-            fats: r.fats ?? 0,
-            kcal: r.kcal ?? 0,
-            time,
-            raw: r,
-          });
-        });
-
+        const byKey = mapMealsByKey(raw);
         setApiMealsByKey(byKey);
       } catch (err) {
         console.error('[Meals] load meals error', err);
-        if (mounted) setApiMealsError(String(err ?? 'Error fetching meals from server'));
+        if (mounted) {
+          setApiMealsError(String(err ?? 'Error fetching meals from server'));
+        }
       } finally {
         if (mounted) setApiMealsLoading(false);
       }
     }
 
     load();
-    return () => { mounted = false; };
+
+    return () => {
+      mounted = false;
+    };
   }, [activeDateISO, session?.sub, session?.accessToken]);
 
-  const mealsForDate = useMemo(() => {
-    const mockDB: Record<string, Record<string, any[]>> = {
-      [todayISO]: {
-        breakfast: [ { id: 'b1', name: 'Tostada integral con aguacate', protein: 6, carbs: 22, fats: 12, kcal: 210, time: '07:30' } ],
-        lunch: [ { id: 'l1', name: 'Pechuga de pollo', protein: 30, carbs: 0, fats: 3, kcal: 165, time: '13:00' } ],
-        dinner: [],
-        snack: [],
-      },
-    };
+  // Pull to refresh
+  const onRefresh = useCallback(async () => {
+    if (!session?.sub || !session?.accessToken) return;
 
+    setRefreshing(true);
+    try {
+      setApiMealsError(null);
+      setApiMealsLoading(true);
+
+      const [raw, all] = await Promise.all([
+        getMealsForDayFromServer(activeDateISO, session.sub, session.accessToken ?? undefined),
+        getAllMeals().catch(() => null),
+      ]);
+
+      const byKey = mapMealsByKey(raw);
+
+      if (all) {
+        setAllMeals(all as Record<string, MealsByKey>);
+      }
+      setApiMealsByKey(byKey);
+    } catch (e) {
+      console.error('[Meals] refresh error', e);
+      setApiMealsError(String(e ?? 'Error refreshing meals'));
+      // No tocamos apiMealsByKey para no borrar lo que se ve
+    } finally {
+      setApiMealsLoading(false);
+      setRefreshing(false);
+    }
+  }, [activeDateISO, session?.sub, session?.accessToken]);
+
+  // Fallback local de comidas
+  const mealsForDate = useMemo<MealsByKey>(() => {
+    const empty: MealsByKey = { breakfast: [], lunch: [], dinner: [], snack: [] };
     if (allMeals && allMeals[activeDateISO]) return allMeals[activeDateISO];
-    return { breakfast: [], lunch: [], dinner: [], snack: [] };
-  }, [activeDateISO, allMeals, todayISO]);
+    return empty;
+  }, [activeDateISO, allMeals]);
 
-  // The Date object used to render the header and the native picker value.
   const displayDateObj = useMemo(() => dateFromISO(displayDateISO), [displayDateISO]);
-
   const today = useMemo(() => dateFromISO(todayISO), [todayISO]);
-  // Build week days around `weekCenterISO`. Pass `selectedDate` so getWeekDays
-  // can mark the selected day only when the user has chosen one.
-  const weekDays = useMemo(() => getWeekDays(dateFromISO(weekCenterISO), today, selectedDate ?? undefined), [weekCenterISO, today, selectedDate]);
-  
-  // Responsive day button widths
+
+  const weekDays = useMemo(
+    () => getWeekDays(dateFromISO(weekCenterISO), today, selectedDate ?? undefined),
+    [weekCenterISO, today, selectedDate]
+  );
+
+  // Layout responsivo días
   const { width: screenWidth } = useWindowDimensions();
   const navButtonWidth = 26;
-  const horizontalPadding = 24 * 2; // left + right
-  const cardPadding = 6 * 2; // left + right
-  const weekContainerPadding = 4 * 2; // left + right
-  const weekStripPadding = 8 * 2; // left + right
+  const horizontalPadding = 24 * 2;
+  const cardPadding = 6 * 2;
+  const weekContainerPadding = 4 * 2;
+  const weekStripPadding = 8 * 2;
   const dayGap = 8;
-  const totalGaps = dayGap * 6; // 7 days = 6 gaps
+  const totalGaps = dayGap * 6;
   const navButtons = navButtonWidth * 2;
-  const availableWidth = screenWidth - horizontalPadding - cardPadding - weekContainerPadding - weekStripPadding - navButtons - totalGaps;
-  const dayWidth = Math.max(34, Math.min(38, Math.floor(availableWidth / 7))); // All days same width
-  
+  const availableWidth =
+    screenWidth - horizontalPadding - cardPadding - weekContainerPadding - weekStripPadding - navButtons - totalGaps;
+  const dayWidth = Math.max(34, Math.min(38, Math.floor(availableWidth / 7)));
+
   const canGoNext = useMemo(() => {
     if (!weekDays || weekDays.length === 0) return false;
     const rightMost = weekDays[weekDays.length - 1].date;
     return isoFromDate(rightMost) < isoFromDate(today);
   }, [weekDays, today]);
-  // `isSelectedFuture`/`isSelectedToday` reflect the currently displayed date
-  // (the header/picker), not the week center when navigating.
+
   const isSelectedFuture = isoFromDate(displayDateObj) > isoFromDate(today);
   const isSelectedToday = isoFromDate(displayDateObj) === isoFromDate(today);
 
   const goToCamera = (mealType: string) => {
+    // Defensa extra por si acaso
+    if (!isSelectedToday) return;
+
     const params = new URLSearchParams();
-    // Use the date currently shown in the header (displayDateISO). This never
-    // changes when the user is merely navigating weeks with the arrows.
     params.set('dateISO', displayDateISO);
     params.set('mealType', mealType);
-    // Debug log to trace navigation params when opening camera from Meals
-    console.log('[Meals] goToCamera navigate to /camera', { dateISO: displayDateISO, mealType, url: `/camera?${params.toString()}` });
+    console.log('[Meals] goToCamera navigate to /camera', {
+      dateISO: displayDateISO,
+      mealType,
+      url: `/camera?${params.toString()}`,
+    });
     router.push(`/camera?${params.toString()}` as any);
   };
 
@@ -264,33 +330,24 @@ export default function MealsScreen() {
     const d = dateFromISO(weekCenterISO);
     d.setDate(d.getDate() - 7);
     setWeekCenterISO(isoFromDate(d));
-    // Do NOT change `displayDateISO` — the header should keep showing the last
-    // explicitly chosen date until the user selects a new one.
-    // Keep `selectedDate` so that if the user returns to the week containing it,
-    // it will be shown as selected.
   };
 
   const nextWeek = () => {
     const d = dateFromISO(weekCenterISO);
     d.setDate(d.getDate() + 7);
     setWeekCenterISO(isoFromDate(d));
-    // Keep displayDateISO unchanged here as well.
-    // Keep `selectedDate` so selection persists when user navigates away and returns.
   };
 
   const selectDay = (date: Date) => {
     const iso = isoFromDate(date);
     setSelectedDate(iso);
     setWeekCenterISO(iso);
-    // Selecting a day updates the header/picker display date.
     setDisplayDateISO(iso);
   };
 
-  // Synchronize when navigated with params. If coming from Home, force today's date.
+  // Sincronizar cuando viene con params
   useEffect(() => {
     if (incomingFrom === 'home') {
-      // When coming from Home we want today's date to appear selected/painted
-      // so the week selector highlights today.
       setSelectedDate(todayISO);
       setWeekCenterISO(todayISO);
       setDisplayDateISO(todayISO);
@@ -302,46 +359,51 @@ export default function MealsScreen() {
       setWeekCenterISO(incomingDateISO);
       setDisplayDateISO(incomingDateISO);
     }
-  }, [incomingFrom, incomingDateISO]);
-  
+  }, [incomingFrom, incomingDateISO, todayISO]);
+
   const [showNativePicker, setShowNativePicker] = useState(false);
 
   const handlePickerChange = (date: Date) => {
-  const iso = isoFromDate(date);
-  setSelectedDate(iso);
-  setWeekCenterISO(iso);
-  setDisplayDateISO(iso);
-};
-
-
+    const iso = isoFromDate(date);
+    setSelectedDate(iso);
+    setWeekCenterISO(iso);
+    setDisplayDateISO(iso);
+  };
 
   return (
-    <View style={[styles.container, { backgroundColor: (colors as any)?.bg }]}> 
+    <View style={[styles.container, { backgroundColor: (colors as any)?.bg }]}>
       <Stack.Screen options={{ headerShown: false }} />
 
       {/* Gradient Header */}
       <LinearGradient
-        colors={[(colors as any)?.gradient?.primaryFrom ?? '#2FCCAC', (colors as any)?.gradient?.primaryTo ?? '#24A88C']}
+        colors={[
+          (colors as any)?.gradient?.primaryFrom ?? '#2FCCAC',
+          (colors as any)?.gradient?.primaryTo ?? '#24A88C',
+        ]}
         style={styles.header}
       >
-        {/* White card container for calendar */}
-        <View style={[styles.calendarCard] }>
-          {/* Full date text + chevron */}
+        {/* Calendar card */}
+        <View style={[styles.calendarCard]}>
+          {/* Fecha completa */}
           <Pressable onPress={() => setShowNativePicker(true)} style={styles.fullDateRow}>
             <AppText style={[styles.fullDateText, { color: '#fff' }]}>{prettyDate(displayDateObj)}</AppText>
             <View style={styles.chevronIconSmall}>
-              <ChevronRight color={ '#fff'} />
+              <ChevronRight color="#fff" />
             </View>
           </Pressable>
 
-          {/* Week strip with prev/next navigation */}
+          {/* Week strip */}
           <View style={styles.weekContainer}>
-            {/* Prev button */}
-            <Pressable onPress={prevWeek} style={[styles.navButton, { backgroundColor: (colors as any)?.icons?.idleBg ?? (colors as any)?.border }]}>
+            <Pressable
+              onPress={prevWeek}
+              style={[
+                styles.navButton,
+                { backgroundColor: (colors as any)?.icons?.idleBg ?? (colors as any)?.border },
+              ]}
+            >
               <ChevronLeft color={(colors as any)?.icons?.idle ?? '#4A5565'} />
             </Pressable>
 
-            {/* 7-day week selector */}
             <View style={styles.weekDaysStrip}>
               {weekDays.map((day) => (
                 <Pressable
@@ -350,46 +412,100 @@ export default function MealsScreen() {
                   disabled={day.isFuture}
                   style={[
                     styles.dayButton,
-                    { width: dayWidth }, // All days have the same width - no layout shift
+                    { width: dayWidth },
                     { backgroundColor: (colors as any)?.border3 },
-                    day.isSelected && { backgroundColor: (colors as any)?.gradient?.primaryFrom ?? '#2FCCAC' },
+                    day.isSelected && {
+                      backgroundColor: (colors as any)?.gradient?.primaryFrom ?? '#2FCCAC',
+                    },
                     day.isFuture && styles.dayButtonDisabled,
                   ]}
                 >
-                  <AppText style={[styles.dayInitial, { color: (colors as any)?.subtext }, day.isSelected && { color: '#fff' }]}>{day.initial}</AppText>
-                  <AppText style={[styles.dayNumber, { color: (colors as any)?.subtext }, day.isSelected && { color: '#fff' }]}>{day.dayNum}</AppText>
+                  <AppText
+                    style={[
+                      styles.dayInitial,
+                      { color: (colors as any)?.subtext },
+                      day.isSelected && { color: '#fff' },
+                    ]}
+                  >
+                    {day.initial}
+                  </AppText>
+                  <AppText
+                    style={[
+                      styles.dayNumber,
+                      { color: (colors as any)?.subtext },
+                      day.isSelected && { color: '#fff' },
+                    ]}
+                  >
+                    {day.dayNum}
+                  </AppText>
                 </Pressable>
               ))}
             </View>
 
-            {/* Next button */}
-            <Pressable onPress={nextWeek} disabled={!canGoNext} style={[styles.navButton, !canGoNext && styles.navButtonDisabled, { backgroundColor: (colors as any)?.icons?.idleBg ?? (colors as any)?.border }]}>
-              <ChevronRight color={canGoNext ? ((colors as any)?.icons?.idle ?? '#4A5565') : ((colors as any)?.border ?? '#D1D5DB')} />
+            <Pressable
+              onPress={nextWeek}
+              disabled={!canGoNext}
+              style={[
+                styles.navButton,
+                !canGoNext && styles.navButtonDisabled,
+                { backgroundColor: (colors as any)?.icons?.idleBg ?? (colors as any)?.border },
+              ]}
+            >
+              <ChevronRight
+                color={
+                  canGoNext ? (colors as any)?.icons?.idle ?? '#4A5565' : (colors as any)?.border ?? '#D1D5DB'
+                }
+              />
             </Pressable>
           </View>
         </View>
       </LinearGradient>
 
-      {/* Native date picker (Android native calendar, iOS spinner modal) */}
+      {/* Native date picker */}
       <NativeDatePicker
         visible={showNativePicker}
         value={displayDateObj}
+        maximumDate={today}
         onClose={() => setShowNativePicker(false)}
         onChange={handlePickerChange}
       />
 
+      {/* Feedback de carga y error para las comidas del día */}
+      {apiMealsLoading && (
+        <View style={{ paddingHorizontal: 24, paddingTop: 8 }}>
+          <AppText style={{ fontSize: 12, color: (colors as any)?.subtext }}>
+            Cargando tus comidas...
+          </AppText>
+        </View>
+      )}
+
+      {apiMealsError && (
+        <View style={{ paddingHorizontal: 24, paddingTop: 8 }}>
+          <AppText style={{ fontSize: 12, color: (colors as any)?.error ?? '#DC2626' }}>
+            Hubo un problema al actualizar tus comidas, desliza hacia abajo para reintentar.
+          </AppText>
+        </View>
+      )}
 
       {/* Meals List */}
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.mealsContainer}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={(colors as any)?.brandA}
+            colors={[(colors as any)?.brandA]}
+            progressBackgroundColor={(colors as any)?.bg}
+          />
+        }
       >
         {MEAL_TYPES.map((meal) => {
-          // Prefer API results for the active date, fallback to stubbed `mealsForDate`.
-          const source = apiMealsByKey ?? (mealsForDate as any);
-          const items = (source && source[meal.id]) ? source[meal.id] : (mealsForDate[meal.id] ?? []);
-          const hasItems = (items || []).length > 0;
+          const source = apiMealsByKey ?? mealsForDate;
+          const items = source[meal.id as keyof MealsByKey] ?? [];
+          const hasItems = items.length > 0;
           const bgColor = (colors as any)?.mealChips?.[meal.id as any]?.bg ?? meal.bg;
 
           return (
@@ -404,9 +520,6 @@ export default function MealsScreen() {
               isSelectedFuture={isSelectedFuture}
               onAddPress={() => goToCamera(meal.id)}
               onViewPress={() => {
-                // Use the same route shape as Home -> Meals so DetailMeals receives
-                // the meal segment (e.g. '/(tabs)/meals/lunch') which our detail
-                // component recognizes reliably.
                 const path = `/(tabs)/meals/${meal.id}?dateISO=${encodeURIComponent(displayDateISO)}`;
                 router.push(path as any);
               }}
@@ -483,16 +596,12 @@ const styles = StyleSheet.create({
   dayButton: {
     height: 64,
     borderRadius: 20,
-    // background color applied from theme at runtime
     flexDirection: 'column',
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 8,
     paddingHorizontal: 2,
     gap: 4,
-  },
-  dayButtonSelected: {
-    backgroundColor: '#2FCCAC',
   },
   dayButtonDisabled: {
     opacity: 0.4,
@@ -501,20 +610,11 @@ const styles = StyleSheet.create({
     fontFamily: 'Poppins-Regular',
     fontSize: 12,
     lineHeight: 16,
-    // color applied from theme at runtime
-  },
-  dayInitialSelected: {
-    fontSize: 16,
-    color: '#FFFFFF',
   },
   dayNumber: {
     fontFamily: 'Poppins-Regular',
     fontSize: 18,
     lineHeight: 28,
-    // color applied from theme at runtime
-  },
-  dayNumberSelected: {
-    color: '#FFFFFF',
   },
   scrollView: {
     flex: 1,
