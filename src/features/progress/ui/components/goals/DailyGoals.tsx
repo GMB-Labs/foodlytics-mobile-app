@@ -1,9 +1,11 @@
-import React from 'react';
-import { View, StyleSheet, TouchableOpacity } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, StyleSheet, TouchableOpacity, Text } from 'react-native';
 import { useRouter, usePathname } from 'expo-router';
 import AppText from '@/src/shared/ui/components/Typography';
 import GoalIcon from '@/assets/icons/activity/goalIcon.svg';
 import { useTheme } from '@/src/shared/styles/useTheme';
+import useSession from '@/src/shared/hooks/useSession';
+import { fetchCalorieTargetsCached } from '@/src/shared/api/profileGateway';
 
 type Goal = { label: string; value: string; color?: string };
 
@@ -17,6 +19,8 @@ const defaultGoals: Goal[] = [
 export default function DailyGoals({ goals = defaultGoals }: { goals?: Goal[] }) {
   const router = useRouter();
   const pathname = usePathname();
+  const [sessionState] = useSession();
+  const [remoteGoals, setRemoteGoals] = useState<Goal[] | null>(null);
 
   const { colors } = useTheme();
   const theme = colors as any;
@@ -30,24 +34,59 @@ export default function DailyGoals({ goals = defaultGoals }: { goals?: Goal[] })
     router.push({ pathname: '/modals/edit-goals', params: { from: safeFrom } } as any);
   };
 
+  useEffect(() => {
+    let mounted = true;
+    const patientId = sessionState?.sub;
+    const token = sessionState?.accessToken ?? undefined;
+    if (!patientId) return;
+
+    const force = !!(sessionState?.user as any)?.calorieTargetsRefreshedAt;
+
+    (async () => {
+      try {
+        const data: any = await fetchCalorieTargetsCached({ patientId, token, force });
+        if (!mounted || !data) return;
+        const g: Goal[] = [
+          { label: 'Calorías', value: String(data.calories ?? ''), color: '#2FCCAC' },
+          { label: 'Proteínas', value: `${data.protein_grams ?? ''}g`, color: '#2B7FFF' },
+          { label: 'Carbohidratos', value: `${data.carb_grams ?? ''}g`, color: '#FF6900' },
+          { label: 'Grasas', value: `${data.fat_grams ?? ''}g`, color: '#F0B100' },
+        ];
+        setRemoteGoals(g);
+      } catch (e) {
+        // ignore, keep defaults
+      }
+    })();
+
+    return () => {
+      mounted = false;
+    };
+  }, [
+    sessionState?.sub,
+    (sessionState?.user as any)?.goalWeight,
+    sessionState?.user?.activity,
+    sessionState?.user?.goalType,
+    (sessionState?.user as any)?.calorieTargetsRefreshedAt,
+  ]);
+
   const styles = createStyles(theme);
 
   return (
     <View style={styles.card}>
       <View style={styles.headerRow}>
-        <AppText variant="ag7" color={theme.text ?? '#1A1A1A'}>Metas Diarias</AppText>
+        <AppText variant="ag7" color={theme.text ?? '#1A1A1A'}><Text>Metas Diarias</Text></AppText>
         <TouchableOpacity style={styles.adjustBtn} activeOpacity={0.85} onPress={onAdjust}>
           <GoalIcon width={16} height={16} color={theme.text ?? '#1A1A1A'} />
-          <AppText variant="ag9" color={theme.text ?? '#1A1A1A'} style={{ marginLeft: 8 }}>Ajustar</AppText>
+          <AppText variant="ag9" color={theme.text ?? '#1A1A1A'} style={{ marginLeft: 8 }}><Text>Ajustar</Text></AppText>
         </TouchableOpacity>
       </View>
 
       <View style={styles.grid}>
-        {goals.map((g, i) => (
+        {(remoteGoals ?? goals).map((g, i) => (
           <View key={i} style={[styles.gridItem, { backgroundColor: theme.mealRowBg ?? '#F8FAFC' }]}>
-            <AppText variant="ag10" color={theme.subtext ?? '#4A5565'}>{g.label}</AppText>
+            <AppText variant="ag10" color={theme.subtext ?? '#4A5565'}><Text>{g.label}</Text></AppText>
             <AppText variant="ag6" color={g.color ?? theme.brandB ?? '#2FCCAC'} style={{ marginTop: 4 }}>
-              {g.value}
+              <Text>{g.value}</Text>
             </AppText>
           </View>
         ))}

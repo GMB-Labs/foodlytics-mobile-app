@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { fetchDailyPhysicalActivity, fetchPhysicalActivityRange, PhysicalActivityDay, RemoteActivity } from '@/src/features/activity/infrastructure/activityGateway';
 import { useSession } from '@/src/shared/hooks/useSession';
+import { on as onEvent, off as offEvent } from '@/src/shared/utils/eventBus';
 import { useTodayISO } from '@/src/shared/hooks/useTodayISO';
 
 export type ActivityListItem = {
@@ -135,12 +136,76 @@ export function usePhysicalActivity(): UsePhysicalActivityResult {
       return;
     }
     let cancelled = false;
+
     (async () => {
       await Promise.all([loadDaily(), loadRange()]);
       if (cancelled) return;
     })();
-    return () => { cancelled = true; };
-  }, [session?.isAuthenticated, session?.sub, loadDaily, loadRange]);
+
+    // subscribe to in-app events so UI updates immediately when a new activity is added
+    const handler = (payload: any) => {
+      try {
+        if (!payload || payload.day !== todayISO) return;
+        // prepend a synthetic activity to today's list and update totals
+        const newAct: ActivityListItem = {
+          id: `local-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+          name: payload.name ?? 'Actividad',
+          minutes: Number(payload.minutes ?? 0),
+          intensity: 'Moderada',
+          calories: Number(payload.calories ?? 0),
+        };
+        setDailyState((prev) => {
+          const activities = [newAct, ...prev.activities];
+          const totalMinutes = activities.reduce((sum, it) => sum + it.minutes, 0);
+          const totalCalories = prev.totalCalories + (Number(payload.calories ?? 0) || 0);
+          return { ...prev, activities, totalMinutes, totalCalories };
+        });
+        // update month records counts
+        setMonthState((prev) => {
+          const updatedRecords = { ...prev.records };
+          const prevCount = Number(updatedRecords[payload.day] ?? 0);
+          updatedRecords[payload.day] = prevCount + 1;
+          return { ...prev, records: updatedRecords };
+        });
+      } catch (e) {
+        // ignore
+      }
+    };
+    onEvent('activity:added', handler);
+
+    // handle deletions: remove activity from today's list and decrement month counts
+    const delHandler = (payload: any) => {
+      try {
+        if (!payload || !payload.id) return;
+        const day = payload.day ?? todayISO;
+
+        setDailyState((prev) => {
+          const activities = prev.activities.filter((a) => a.id !== payload.id);
+          const totalMinutes = activities.reduce((sum, it) => sum + it.minutes, 0);
+          const totalCalories = activities.reduce((sum, it) => sum + it.calories, 0);
+          return { ...prev, activities, totalMinutes, totalCalories };
+        });
+
+        setMonthState((prev) => {
+          const updatedRecords = { ...prev.records };
+          const prevCount = Number(updatedRecords[day] ?? 0);
+          const newCount = Math.max(0, prevCount - 1);
+          if (newCount > 0) updatedRecords[day] = newCount;
+          else delete updatedRecords[day];
+          return { ...prev, records: updatedRecords };
+        });
+      } catch (e) {
+        // ignore
+      }
+    };
+    onEvent('activity:deleted', delHandler);
+
+    return () => {
+      cancelled = true;
+      try { offEvent('activity:added', handler); } catch (e) { /* ignore */ }
+      try { offEvent('activity:deleted', delHandler); } catch (e) { /* ignore */ }
+    };
+  }, [session?.isAuthenticated, session?.sub, loadDaily, loadRange, todayISO]);
 
   return {
     today: {

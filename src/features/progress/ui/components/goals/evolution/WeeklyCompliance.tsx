@@ -1,9 +1,11 @@
 /* eslint-disable react-native/no-raw-text */
-import React from 'react';
-import { View, StyleSheet, Dimensions } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, StyleSheet, Dimensions, ActivityIndicator } from 'react-native';
 import AppText from '@/src/shared/ui/components/Typography';
 import { BarChart } from 'react-native-chart-kit';
 import { useTheme } from '@/src/shared/styles/useTheme';
+import useSession from '@/src/shared/hooks/useSession';
+import { fetchDailySummaryCached } from '@/src/shared/api/profileGateway';
 
 const screenWidth = Dimensions.get('window').width;
 
@@ -24,8 +26,13 @@ const DEFAULT_WEEKS: WeekItem[] = [
 ];
 
 export default function WeeklyCompliance({ data = DEFAULT_WEEKS }: Props) {
-  const labels = data.map(w => w.label);
-  const values = data.map(w => w.value);
+  const [sessionState] = useSession();
+  const token = sessionState?.accessToken;
+  const patientId = sessionState?.sub;
+
+  const [values, setValues] = useState<number[]>(() => data.map((w) => w.value));
+  const [loading, setLoading] = useState(false);
+  const labels = ['Sem 1', 'Sem 2', 'Sem 3', 'Sem 4'];
   const { colors } = useTheme();
   const theme = colors as any;
 
@@ -34,6 +41,64 @@ export default function WeeklyCompliance({ data = DEFAULT_WEEKS }: Props) {
   const labelColor = theme.subtext ?? '#6A7282';
   const bgStroke = theme.border ?? '#E5E7EB';
 
+  useEffect(() => {
+    let mounted = true;
+    async function fetchMonth() {
+      if (!patientId) return;
+      setLoading(true);
+      try {
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = now.getMonth(); // 0-based
+        const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+        // helpers
+        const pad = (n: number) => String(n).padStart(2, '0');
+        const isoFor = (y: number, m: number, d: number) => `${y}-${pad(m + 1)}-${pad(d)}`;
+
+        const totalDays = [0, 0, 0, 0];
+        const withinDays = [0, 0, 0, 0];
+
+        const days: string[] = [];
+        for (let d = 1; d <= daysInMonth; d++) days.push(isoFor(year, month, d));
+
+        const promises = days.map((day) =>
+          fetchDailySummaryCached({ patientId: String(patientId), day, token: token ?? undefined }).catch(() => null)
+        );
+
+        const results = await Promise.all(promises);
+
+        for (let i = 0; i < days.length; i++) {
+          const dayIso = days[i];
+          const dayOfMonth = parseInt(dayIso.slice(8, 10), 10);
+          const weekIndex = Math.floor((dayOfMonth - 1) / 7); // 0..3
+          const w = Math.min(3, Math.max(0, weekIndex));
+          totalDays[w] += 1;
+          const res = results[i];
+          if (res && res.status === 'within_target') withinDays[w] += 1;
+        }
+
+        const computed = totalDays.map((tot, idx) => {
+          if (tot <= 0) return 0;
+          const pct = Math.round((withinDays[idx] / tot) * 100);
+          return Math.min(100, Math.max(0, pct));
+        });
+
+        if (mounted) setValues(computed);
+      } catch (e) {
+        // on error, keep defaults
+        console.warn('[WeeklyCompliance] fetch failed', e);
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    }
+
+    fetchMonth();
+    return () => {
+      mounted = false;
+    };
+  }, [patientId, token]);
+
   return (
     <View style={styles.card}>
       <AppText variant="ag7" color={theme.text ?? '#1A1A1A'}>
@@ -41,43 +106,46 @@ export default function WeeklyCompliance({ data = DEFAULT_WEEKS }: Props) {
       </AppText>
 
       <View style={styles.chartContainer}>
-        <BarChart
-          data={{
-            labels,
-            datasets: [{ data: values }],
-          }}
-          width={screenWidth - 40}   // card width (padding 20 a cada lado)
-          height={200}
-          fromZero
-          yAxisLabel=""
-          yAxisSuffix="%"
-          segments={4}               // 0, 25, 50, 75, 100 aprox
-          showBarTops={true}
-          withHorizontalLabels
-          showValuesOnTopOfBars={false}
-          xLabelsOffset={-4}         // centra mejor "Sem 1", "Sem 2", etc
-          yLabelsOffset={8}
-          chartConfig={{
-            backgroundColor: theme.mealsCard ?? '#FFFFFF',
-            backgroundGradientFrom: theme.mealsCard ?? '#FFFFFF',
-            backgroundGradientTo: theme.mealsCard ?? '#FFFFFF',
-            backgroundGradientFromOpacity: 1,
-            backgroundGradientToOpacity: 1,
-            decimalPlaces: 0,
-            color: () => barColor,        // barras
-            labelColor: () => labelColor,   // labels ejes, más oscuro
-            propsForBackgroundLines: {
-              stroke: bgStroke,
-              strokeDasharray: '3 5',
-              strokeWidth: 1
-            },
-            barPercentage: 0.7,            // barras más gruesas
-            propsForLabels: {
-              fontSize: 11,
-            },
-          }}
-          style={styles.chart}
-        />
+        {loading ? (
+          <View style={{ height: 200, alignItems: 'center', justifyContent: 'center' }}>
+            <ActivityIndicator />
+          </View>
+        ) : (
+          <BarChart
+            data={{ labels, datasets: [{ data: values }] }}
+            width={screenWidth - 40} // card width (padding 20 a cada lado)
+            height={200}
+            fromZero
+            yAxisLabel=""
+            yAxisSuffix="%"
+            segments={4}
+            showBarTops={true}
+            withHorizontalLabels
+            showValuesOnTopOfBars={false}
+            xLabelsOffset={-4}
+            yLabelsOffset={8}
+            chartConfig={{
+              backgroundColor: theme.mealsCard ?? '#FFFFFF',
+              backgroundGradientFrom: theme.mealsCard ?? '#FFFFFF',
+              backgroundGradientTo: theme.mealsCard ?? '#FFFFFF',
+              backgroundGradientFromOpacity: 1,
+              backgroundGradientToOpacity: 1,
+              decimalPlaces: 0,
+              color: () => barColor,
+              labelColor: () => labelColor,
+              propsForBackgroundLines: {
+                stroke: bgStroke,
+                strokeDasharray: '3 5',
+                strokeWidth: 1,
+              },
+              barPercentage: 0.7,
+              propsForLabels: {
+                fontSize: 11,
+              },
+            }}
+            style={styles.chart}
+          />
+        )}
       </View>
     </View>
   );

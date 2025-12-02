@@ -14,21 +14,70 @@ import {
 import ModalHeader from '@/src/shared/ui/components/ModalHeader';
 import { LinearGradient } from 'expo-linear-gradient';
 import useToast from '@/src/shared/hooks/useToast';
+import useSession from '@/src/shared/hooks/useSession';
+import { updateProfile, fetchCalorieTargetsCached, fetchProfileCached } from '@/src/shared/api/profileGateway';
 import { useTodayISO } from '@/src/shared/hooks/useTodayISO';
+import calculateTargetsFromProfile from '@/src/features/goals/application/calorieTargetService';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import RowIcon from '@/assets/icons/rowIcon.svg';
 import AppText from '@/src/shared/ui/components/Typography';
 import { useTheme } from '@/src/shared/styles/useTheme';
 
-const ACTIVITY_LEVELS = ['Sedentario', 'Ligero', 'Moderado', 'Activo', 'Muy activo'] as const;
+const ACTIVITY_MAP: Array<{ key: string; label: string }> = [
+  { key: 'sedentary', label: 'Sedentario' },
+  { key: 'light', label: 'Ligero' },
+  { key: 'moderate', label: 'Moderado' },
+  { key: 'active', label: 'Activo' },
+  { key: 'veryActive', label: 'Muy activo' },
+];
 
-const ACTIVITY_FACTORS: Record<(typeof ACTIVITY_LEVELS)[number], number> = {
-  Sedentario: 1.2,
-  Ligero: 1.375,
-  Moderado: 1.55,
-  Activo: 1.725,
-  'Muy activo': 1.9,
+const GOAL_TYPE_MAP: Array<{ key: string; label: string }> = [
+  { key: 'definition', label: 'Definición' },
+  { key: 'maintenance', label: 'Mantenimiento' },
+  { key: 'bulking', label: 'Volumen' },
+];
+
+const ACTIVITY_FACTORS: Record<string, number> = {
+  sedentary: 1.2,
+  light: 1.375,
+  moderate: 1.55,
+  active: 1.725,
+  veryActive: 1.9,
 };
+
+function mapApiActivityToKey(apiVal?: string | null) {
+  if (!apiVal) return undefined;
+  const v = String(apiVal).toLowerCase();
+  if (v.includes('sedent')) return 'sedentary';
+  if (v.includes('light') || v.includes('ligero')) return 'light';
+  if (v.includes('moder') || v.includes('moderado')) return 'moderate';
+  if (v.includes('active') && v.includes('very')) return 'veryActive';
+  if (v.includes('active')) return 'active';
+  return undefined;
+}
+
+function mapApiGoalToKey(apiVal?: string | null) {
+  if (!apiVal) return undefined;
+  const v = String(apiVal).toLowerCase();
+  if (v.includes('definition') || v.includes('defin')) return 'definition';
+  if (v.includes('maintenance') || v.includes('maint')) return 'maintenance';
+  if (v.includes('bulking') || v.includes('bul') || v.includes('buling')) return 'bulking';
+  return undefined;
+}
+
+function mapActivityKeyToApi(key?: string | null) {
+  if (!key) return undefined;
+  const k = String(key).toLowerCase();
+  const mapping: Record<string, string> = {
+    sedentary: 'sedentario',
+    light: 'ligero',
+    moderate: 'moderado',
+    active: 'activo',
+    veryactive: 'muy_activo',
+    'very_active': 'muy_activo',
+  };
+  return mapping[k] || key;
+}
 
 function hexToRgba(hex: string, alpha = 1) {
   if (!hex) return `rgba(0,0,0,${alpha})`;
@@ -48,6 +97,8 @@ export default function EditGoal() {
   const todayISO = useTodayISO();
   const [saving, setSaving] = useState(false);
 
+  const [sessionState, sessionActions] = useSession();
+
   const { colors } = useTheme();
   const theme = colors as any;
 
@@ -56,8 +107,14 @@ export default function EditGoal() {
 
   // Form state matching Figma design
   const [targetWeight, setTargetWeight] = useState('65');
-  const [activity, setActivity] = useState<(typeof ACTIVITY_LEVELS)[number]>('Moderado');
+  const [activity, setActivity] = useState<string | undefined>(
+    () => mapApiActivityToKey((sessionState?.user as any)?.activity_level ?? (sessionState?.user as any)?.activity) ?? 'moderate',
+  );
   const [showActivityPicker, setShowActivityPicker] = useState(false);
+  const [goalType, setGoalType] = useState<string | undefined>(
+    () => mapApiGoalToKey((sessionState?.user as any)?.goal_type ?? (sessionState?.user as any)?.goalType) ?? 'maintenance',
+  );
+  const [showGoalTypePicker, setShowGoalTypePicker] = useState(false);
 
   // Daily goals (simuladas, ahora en state)
   const [calories, setCalories] = useState('1789');
@@ -68,22 +125,43 @@ export default function EditGoal() {
   const recalcGoals = () => {
     const target = parseFloat(targetWeight.replace(',', '.'));
     if (Number.isNaN(target) || target <= 0) return;
+    // Try to use shared service when height/age/gender are available
+    const user = sessionState?.user as any;
+    const heightCm = user?.height_cm ?? user?.heightCm;
+    const age = user?.age;
+    const gender = user?.gender ?? user?.sex ?? user?.gender_identity;
 
-    const factor = ACTIVITY_FACTORS[activity] ?? ACTIVITY_FACTORS.Moderado;
+    try {
+      if (heightCm && age) {
+        const activityForService = activity === 'veryActive' ? 'very_active' : (activity as any);
+        const apiGoal = mapGoalKeyToApi(goalType ?? 'maintenance');
+        const targets = calculateTargetsFromProfile({
+          weightKg: target,
+          heightCm: Number(heightCm),
+          age: Number(age),
+          gender: (gender as any) ?? 'other',
+          goalType: apiGoal as any,
+          activityLevel: activityForService as any,
+        });
 
-    // Calorías base según peso actual y actividad
+        setCalories(String(targets.kcalTarget));
+        setProteins(`${targets.proteinG}g`);
+        setFats(`${targets.fatsG}g`);
+        setCarbs(`${targets.carbsG}g`);
+        return;
+      }
+    } catch (e) {
+      // fallback to simpler heuristic below
+    }
+
+    // Fallback simple heuristic if missing profile data
+    const factor = ACTIVITY_FACTORS[activity ?? 'moderate'] ?? ACTIVITY_FACTORS['moderate'];
     const baseCalories = currentWeightKg * 30 * factor;
-
-    // Ajuste por diferencia de peso objetivo
     const diffKg = target - currentWeightKg;
     const adjustment = Math.max(Math.min(diffKg * 10, 300), -300); // entre -300 y +300 kcal
-
     const totalCalories = Math.round(baseCalories + adjustment);
-
-    // Macros simples:
     const proteinG = Math.round(target * 1.8); // 1.8 g/kg
     const fatG = Math.round(target * 0.9);     // 0.9 g/kg
-
     const kcalFromProtein = proteinG * 4;
     const kcalFromFat = fatG * 9;
     let kcalLeftForCarbs = totalCalories - (kcalFromProtein + kcalFromFat);
@@ -103,14 +181,89 @@ export default function EditGoal() {
     recalcGoals();
   }, [targetWeight, activity]);
 
+  // Prefill form from session profile if available
+  useEffect(() => {
+    const user = sessionState?.user as any;
+    if (!user) return;
+    if (user.goalWeight || user.desired_weight_kg) {
+      setTargetWeight(String(user.goalWeight ?? user.desired_weight_kg ?? ''));
+    }
+    // map api values to our internal keys
+    const actKey = mapApiActivityToKey(user?.activity_level ?? user?.activity);
+    if (actKey) setActivity(actKey as any);
+    const gKey = mapApiGoalToKey(user?.goal_type ?? user?.goalType);
+    if (gKey) setGoalType(gKey as any);
+  }, [sessionState?.user]);
+
+  function mapGoalKeyToApi(key: string) {
+    if (key === 'definition') return 'definition';
+    if (key === 'maintenance') return 'maintenance';
+    if (key === 'bulking') return 'bulking';
+    // fallback: return key
+    return key;
+  }
+
   const onSave = async () => {
     setSaving(true);
-    // TODO: integrate backend save
-    setTimeout(() => {
+    const userId = sessionState?.sub;
+    const token = sessionState?.accessToken ?? undefined;
+    const desired = parseFloat(String(targetWeight).replace(',', '.'));
+    if (!userId) {
+      toast.show({ text: 'Usuario no identificado' });
       setSaving(false);
-      // Open the completion screen inside the edit-goals modal stack
+      return;
+    }
+
+
+    const partial: Record<string, any> = {
+      desired_weight_kg: Number.isFinite(desired) ? desired : undefined,
+      activity_level: mapActivityKeyToApi(activity ?? 'moderate'),
+      goal_type: mapGoalKeyToApi(goalType ?? 'maintenance'),
+    };
+
+    try {
+      // Fetch existing profile to include required fields the API expects
+      let existing = null;
+      try {
+        existing = await fetchProfileCached({ userId, token });
+      } catch (e) {
+        existing = null;
+      }
+
+      const fromSession = (sessionState?.user || {}) as any;
+
+      const fullPayload: Record<string, any> = {
+        // required fields: prefer existing profile, then session, then safe defaults
+        first_name: existing?.first_name ?? fromSession?.first_name ?? fromSession?.name?.split(' ')?.[0] ?? '',
+        last_name: existing?.last_name ?? fromSession?.last_name ?? (fromSession?.name ? fromSession.name.split(' ').slice(1).join(' ') : '') ?? '',
+        age: existing?.age ?? fromSession?.age ?? 0,
+        gender: existing?.gender ?? fromSession?.gender ?? 'other',
+        user_profile_completed: existing?.user_profile_completed ?? true,
+        // other optional but useful fields
+        height_cm: existing?.height_cm ?? fromSession?.heightCm ?? undefined,
+        weight_kg: existing?.weight_kg ?? fromSession?.weightKg ?? undefined,
+        // merge partial updates
+        ...existing,
+        ...partial,
+      };
+
+      await updateProfile({ userId, payload: fullPayload, token });
+
+      // refresh session profile so Profile -> Goals components update
+      try { await sessionActions.refreshProfileAndUpdateCompletion(undefined, token ?? null, userId); } catch (e) {}
+
+      // force refresh calorie-targets cache
+      try { await fetchCalorieTargetsCached({ patientId: userId, token, force: true }); } catch (e) {}
+      // notify other components that calorie targets were refreshed
+      try { await sessionActions.setUserProfile({ calorieTargetsRefreshedAt: Date.now() }); } catch (e) {}
+
+      setSaving(false);
       router.push({ pathname: '/modals/edit-goals/complete', params: { dateISO: todayISO } } as any);
-    }, 600);
+    } catch (err: any) {
+      setSaving(false);
+      const msg = err?.message || 'Error al actualizar metas';
+      toast.show({ text: msg });
+    }
   };
 
   const styles = createStyles(theme);
@@ -134,13 +287,13 @@ export default function EditGoal() {
           >
             {/* Objectives card */}
             <View style={styles.objectivesCard}>
-              <AppText variant="ag7" style={styles.cardTitle}>Objetivos nutricionales</AppText>
-              <AppText variant="ag7" style={styles.cardSubtitle}>Ajusta tus metas diarias</AppText>
+              <AppText variant="ag7" style={styles.cardTitle}><Text>Objetivos nutricionales</Text></AppText>
+              <AppText variant="ag7" style={styles.cardSubtitle}><Text>Ajusta tus metas diarias</Text></AppText>
             </View>
 
             {/* Weight input */}
             <View style={styles.inputContainer}>
-              <AppText variant="ag10" style={styles.inputLabel}>Peso Objetivo (kg)</AppText>
+              <AppText variant="ag10" style={styles.inputLabel}><Text>Peso Objetivo (kg)</Text></AppText>
               <TextInput
                 value={targetWeight}
                 onChangeText={setTargetWeight}
@@ -152,7 +305,7 @@ export default function EditGoal() {
 
             {/* Activity level selector */}
             <View style={styles.inputContainer}>
-              <AppText variant="ag10" style={styles.inputLabel}>Nivel de Actividad</AppText>
+              <AppText variant="ag10" style={styles.inputLabel}><Text>Nivel de Actividad</Text></AppText>
               <Pressable
                 style={styles.selectorButton}
                 onPress={() => {
@@ -160,30 +313,45 @@ export default function EditGoal() {
                   setShowActivityPicker(true);
                 }}
               >
-                <AppText variant="ag10" style={styles.selectorText}>{activity}</AppText>
+                <AppText variant="ag10" style={styles.selectorText}>{ACTIVITY_MAP.find(a => a.key === activity)?.label ?? activity}</AppText>
+                <RowIcon width={16} height={16} />
+              </Pressable>
+            </View>
+
+            {/* Goal type selector */}
+            <View style={styles.inputContainer}>
+              <AppText variant="ag10" style={styles.inputLabel}><Text>Tipo de Objetivo</Text></AppText>
+              <Pressable
+                style={styles.selectorButton}
+                onPress={() => {
+                  Keyboard.dismiss();
+                  setShowGoalTypePicker(true);
+                }}
+              >
+                <AppText variant="ag10" style={styles.selectorText}>{GOAL_TYPE_MAP.find(g => g.key === goalType)?.label ?? goalType}</AppText>
                 <RowIcon width={16} height={16} />
               </Pressable>
             </View>
 
             {/* Daily goals section */}
-            <AppText variant="ag10" style={styles.sectionTitle}>Metas Diarias</AppText>
+            <AppText variant="ag10" style={styles.sectionTitle}><Text>Vista Previa - Metas Diarias aproz</Text></AppText>
             <View style={[styles.goalsContainer, { backgroundColor: theme.celeste ?? '#C9F3EB' }] }>
               <View style={styles.goalsGrid}>
                 <View style={styles.goalBox}>
-                  <AppText variant="ag10" style={styles.goalLabel}>Calorías</AppText>
-                  <AppText variant="ag6" style={[styles.goalValue, { color: theme.brandB ?? '#2FCCAC' }]}>{calories}</AppText>
+                  <AppText variant="ag10" style={styles.goalLabel}><Text>Calorías</Text></AppText>
+                  <AppText variant="ag6" style={[styles.goalValue, { color: theme.brandA ?? '#2FCCAC' }]}><Text>{calories}</Text></AppText>
                 </View>
                 <View style={styles.goalBox}>
-                  <AppText variant="ag10" style={styles.goalLabel}>Proteínas</AppText>
-                  <AppText variant="ag6" style={[styles.goalValue, { color: theme.brandA ?? '#2B7FFF' }]}>{proteins}</AppText>
+                  <AppText variant="ag10" style={styles.goalLabel}><Text>Proteínas</Text></AppText>
+                  <AppText variant="ag6" style={[styles.goalValue, { color:  '#2B7FFF' }]}><Text>{proteins}</Text></AppText>
                 </View>
                 <View style={styles.goalBox}>
-                  <AppText variant="ag10" style={styles.goalLabel}>Carbohidratos</AppText>
-                  <AppText variant="ag6" style={[styles.goalValue, { color: theme.danger ?? '#FF6900' }]}>{carbs}</AppText>
+                  <AppText variant="ag10" style={styles.goalLabel}><Text>Carbohidratos</Text></AppText>
+                  <AppText variant="ag6" style={[styles.goalValue, { color: '#FF6900' }]}><Text>{carbs}</Text></AppText>
                 </View>
                 <View style={styles.goalBox}>
-                  <AppText variant="ag10" style={styles.goalLabel}>Grasas</AppText>
-                  <AppText variant="ag6" style={[styles.goalValue, { color: theme.warning ?? '#F0B100' }]}>{fats}</AppText>
+                  <AppText variant="ag10" style={styles.goalLabel}><Text>Grasas</Text></AppText>
+                  <AppText variant="ag6" style={[styles.goalValue, { color:  '#F0B100' }]}><Text>{fats}</Text></AppText>
                 </View>
               </View>
             </View>
@@ -198,7 +366,7 @@ export default function EditGoal() {
             disabled={saving}
           >
             <AppText variant="ag9" style={styles.saveButtonText}>
-              {saving ? 'Guardando...' : 'Guardar metas'}
+              <Text>{saving ? 'Guardando...' : 'Guardar metas'}</Text>
             </AppText>
           </Pressable>
         </View>
@@ -218,17 +386,17 @@ export default function EditGoal() {
         <Pressable style={styles.modalOverlay} onPress={() => setShowActivityPicker(false)}>
           <View style={[styles.pickerContainer, { backgroundColor: theme.mealsCard ?? '#FFFFFF' }]}>
             <View style={[styles.pickerHeader, { borderBottomColor: theme.border2 ?? '#E5E7EB' }]}>
-              <AppText variant="ag9" style={styles.pickerTitle}>Nivel de Actividad</AppText>
+              <AppText variant="ag9" style={styles.pickerTitle}><Text>Nivel de Actividad</Text></AppText>
               <Pressable onPress={() => setShowActivityPicker(false)}>
-                <AppText variant="ag9" style={styles.pickerClose}>✕</AppText>
+                <AppText variant="ag9" style={styles.pickerClose}><Text>✕</Text></AppText>
               </Pressable>
             </View>
-            {ACTIVITY_LEVELS.map(level => (
+            {ACTIVITY_MAP.map(opt => (
               <Pressable
-                key={level}
-                style={[styles.pickerItem, activity === level && styles.pickerItemSelected]}
+                key={opt.key}
+                style={[styles.pickerItem, activity === opt.key && styles.pickerItemSelected]}
                 onPress={() => {
-                  setActivity(level);
+                  setActivity(opt.key);
                   setShowActivityPicker(false);
                 }}
               >
@@ -236,11 +404,50 @@ export default function EditGoal() {
                   variant="ag10"
                   style={[
                     styles.pickerItemText,
-                    activity === level && styles.pickerItemTextSelected,
-                    { color: activity === level ? ( '#FFFFFF') : (theme.text ?? '#1A1A1A') },
+                    activity === opt.key && styles.pickerItemTextSelected,
+                    { color: activity === opt.key ? '#FFFFFF' : (theme.text ?? '#1A1A1A') },
                   ]}
                 >
-                  {level}
+                  <Text>{opt.label}</Text>
+                </AppText>
+              </Pressable>
+            ))}
+          </View>
+        </Pressable>
+      </Modal>
+      {/* Goal type picker modal */}
+      <Modal
+        visible={showGoalTypePicker}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowGoalTypePicker(false)}
+      >
+        <Pressable style={styles.modalOverlay} onPress={() => setShowGoalTypePicker(false)}>
+          <View style={[styles.pickerContainer, { backgroundColor: theme.mealsCard ?? '#FFFFFF' }]}>
+            <View style={[styles.pickerHeader, { borderBottomColor: theme.border2 ?? '#E5E7EB' }]}>
+              <AppText variant="ag9" style={styles.pickerTitle}><Text>Tipo de Objetivo</Text></AppText>
+              <Pressable onPress={() => setShowGoalTypePicker(false)}>
+                <AppText variant="ag9" style={styles.pickerClose}><Text>✕</Text></AppText>
+              </Pressable>
+            </View>
+            {GOAL_TYPE_MAP.map(opt => (
+              <Pressable
+                key={opt.key}
+                style={[styles.pickerItem, goalType === opt.key && styles.pickerItemSelected]}
+                onPress={() => {
+                  setGoalType(opt.key);
+                  setShowGoalTypePicker(false);
+                }}
+              >
+                <AppText
+                  variant="ag10"
+                  style={[
+                    styles.pickerItemText,
+                    goalType === opt.key && styles.pickerItemTextSelected,
+                    { color: goalType === opt.key ? '#FFFFFF' : (theme.text ?? '#1A1A1A') },
+                  ]}
+                >
+                  <Text>{opt.label}</Text>
                 </AppText>
               </Pressable>
             ))}
@@ -370,7 +577,7 @@ function createStyles(themeColors: any) {
 
     // Footer
     footer: {
-      paddingTop: 20,
+      paddingTop: 10,
       paddingHorizontal: 22,
       paddingVertical: 16,
       backgroundColor: themeColors.card ?? '#FFFFFF',

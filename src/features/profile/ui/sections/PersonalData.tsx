@@ -7,6 +7,7 @@ import BMIBlock from "../components/BMIBlock";
 import EditAction from '../components/EditAction';
 import { s } from "../tokens";
 import { useTheme } from '@/src/shared/styles/useTheme';
+import useSession from '@/src/shared/hooks/useSession';
 
 export default React.memo(function PersonalData({
   age, gender, heightCm, weightKg, bmi, bmiLabel, onEdit, isEditing, onSave, onCancel, isSaving,
@@ -26,8 +27,23 @@ export default React.memo(function PersonalData({
     }
   }, [isEditing]);
 
-  function save(){
-    onSave && onSave({ age: Number(form.age), gender: form.gender, heightCm: Number(form.heightCm), weightKg: Number(form.weightKg) });
+  const [, sessionActions] = useSession();
+
+  async function save(){
+    const payload = { age: Number(form.age), gender: form.gender, heightCm: Number(form.heightCm), weightKg: Number(form.weightKg) };
+    try {
+      if (onSave) await onSave(payload);
+    } catch (e) {
+      console.warn('[PersonalData] onSave handler failed', e);
+    }
+
+    try {
+      if (typeof sessionActions?.setUserProfile === 'function') {
+        await sessionActions.setUserProfile(payload);
+      }
+    } catch (e) {
+      console.warn('[PersonalData] setUserProfile failed', e);
+    }
   }
 
   if (isEditing) {

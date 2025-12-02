@@ -1,7 +1,7 @@
 import React from 'react';
 import { ScrollView, View, StyleSheet, Dimensions } from 'react-native';
 import { useTheme } from '@/src/shared/styles/useTheme';
-import { useRouter, usePathname } from 'expo-router';
+import { useRouter, usePathname, useFocusEffect } from 'expo-router';
 import ActivityHeader from '@/src/shared/ui/components/ActivityHeader';
 import ActivitySummaryCombined from '@/src/features/activity/ui/components/activities/today/cards/ActivitySummary';
 import ActivitiesToday from '@/src/features/activity/ui/components/activities/today/ActivitiesToday';
@@ -9,6 +9,10 @@ import StreakWidget from '@/src/features/activity/ui/components/activities/month
 import usePhysicalActivity from '@/src/features/activity/application/usePhysicalActivity';
 import * as activitiesLocalApi from '@/src/features/activity/infrastructure/activitiesApi';
 import { useCallback } from 'react';
+import { useSession } from '@/src/shared/hooks/useSession';
+import { useTodayISO } from '@/src/shared/hooks/useTodayISO';
+import { deletePhysicalActivityById } from '@/src/features/activity/infrastructure/activityGateway';
+import { emit as emitEvent } from '@/src/shared/utils/eventBus';
 
 export default function ActivityScreen() {
   const router = useRouter();
@@ -21,11 +25,51 @@ export default function ActivityScreen() {
   const styles = createStyles(s, theme);
 
   const { today, month } = usePhysicalActivity();
+  const [session] = useSession();
+  const todayISO = useTodayISO();
+  
+  // Store refetch functions in refs to avoid infinite loops
+  const todayRefetchRef = React.useRef(today.refetch);
+  const monthRefetchRef = React.useRef(month.refetch);
+  
+  React.useEffect(() => {
+    todayRefetchRef.current = today.refetch;
+    monthRefetchRef.current = month.refetch;
+  }, [today.refetch, month.refetch]);
+  
+  // Refetch data when screen comes into focus (e.g., after registering a new activity)
+  useFocusEffect(
+    React.useCallback(() => {
+      // Force refetch to get latest data from the server
+      todayRefetchRef.current({ force: true }).catch(() => {/* ignore */});
+      monthRefetchRef.current({ force: true }).catch(() => {/* ignore */});
+    }, [])
+  );
+
   const handleDeleteActivity = useCallback(async (id: string) => {
     try {
-      // Optimistic UI: delete from local storage so preview/dev flows still work
+      console.log('[Activity] handleDeleteActivity called with id:', id);
+      // Attempt remote delete when authenticated
+      if (session?.accessToken) {
+        try {
+          console.log('[Activity] attempting remote DELETE for id:', id);
+          await deletePhysicalActivityById(id, { token: session.accessToken, userId: session.sub });
+          console.log('[Activity] remote DELETE succeeded for id:', id);
+        } catch (e) {
+          console.warn('[Activity] remote DELETE failed for id:', id, e);
+          // ignore remote delete failures (we'll still remove local copy)
+        }
+      }
+
+      // Optimistic UI: delete from local storage
+      console.log('[Activity] deleting local copy for id:', id);
       await activitiesLocalApi.deleteActivityById(id);
-      // refetch today's list and month map to keep UI consistent
+
+      // Emit local event so subscribers can update immediately
+      try { emitEvent('activity:deleted', { id, day: todayISO }); } catch (e) { /* ignore */ }
+      console.log('[Activity] emitted activity:deleted for id:', id, 'day:', todayISO);
+
+      // refetch as a fallback to ensure server totals are consistent
       try { await today.refetch({ force: true }); } catch (e) { /* ignore */ }
       try { await month.refetch({ force: true }); } catch (e) { /* ignore */ }
     } catch (err) {

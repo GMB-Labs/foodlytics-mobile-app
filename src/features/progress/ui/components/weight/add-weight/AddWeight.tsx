@@ -5,7 +5,8 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import useTodayISO from '@/src/shared/hooks/useTodayISO';
 import useSession from '@/src/shared/hooks/useSession';
-import { postJSON } from '@/src/shared/utils/api';
+// putJSON removed: replaced by PATCH request to profiles/{userId}/weight
+import { API_BASE_URL } from '@/src/shared/constants/api';
 import useToast from '@/src/shared/hooks/useToast';
 import CalendarIcon from '@/assets/icons/activity/calendarIcon.svg'
 import ModalHeader from '@/src/shared/ui/components/ModalHeader';
@@ -39,11 +40,11 @@ export default function AddWeight() {
   const theme = colors as any;
   const styles = createStyles(theme);
 
-  // Previous weight (for demo - could be fetched from storage)
-  const previousWeight = 70.0;
-  const goalWeight = 65;
+  // Previous weight and goal from session if available
+  const previousWeight = typeof sessionState?.user?.weightKg === 'number' ? sessionState.user.weightKg : 70.0;
+  const goalWeight = (sessionState?.user as any)?.goalWeight ?? (sessionState?.user as any)?.desired_weight_kg ?? 65;
   const change = previousWeight - valueKg;
-  const remaining = valueKg - goalWeight;
+  const remaining = valueKg - (typeof goalWeight === 'number' ? goalWeight : 0);
 
   const formatDate = (iso: string) => {
     const [year, month, day] = iso.split('-');
@@ -60,14 +61,44 @@ export default function AddWeight() {
   const onSave = async () => {
     setSaving(true);
     try {
-      // Send to backend. Adjust endpoint as needed for your API.
-      await postJSON('/weights', { dateISO: todayISO, weightKg: valueKg });
+      const userId = sessionState?.sub;
+      const token = sessionState?.accessToken;
 
-      if (typeof sessionActions?.setUserProfile === 'function') {
-        sessionActions.setUserProfile({ weightKg: valueKg });
+      if (userId && token) {
+        try {
+          // New API: PATCH /api/v1/profiles/{user_id}/weight with { weight_kg }
+          const base = API_BASE_URL ? API_BASE_URL.replace(/\/$/, '') : '';
+          const url = `${base}/api/v1/profiles/${userId}/weight`;
+          const res = await fetch(url, {
+            method: 'PATCH',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({ weight_kg: valueKg }),
+          });
+
+          if (!res.ok) {
+            const text = await res.text().catch(() => '');
+            console.warn('[AddWeight] PATCH profile weight failed', res.status, text);
+          } else {
+            try {
+              const data = await res.json().catch(() => null);
+              console.log('[AddWeight] PATCH profile weight ok', { userId, weightKg: valueKg, data });
+            } catch (e) {
+              console.log('[AddWeight] PATCH profile weight ok (no json body)');
+            }
+          }
+        } catch (err: any) {
+          console.warn('[AddWeight] PUT weight-history failed', err?.message || err);
+        }
+      } else {
+        console.log('[AddWeight] no userId/accessToken available — skipping remote PUT');
       }
 
-      toast.show({ type: 'success', text: 'Peso enviado correctamente' });
+      if (typeof sessionActions?.setUserProfile === 'function') {
+        await sessionActions.setUserProfile({ weightKg: valueKg });
+      }
       // On success navigate to simple completion screen (no params required)
       router.replace('/modals/add-weight/complete');
     } catch (err: any) {

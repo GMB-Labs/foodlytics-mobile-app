@@ -7,6 +7,7 @@ import DailyGoals from '@/src/features/progress/ui/components/goals/DailyGoals';
 import WeeklyCompliance from '@/src/features/progress/ui/components/goals/evolution/WeeklyCompliance';
 import WeightEvolution from '@/src/features/progress/ui/components/weight/evolution/WeightEvolution';
 import WeightCard from '@/src/features/progress/ui/components/weight/WeightCard';
+import useSession from '@/src/shared/hooks/useSession';
 import { useRouter, usePathname } from 'expo-router';
 
 
@@ -18,6 +19,13 @@ export default function ProgressScreen() {
   // Placeholder data — real implementation should query progress/application layer
   const calories = 0;
   const minutes = 0;
+
+  // Read current profile from session
+  const [sessionState] = useSession();
+  const currentWeight = typeof sessionState?.user?.weightKg === 'number' ? sessionState.user.weightKg : undefined;
+  const desired = (sessionState?.user as any)?.goalWeight ?? (sessionState?.user as any)?.desired_weight_kg;
+  const goalType = (sessionState?.user as any)?.goalType;
+  const progressToGoal = typeof currentWeight === 'number' && typeof desired === 'number' ? Math.max(0, +(currentWeight - desired).toFixed(1)) : '';
 
   return (
     <View style={[styles.safe, { backgroundColor: theme.bg ?? '#F9FAFB' }]}>
@@ -34,10 +42,10 @@ export default function ProgressScreen() {
           {/* Top card: Peso y Progreso */}
           {/* Weight card component */}
           <WeightCard
-            weight={"69.0"}
+            weight={currentWeight ?? ''}
             unit="kg"
-            delta="1.0 kg"
-            progressToGoal={"4.0"}
+            goalType={goalType}
+            progressToGoal={progressToGoal}
             onRegisterPress={() => {
               const safeFrom = (() => {
                 if (!pathname || pathname === '/') return '/(tabs)';

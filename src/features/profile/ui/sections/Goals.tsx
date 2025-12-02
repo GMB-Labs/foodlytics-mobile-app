@@ -7,6 +7,8 @@ import ActivityIcon from "@/assets/icons/activity-icon.svg";
 import EditAction from '../components/EditAction';
 import { s } from "../tokens";
 import { useTheme } from '@/src/shared/styles/useTheme';
+import useSession from '@/src/shared/hooks/useSession';
+import { fetchCalorieTargetsCached } from '@/src/shared/api/profileGateway';
 
 type Props = {
   goalWeight: number;
@@ -25,13 +27,13 @@ const ACTIVITY_MAP: Array<{ key: string; label: string }> = [
   { key: 'light', label: 'Ligero' },
   { key: 'moderate', label: 'Moderado' },
   { key: 'active', label: 'Activo' },
-  { key: 'veryActive', label: 'Muy activo' },
+  { key: 'very_active', label: 'Muy activo' },
 ];
 
 const GOAL_TYPE_MAP: Array<{ key: string; label: string }> = [
   { key: 'definition', label: 'Definición' },
   { key: 'maintenance', label: 'Mantenimiento' },
-  { key: 'buling', label: 'Volumen' },
+  { key: 'bulking', label: 'Volumen' },
 ];
 
 function activityLabel(key?: string) {
@@ -67,13 +69,89 @@ export default React.memo(function Goals({
     }
   }, [isEditing, goalWeight, activity, dailyCalories]);
 
-  function save() {
-    onSave && onSave({
+  const [sessionState, sessionActions] = useSession();
+
+  function mapActivityKeyToBackend(key?: string) {
+    if (!key) return undefined;
+    const k = String(key).toLowerCase();
+    const mapping: Record<string, string> = {
+      sedentary: 'Sedentario',
+      light: 'Ligero',
+      moderate: 'Moderado',
+      active: 'Activo',
+      veryactive: 'muy_activo',
+      'veryActive': 'muy_activo',
+      'very_active': 'muy_activo',
+    };
+    return mapping[k] || key;
+  }
+
+  function mapGoalKeyToBackend(key?: string) {
+    if (!key) return undefined;
+    const k = String(key).toLowerCase();
+    if (k.includes('defin')) return 'definition';
+    if (k.includes('maint')) return 'maintenance';
+    if (k.includes('bulk')) return 'bulking';
+    return key;
+  }
+
+  async function save() {
+    const payload = {
       goalWeight: Number(form.goalWeight),
       activity: form.activity,
       dailyCalories: Number(form.dailyCalories),
       goalType: form.goalType,
-    });
+    };
+
+    // Map to backend-acceptable values before persisting
+    const apiActivity = mapActivityKeyToBackend(payload.activity) ?? payload.activity;
+    const apiGoalType = mapGoalKeyToBackend(payload.goalType) ?? payload.goalType;
+
+    const apiPayload = {
+      goalWeight: payload.goalWeight,
+      activity: apiActivity,
+      dailyCalories: payload.dailyCalories,
+      goalType: apiGoalType,
+    };
+
+    try {
+      if (onSave) await onSave(apiPayload);
+    } catch (e) {
+      console.warn('[Goals] onSave handler failed', e);
+    }
+
+    try {
+      if (typeof sessionActions?.setUserProfile === 'function') {
+        // Persist keys used by Session: store API-format values so other parts read the same values
+        await sessionActions.setUserProfile({
+          goalWeight: apiPayload.goalWeight,
+          activity: apiPayload.activity,
+          goalType: apiPayload.goalType,
+          dailyCalories: apiPayload.dailyCalories,
+        });
+      }
+      // also refresh profile from server and force reload calorie-targets so UI updates
+      try {
+        await sessionActions.refreshProfileAndUpdateCompletion();
+      } catch (e) {
+        // ignore
+      }
+      try {
+        const patientId = sessionState?.sub;
+        const token = sessionState?.accessToken ?? undefined;
+        if (patientId) await fetchCalorieTargetsCached({ patientId, token, force: true });
+        // mark session so DailyGoals knows to refetch (immediate UI update)
+        try {
+          await sessionActions.setUserProfile({ calorieTargetsRefreshedAt: Date.now() });
+        } catch (er) {
+          // ignore
+        }
+      } catch (e) {
+        // ignore
+      }
+    } catch (e) {
+      console.warn('[Goals] setUserProfile failed', e);
+    }
   }
 
   if (isEditing) {

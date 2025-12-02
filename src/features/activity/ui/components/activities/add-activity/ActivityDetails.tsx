@@ -13,6 +13,7 @@ import { useSession } from '@/src/shared/hooks/useSession';
 import { postJSON } from '@/src/shared/utils/api';
 import { API_BASE_URL } from '@/src/shared/constants/api';
 import { ASYNC_STORAGE_KEYS } from '@/src/shared/constants/storage';
+const STORAGE_KEY = ASYNC_STORAGE_KEYS.ACTIVITIES;
 
 type Intensity = 'Baja' | 'Moderada' | 'Alta';
 const INTENSITY_LEVELS: Intensity[] = ['Baja', 'Moderada', 'Alta'];
@@ -148,7 +149,6 @@ export default function ActivityDetails() {
 
             serverAiBurnResp = parsed;
             // backend accepted — show lightweight feedback
-            toast.show({ type: 'success', text: 'Actividad registrada en servidor' });
             // log full server response for debugging (calories_burned etc.)
             console.log('[ActivityDetails] ai-burn response parsed', JSON.stringify(serverAiBurnResp, null, 2));
           } catch (fetchErr) {
@@ -156,7 +156,6 @@ export default function ActivityDetails() {
             try {
               console.warn('[ActivityDetails] debug fetch failed, falling back to postJSON', fetchErr);
               serverAiBurnResp = await postJSON('/api/v1/physical-activity/ai-burn', payload, { baseUrl: API_BASE_URL, token: session?.accessToken ?? undefined });
-              toast.show({ type: 'success', text: 'Actividad registrada en servidor' });
               console.log('[ActivityDetails] ai-burn response (postJSON)', JSON.stringify(serverAiBurnResp, null, 2));
             } catch (postErr2) {
               const errAny: any = postErr2;
@@ -212,6 +211,21 @@ export default function ActivityDetails() {
 
         existing.push(entry);
         await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(existing));
+
+        try {
+          // Notify in-app listeners that a new activity was added so UI widgets
+          // (like the streak heatmap) can update immediately without a full refetch.
+          // Payload includes day, minutes, calories and type/name.
+          const { emit } = await import('@/src/shared/utils/eventBus');
+          emit('activity:added', {
+            day: todayISO,
+            minutes: duration,
+            calories: finalCalories,
+            name: finalType,
+          });
+        } catch (e) {
+          // best-effort, ignore errors
+        }
       } catch (e) {
         // best-effort persistence, ignore errors
         console.warn('save activity to AsyncStorage failed', e);
